@@ -1,0 +1,557 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum Role {
+  SALES
+  PROCUREMENT
+  FINANCE
+  ADMIN
+}
+
+enum CompanyType {
+  PROSPECT
+  CLIENT
+  VENDOR
+}
+
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InteractionStatus {
+  FOLLOW_UP_SCHEDULED
+  CLOSED
+}
+
+enum OpportunityStatus {
+  OPEN
+  CLOSED_WON
+  CLOSED_LOST
+  FULFILLED
+}
+
+enum ProjectStatus {
+  SOURCING
+  COMPLETED
+}
+
+enum SampleStatus {
+  REQUESTED
+  SENT
+  RECEIVED
+  UNDER_REVIEW
+  Result_APPROVED_INTERNAL // "Internal Approved"
+  SENT_TO_CLIENT           // "Sent to Client"
+  CLIENT_APPROVED          // "Client Approved"
+  CLIENT_REJECTED          // "Client Rejected"
+  Result_REJECTED          // "Rejected" (Internal)
+}
+
+enum SalesOrderStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  PENDING
+  IN_PROGRESS
+  IN_TRANSIT
+  RECEIVED
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+enum BillStatus {
+  DRAFT
+  APPROVED
+  PAID
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+// Models
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          Role      @default(SALES)
+  accounts      Account[]
+  sessions      Session[]
+
+  interactions InteractionLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Audit Logs
+  createdCompanies Company[] @relation("CreatedBy")
+  updatedCompanies Company[] @relation("UpdatedBy")
+  createdOpportunities SalesOpportunity[] @relation("CreatedBy")
+  updatedOpportunities SalesOpportunity[] @relation("UpdatedBy") 
+  createdProjects ProcurementProject[] @relation("CreatedBy")
+  updatedProjects ProcurementProject[] @relation("UpdatedBy")
+  createdSamples SampleRecord[] @relation("CreatedBy")
+  updatedSamples SampleRecord[] @relation("UpdatedBy")
+  createdOrders SalesOrder[] @relation("CreatedBy")
+  updatedOrders SalesOrder[] @relation("UpdatedBy")
+  createdPurchaseOrders PurchaseOrder[] @relation("CreatedBy")
+  updatedPurchaseOrders PurchaseOrder[] @relation("UpdatedBy")
+  createdInvoices Invoice[] @relation("CreatedBy")
+  updatedInvoices Invoice[] @relation("UpdatedBy")
+  createdBills Bill[] @relation("CreatedBy")
+  updatedBills Bill[] @relation("UpdatedBy")
+  createdTransactions Transaction[] @relation("CreatedBy")
+  updatedTransactions Transaction[] @relation("UpdatedBy")
+  createdShipments Shipment[] @relation("CreatedBy")
+  updatedShipments Shipment[] @relation("UpdatedBy")
+  createdGRNs GRN[] @relation("CreatedBy")
+  updatedGRNs GRN[] @relation("UpdatedBy")
+}
+
+model Account {
+  id                 String  @id @default(uuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Invitation {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  token     String   @unique
+  role      Role     @default(SALES)
+  status    String   @default("PENDING") // PENDING, ACCEPTED
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TrustLevel {
+  UNRATED
+  LOW
+  MEDIUM
+  HIGH
+  VERIFIED
+}
+
+model Company {
+  id        String        @id @default(uuid())
+  name      String
+  type      CompanyType
+  phone     String?
+  email     String?
+  country   Country? @relation(fields: [countryId], references: [id])
+  countryId String?
+  state     State?   @relation(fields: [stateId], references: [id])
+  stateId   String?
+  city      City?    @relation(fields: [cityId], references: [id])
+  cityId    String?
+
+  trustLevel TrustLevel   @default(UNRATED)
+  status    CompanyStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relations
+  interactions      InteractionLog[]
+  salesOpportunities SalesOpportunity[] // As Client/Prospect
+  projectVendors    ProjectVendor[]    // As Vendor
+  salesOrders       SalesOrder[]       // As Client
+  purchaseOrders    PurchaseOrder[]    // As Vendor
+  bills             Bill[]             // As Vendor
+  sampleRecords     SampleRecord[]     // Samples provided
+  commodities       Commodity[]
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model Country {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  states    State[]
+  companies Company[]
+}
+
+model State {
+  id        String   @id @default(uuid())
+  name      String
+  countryId String
+  country   Country  @relation(fields: [countryId], references: [id])
+  cities    City[]
+  companies Company[]
+
+  @@unique([name, countryId])
+}
+
+model City {
+  id        String   @id @default(uuid())
+  name      String
+  stateId   String
+  state     State    @relation(fields: [stateId], references: [id])
+  companies Company[]
+
+  @@unique([name, stateId])
+}
+
+model Commodity {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  yieldPercentage Float @default(100.0) // Percentage yield (e.g. 25.0 for 25%)
+  companies         Company[]
+  salesOpportunities SalesOpportunity[]
+  procurementProjects ProcurementProject[]
+}
+
+model Product {
+  id   String @id @default(uuid())
+  name String @unique
+}
+
+model InteractionLog {
+  id           String            @id @default(uuid())
+  companyId    String
+  userId       String
+  description  String
+  date         DateTime          @default(now())
+  nextFollowUp DateTime?
+  status       InteractionStatus @default(FOLLOW_UP_SCHEDULED)
+  
+  company Company @relation(fields: [companyId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+enum OpportunityType {
+  ONE_TIME
+  RECURRING
+}
+
+enum RecurringFrequency {
+  WEEKLY
+  MONTHLY
+}
+
+enum OpportunityPriceType {
+  PER_KG
+  PER_MT
+  TOTAL_AMOUNT
+}
+
+model SalesOpportunity {
+  id                 String            @id @default(uuid())
+  companyId          String
+  productName        String
+  targetPrice        Decimal?
+  priceType          OpportunityPriceType @default(PER_KG)
+  quantity           Decimal?
+  procurementQuantity Decimal?       // Calculated raw material needed based on yield
+  deadline           DateTime?
+  status             OpportunityStatus @default(OPEN)
+  type               OpportunityType   @default(ONE_TIME)
+  recurringFrequency RecurringFrequency?
+  notes              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  // Bridge to Procurement
+  procurementProjectId String?
+
+  company            Company             @relation(fields: [companyId], references: [id])
+  procurementProject ProcurementProject? @relation(fields: [procurementProjectId], references: [id])
+  commodity          Commodity?          @relation(fields: [commodityId], references: [id])
+  commodityId        String?
+  salesOrders        SalesOrder[]
+  sampleSubmissions  SampleSubmission[]
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model ProcurementProject {
+  id        String        @id @default(uuid())
+  name      String        // e.g. "Banana Powder Sourcing"
+  status    ProjectStatus @default(SOURCING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  salesOpportunities SalesOpportunity[]
+  projectVendors     ProjectVendor[]
+  samples            SampleRecord[]
+  purchaseOrders     PurchaseOrder[]
+  commodity          Commodity?    @relation(fields: [commodityId], references: [id])
+  commodityId        String?
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model ProjectVendor {
+  id        String @id @default(uuid())
+  projectId String
+  vendorId  String
+
+  project ProcurementProject @relation(fields: [projectId], references: [id])
+  vendor  Company            @relation(fields: [vendorId], references: [id])
+
+  @@unique([projectId, vendorId])
+}
+
+model SampleRecord {
+  id            String       @id @default(uuid())
+  projectId     String
+  vendorId      String
+  receivedDate  DateTime?    // Changed to optional as it's not received yet
+  notes         String?      // Instructions for the vendor (Requested notes)
+  qualityNotes  String?      // Notes from procurement team (Visual inspection etc)
+  feedback      String?      // Internal feedback/review notes
+  qualityStats  Json?        // Stores structured data if needed
+  priceQuoted   Decimal?
+  priceUnit     OpportunityPriceType @default(PER_KG)
+  images        String[]     // Multi-image support
+  status        SampleStatus @default(REQUESTED)
+
+  project ProcurementProject @relation(fields: [projectId], references: [id])
+  vendor  Company            @relation(fields: [vendorId], references: [id])
+
+  purchaseOrders PurchaseOrder[] 
+  submissions    SampleSubmission[]
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model SampleSubmission {
+  id            String       @id @default(uuid())
+  sampleId      String
+  opportunityId String
+  status        SampleStatus @default(SENT_TO_CLIENT)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  sample      SampleRecord     @relation(fields: [sampleId], references: [id])
+  opportunity SalesOpportunity @relation(fields: [opportunityId], references: [id])
+
+  @@unique([sampleId, opportunityId])
+}
+
+model SalesOrder {
+  id            String           @id @default(uuid())
+  opportunityId String
+  clientId      String
+  totalAmount   Decimal
+  status        SalesOrderStatus @default(CONFIRMED)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  opportunity SalesOpportunity @relation(fields: [opportunityId], references: [id])
+  client      Company          @relation(fields: [clientId], references: [id])
+  invoices    Invoice[]
+  transactions Transaction[]
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model PurchaseOrder {
+  id          String              @id @default(uuid())
+  projectId   String
+  vendorId    String
+  sampleId    String? // Link to the approved sample
+  quantity    Decimal? // NEW: Explicit quantity
+  quantityUnit String? @default("MT") // NEW: Unit
+  totalAmount Decimal
+  status      PurchaseOrderStatus @default(DRAFT)
+  pdfUrl      String? // URL to the attached PO PDF
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  project ProcurementProject @relation(fields: [projectId], references: [id])
+  vendor  Company            @relation(fields: [vendorId], references: [id])
+  sample  SampleRecord?      @relation(fields: [sampleId], references: [id])
+  bills   Bill[]
+  shipments Shipment[]
+  grn       GRN?
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  salesOrderId  String
+  totalAmount   Decimal
+  pendingAmount Decimal
+  dueDate       DateTime?
+  status        InvoiceStatus @default(UNPAID)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  salesOrder SalesOrder    @relation(fields: [salesOrderId], references: [id])
+  transactions Transaction[]
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model Bill {
+  id              String     @id @default(uuid())
+  purchaseOrderId String
+  vendorId        String
+  invoiceNumber   String?
+  totalAmount     Decimal
+  pendingAmount   Decimal    @default(0) // Will be initialized to totalAmount
+  dueDate         DateTime?
+  status          BillStatus @default(DRAFT)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  vendor        Company       @relation(fields: [vendorId], references: [id])
+  transactions  Transaction[]
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  type        TransactionType
+  amount      Decimal
+  date        DateTime        @default(now())
+  description String?
+  category    String?
+  
+  // Polymorphic-like relations (one should be set)
+  invoiceId   String?
+  billId      String?
+  salesOrderId String? // Link expense directly to a deal
+
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+  bill    Bill?    @relation(fields: [billId], references: [id])
+  salesOrder SalesOrder? @relation(fields: [salesOrderId], references: [id])
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model Shipment {
+  id              String   @id @default(uuid())
+  purchaseOrderId String   @unique // One active shipment per PO usually, or 1:N? Let's assume 1:1 for now or 1:N? PO can be split? Plan said 1:N implied but let's keep simple.
+  carrier         String?
+  trackingNumber  String?
+  eta             DateTime?
+  status          String   @default("IN_TRANSIT") // IN_TRANSIT, DELIVERED
+  actualDeliveryDate DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model GRN {
+  id              String   @id @default(uuid())
+  purchaseOrderId String   @unique // 1:1 for simplicity initially (Full receipt) or allow partials? Let's stick to 1:1 for this version as per plan (triggers RECEIVED).
+  receivedDate    DateTime @default(now())
+  receivedBy      String?
+  
+  // Quantities
+  totalReceivedQuantity Decimal
+  rejectedQuantity      Decimal @default(0)
+  acceptedQuantity      Decimal // Calculated
+
+  // Quality
+  qualityCheckStatus String // PENDING, PASSED, FAILED
+  notes              String?
+  images             String[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
