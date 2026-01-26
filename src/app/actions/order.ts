@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { SalesOrderStatus } from "@prisma/client";
 import { auth } from "@/auth";
+import { logActivity } from "./audit";
 
 export async function createSalesOrder(opportunityId: string) {
     try {
@@ -64,6 +65,15 @@ export async function createSalesOrder(opportunityId: string) {
         await prisma.salesOpportunity.update({
             where: { id: opportunity.id },
             data: { status: 'CLOSED_WON' }
+        });
+
+        // Log Activity
+        await logActivity({
+            action: "CREATE",
+            entityType: "SalesOrder",
+            entityId: salesOrder.id,
+            entityTitle: `Order #${salesOrder.id.slice(0, 8).toUpperCase()}`,
+            details: `Created sales order for ${opportunity.company.name} - ₹${totalAmount.toLocaleString()}`
         });
 
         revalidatePath("/opportunities");
@@ -291,6 +301,14 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
                     }
                 }
             }
+        });
+
+        await logActivity({
+            action: "STATUS_CHANGE",
+            entityType: "SalesOrder",
+            entityId: order.id,
+            entityTitle: `Order #${order.id.slice(0, 8).toUpperCase()}`,
+            details: `Changed status to ${status}`
         });
 
         // Trigger Procurement Creation if IN_PROGRESS and Project doesn't exist (or isn't a Fulfillment project)

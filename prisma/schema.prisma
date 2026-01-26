@@ -134,6 +134,24 @@ model User {
   updatedShipments Shipment[] @relation("UpdatedBy")
   createdGRNs GRN[] @relation("CreatedBy")
   updatedGRNs GRN[] @relation("UpdatedBy")
+  createdInteractions InteractionLog[] @relation("CreatedInteraction")
+  updatedInteractions InteractionLog[] @relation("UpdatedInteraction")
+  
+  activities  ActivityLog[]
+  todos       Todo[]
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  action      String   // e.g. "CREATE", "UPDATE", "STATUS_CHANGE"
+  entityType  String   // e.g. "SalesOrder", "Invoice"
+  entityId    String   
+  entityTitle String?  // Human readable title e.g. "Order #123"
+  details     String?  // Description of change
+  userId      String
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
 }
 
 model Account {
@@ -277,6 +295,13 @@ model InteractionLog {
   
   company Company @relation(fields: [companyId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt @default(now())
+  createdById String?
+  updatedById String?
+  createdBy   User?    @relation("CreatedInteraction", fields: [createdById], references: [id])
+  updatedBy   User?    @relation("UpdatedInteraction", fields: [updatedById], references: [id])
 }
 
 enum OpportunityType {
@@ -554,4 +579,29 @@ model GRN {
   updatedById String?
   createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
   updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model Todo {
+  id        String      @id @default(uuid())
+  content   String
+  status    TodoStatus  @default(PENDING)
+  priority  TodoPriority @default(MEDIUM)
+  
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+enum TodoStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TodoPriority {
+  LOW
+  MEDIUM
+  HIGH
 }

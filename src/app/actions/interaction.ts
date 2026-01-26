@@ -102,7 +102,9 @@ export async function getInteractions(filters?: {
                 take: limit,
                 include: {
                     company: true,
-                    user: true
+                    user: true,
+                    createdBy: { select: { name: true } },
+                    updatedBy: { select: { name: true } }
                 }
             }),
             prisma.interactionLog.count({ where })

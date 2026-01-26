@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { logActivity } from "./audit";
 
 // --- Types ---
 export type ShipmentData = {
@@ -48,6 +49,14 @@ export async function createShipment(data: ShipmentData) {
             data: { status: 'IN_TRANSIT' }
         });
 
+        await logActivity({
+            action: "CREATE",
+            entityType: "Shipment",
+            entityId: shipment.id,
+            entityTitle: `Shipment for PO #${data.purchaseOrderId.slice(0, 8).toUpperCase()}`,
+            details: `Created shipment via ${data.carrier || "Unknown"}`
+        });
+
         revalidatePath(`/purchase-orders/${data.purchaseOrderId}`);
         return { success: true, data: shipment };
     } catch (error) {
@@ -66,6 +75,15 @@ export async function updateShipmentStatus(id: string, status: string) {
                 updatedById: session?.user?.id
             }
         });
+
+        await logActivity({
+            action: "STATUS_CHANGE",
+            entityType: "Shipment",
+            entityId: id,
+            entityTitle: `Shipment`,
+            details: `Updated shipment status to ${status}`
+        });
+
         revalidatePath('/logistics');
         return { success: true };
     } catch (error) {
@@ -179,6 +197,8 @@ export async function getShipments(filters?: {
                 skip,
                 take: limit,
                 include: {
+                    createdBy: { select: { name: true } },
+                    updatedBy: { select: { name: true } },
                     purchaseOrder: {
                         include: {
                             project: true,

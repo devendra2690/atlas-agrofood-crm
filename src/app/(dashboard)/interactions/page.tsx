@@ -8,9 +8,12 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { InteractionRow } from "./_components/interaction-row";
 import { InteractionFilters } from "./_components/interaction-filters";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+import { format } from "date-fns";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export default async function InteractionsPage({
     searchParams,
@@ -58,18 +61,50 @@ export default async function InteractionsPage({
                             <TableRow>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Company</TableHead>
-                                <TableHead>User</TableHead>
                                 <TableHead>Description</TableHead>
                                 <TableHead>Status</TableHead>
+                                <TableHead>Logged By</TableHead>
+                                <TableHead>Created By</TableHead>
+                                <TableHead>Updated By</TableHead>
+                                <TableHead>Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {interactions?.map((interaction) => (
-                                <InteractionRow key={interaction.id} interaction={interaction} />
+                                <TableRow key={interaction.id}>
+                                    <TableCell>{format(new Date(interaction.date), "MMM d, yyyy")}</TableCell>
+                                    <TableCell>
+                                        <Link href={`/companies/${interaction.company.id}`} className="font-medium hover:underline text-blue-600">
+                                            {interaction.company.name}
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell>{interaction.description}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={interaction.status === 'CLOSED' ? "secondary" : "default"}>
+                                            {interaction.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        {interaction.user?.name || "Unknown"}
+                                    </TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">
+                                        {interaction.createdBy?.name || "-"}
+                                        <br />
+                                        {format(new Date(interaction.createdAt || new Date()), "MMM d, HH:mm")}
+                                    </TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">
+                                        {interaction.updatedBy?.name || "-"}
+                                        <br />
+                                        {format(new Date(interaction.updatedAt || new Date()), "MMM d, HH:mm")}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button variant="ghost" size="sm">Edit</Button>
+                                    </TableCell>
+                                </TableRow>
                             ))}
                             {(!interactions || interactions.length === 0) && (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                    <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
                                         No interactions found.
                                     </TableCell>
                                 </TableRow>

@@ -17,17 +17,23 @@ import {
     DollarSign,
     Settings,
     Truck,
-    LogOut
+    LogOut,
+    Activity,
+    ClipboardList,
+    Menu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { logout } from "@/app/actions/auth-actions";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useState } from "react";
 
 const sidebarItems = [
     {
         title: "Overview",
         items: [
             { name: "Dashboard", href: "/", icon: LayoutDashboard },
+            { name: "Activity", href: "/activity", icon: Activity },
         ]
     },
     {
@@ -57,6 +63,12 @@ const sidebarItems = [
             { name: "Profitability", href: "/finance", icon: DollarSign },
         ]
     },
+    {
+        title: "Collaboration",
+        items: [
+            { name: "Shared Notes", href: "/notes", icon: ClipboardList },
+        ]
+    },
 ];
 
 interface SidebarProps {
@@ -66,20 +78,21 @@ interface SidebarProps {
         image?: string | null;
         role?: string;
     };
+    className?: string; // Add className prop
 }
 
-export function Sidebar({ user }: SidebarProps) {
-    const pathname = usePathname();
-
+function SidebarContent({ user, pathname, onNavigate }: { user?: any, pathname: string, onNavigate?: () => void }) {
     return (
-        <div className="flex bg-slate-900 text-white w-64 flex-col h-screen fixed left-0 top-0 border-r border-slate-800">
-            <div className="p-6 border-b border-slate-800">
-                <h1 className="text-2xl font-bold tracking-tight text-white/90">
-                    Atlas<span className="text-blue-500">CRM</span>
-                </h1>
+        <div className="flex flex-col h-full w-full bg-slate-900 text-white overflow-hidden">
+            <div className="p-6 border-b border-slate-800 shrink-0">
+                <Link href="/" className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold tracking-tight text-white/90">
+                        Atlas<span className="text-blue-500">CRM</span>
+                    </h1>
+                </Link>
             </div>
 
-            <div className="flex-1 overflow-y-auto py-4">
+            <div className="flex-1 overflow-y-auto pt-4 pb-24 overscroll-contain">
                 {sidebarItems.map((group, i) => (
                     <div key={i} className="mb-6 px-4">
                         <h3 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -87,22 +100,46 @@ export function Sidebar({ user }: SidebarProps) {
                         </h3>
                         <div className="space-y-1">
                             {group.items.map((item) => (
-                                <SidebarItem key={item.href} item={item} pathname={pathname} />
+                                <SidebarItem key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
                             ))}
                         </div>
                     </div>
                 ))}
-
-
             </div>
-
-            {/* User Profile & Logout - MOVED TO HEADER */}
-
+            {/* User info can be added here if needed */}
         </div>
     );
 }
 
-function SidebarItem({ item, pathname }: { item: any, pathname: string }) {
+export function Sidebar({ user, className }: SidebarProps) {
+    const pathname = usePathname();
+
+    return (
+        <div className={cn("hidden md:flex w-64 flex-col h-screen fixed left-0 top-0 border-r border-slate-800", className)}>
+            <SidebarContent user={user} pathname={pathname} />
+        </div>
+    );
+}
+
+export function MobileSidebar({ user }: SidebarProps) {
+    const pathname = usePathname();
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden -ml-2">
+                    <Menu className="h-6 w-6" />
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-72 bg-slate-900 border-r-slate-800 text-white">
+                <SidebarContent user={user} pathname={pathname} onNavigate={() => setOpen(false)} />
+            </SheetContent>
+        </Sheet>
+    );
+}
+
+function SidebarItem({ item, pathname, onNavigate }: { item: any, pathname: string, onNavigate?: () => void }) {
     const isActive = item.href === "/"
         ? pathname === "/"
         : pathname.startsWith(item.href);
@@ -114,6 +151,7 @@ function SidebarItem({ item, pathname }: { item: any, pathname: string }) {
                 "flex items-center rounded-md px-2 py-2 text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white",
                 isActive ? "bg-blue-600 text-white hover:bg-blue-700" : "text-slate-300"
             )}
+            onClick={onNavigate}
         >
             <item.icon className="mr-2 h-4 w-4" />
             {item.name}

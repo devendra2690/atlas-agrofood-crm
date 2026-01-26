@@ -238,6 +238,8 @@ export async function getOpportunities(filters?: {
                 include: {
                     company: true,
                     commodity: true, // NEW
+                    createdBy: { select: { name: true } },
+                    updatedBy: { select: { name: true } },
                     sampleSubmissions: {
                         include: {
                             sample: {

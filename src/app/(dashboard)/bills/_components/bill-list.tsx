@@ -58,6 +58,14 @@ export function BillList({ bills }: BillListProps) {
                                     <span className="text-muted-foreground">Vendor</span>
                                     <span className="font-medium">{bill.vendor.name}</span>
                                 </div>
+                                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                                    <span>Created By</span>
+                                    <span>{bill.createdBy?.name || "-"}</span>
+                                </div>
+                                <div className="flex justify-between text-xs text-muted-foreground mb-3">
+                                    <span>Updated By</span>
+                                    <span>{bill.updatedBy?.name || "-"}</span>
+                                </div>
                                 <div className="flex justify-between text-sm mb-3">
                                     <span className="text-muted-foreground">PO Ref</span>
                                     <Link href={`/purchase-orders/${bill.purchaseOrderId}`} className="flex items-center hover:underline text-blue-600">

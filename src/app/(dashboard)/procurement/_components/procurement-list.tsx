@@ -54,14 +54,15 @@ export function ProcurementList({ projects, commodities = [] }: ProcurementListP
                     <TableHead>Status</TableHead>
                     <TableHead>Linked Opportunities</TableHead>
                     <TableHead>Vendors</TableHead>
-                    <TableHead className="text-right">Created</TableHead>
+                    <TableHead>Created By</TableHead>
+                    <TableHead>Updated By</TableHead>
                     <TableHead></TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {projects.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                             No active sourcing projects. Create one to get started.
                         </TableCell>
                     </TableRow>
@@ -104,8 +105,15 @@ export function ProcurementList({ projects, commodities = [] }: ProcurementListP
                                     {project._count.projectVendors}
                                 </div>
                             </TableCell>
-                            <TableCell className="text-right text-muted-foreground text-sm">
-                                {format(new Date(project.createdAt), "MMM d, yyyy")}
+                            <TableCell className="text-xs text-muted-foreground">
+                                {project.createdBy?.name || "-"}
+                                <br />
+                                {format(new Date(project.createdAt), "MMM d, HH:mm")}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                                {project.updatedBy?.name || "-"}
+                                <br />
+                                {format(new Date(project.updatedAt), "MMM d, HH:mm")}
                             </TableCell>
                             <TableCell className="text-right">
                                 <DropdownMenu>

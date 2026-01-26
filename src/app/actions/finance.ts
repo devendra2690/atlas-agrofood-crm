@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { Decimal } from "@prisma/client/runtime/library";
 import { auth } from "@/auth";
+import { logActivity } from "./audit";
 
 // --- Types ---
 export type CreateInvoiceData = {
@@ -38,7 +39,9 @@ export async function getBills(filters?: {
                 skip,
                 take: limit,
                 include: {
-                    vendor: true
+                    vendor: true,
+                    createdBy: { select: { name: true } },
+                    updatedBy: { select: { name: true } }
                 }
             }),
             prisma.bill.count({ where })
@@ -88,6 +91,8 @@ export async function getInvoices(filters?: {
                 skip,
                 take: limit,
                 include: {
+                    createdBy: { select: { name: true } },
+                    updatedBy: { select: { name: true } },
                     salesOrder: {
                         include: {
                             client: true,
@@ -151,6 +156,14 @@ export async function createInvoice(data: CreateInvoiceData) {
             totalAmount: invoice.totalAmount.toNumber(),
             pendingAmount: invoice.pendingAmount.toNumber()
         };
+
+        await logActivity({
+            action: "CREATE",
+            entityType: "Invoice",
+            entityId: invoice.id,
+            entityTitle: `Invoice #${invoice.id.slice(0, 8).toUpperCase()}`,
+            details: `Created invoice - ₹${safeInvoice.totalAmount.toLocaleString()}`
+        });
 
         revalidatePath('/invoices');
         revalidatePath(`/sales-orders/${data.salesOrderId}`);
@@ -270,6 +283,14 @@ export async function recordInvoicePayment(data: { invoiceId: string; amount: nu
             })
         ]);
 
+        await logActivity({
+            action: "PAYMENT",
+            entityType: "Invoice",
+            entityId: invoice.id,
+            entityTitle: `Invoice #${invoice.id.slice(0, 8).toUpperCase()}`,
+            details: `Recorded payment of ₹${data.amount.toLocaleString()}. Status: ${newStatus}`
+        });
+
         revalidatePath('/invoices');
         revalidatePath(`/sales-orders/${invoice.salesOrderId}`);
         return { success: true };
@@ -295,16 +316,6 @@ export async function recordBillPayment(data: { billId: string; amount: number; 
         }
 
         const newPendingAmount = bill.pendingAmount.minus(paymentAmount);
-        const newStatus = newPendingAmount.lte(0) ? 'PAID' : 'APPROVED'; // Assuming APPROVED is intermediate for bills, or just PARTIAL? Enum says DRAFT, APPROVED, PAID. Let's use APPROVED as "Open/Partial" logic or stick to PAID?
-        // Actually enum is DRAFT, APPROVED, PAID. 
-        // If pending > 0, it should probably be APPROVED (accepted) or we need a PARTIAL status. 
-        // For now, let's say if it was DRAFT, it moves to APPROVED if partial, or PAID if full. 
-        // Or if it was APPROVED, it stays APPROVED if partial.
-
-        // Let's refine status logic:
-        // If newPending <= 0 -> PAID
-        // If current is DRAFT -> APPROVED (Partial)
-        // Else keep current (APPROVED)
 
         let nextStatus = bill.status;
         if (newPendingAmount.lte(0)) {
@@ -334,6 +345,14 @@ export async function recordBillPayment(data: { billId: string; amount: number; 
                 }
             })
         ]);
+
+        await logActivity({
+            action: "PAYMENT",
+            entityType: "Bill",
+            entityId: bill.id,
+            entityTitle: `Bill #${bill.invoiceNumber || bill.id.slice(0, 8).toUpperCase()}`,
+            details: `Recorded payment of ₹${data.amount.toLocaleString()}. Status: ${nextStatus}`
+        });
 
         revalidatePath('/bills');
         revalidatePath(`/purchase-orders/${bill.purchaseOrderId}`);

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ProjectStatus, PurchaseOrderStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { logActivity } from "./audit";
 
 export type ProcurementProjectFormData = {
     name: string;
@@ -67,6 +68,8 @@ export async function getProcurementProjects(filters?: {
                 skip,
                 take: limit,
                 include: {
+                    createdBy: { select: { name: true } },
+                    updatedBy: { select: { name: true } },
                     _count: {
                         select: {
                             projectVendors: true,
@@ -696,6 +699,14 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
             revalidatePath("/logistics");
         }
 
+        await logActivity({
+            action: "STATUS_CHANGE",
+            entityType: "PurchaseOrder",
+            entityId: id,
+            entityTitle: `PO #${id.slice(0, 8).toUpperCase()}`,
+            details: `Changed status to ${status}`
+        });
+
         revalidatePath('/purchase-orders');
         revalidatePath(`/purchase-orders/${id}`);
         revalidatePath(`/procurement/${order.projectId}`); // Refresh project page to show status
@@ -729,6 +740,14 @@ export async function createBill(data: {
                 status: 'DRAFT',
                 pendingAmount: data.totalAmount // Initialize pending amount
             }
+        });
+
+        await logActivity({
+            action: "CREATE",
+            entityType: "Bill",
+            entityId: bill.id,
+            entityTitle: `Bill #${invoiceNumber}`,
+            details: `Created bill for PO #${data.purchaseOrderId.slice(0, 8).toUpperCase()} - ₹${data.totalAmount.toLocaleString()}`
         });
 
         revalidatePath(`/purchase-orders/${data.purchaseOrderId}`);
@@ -792,6 +811,14 @@ export async function createManualPurchaseOrder(data: {
                 quantity: data.quantity,
                 quantityUnit: data.quantityUnit
             }
+        });
+
+        await logActivity({
+            action: "CREATE",
+            entityType: "PurchaseOrder",
+            entityId: order.id,
+            entityTitle: `PO #${order.id.slice(0, 8).toUpperCase()}`,
+            details: `Created manual PO - ₹${data.totalAmount.toLocaleString()}`
         });
 
         revalidatePath("/purchase-orders");

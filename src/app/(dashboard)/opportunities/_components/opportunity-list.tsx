@@ -87,7 +87,8 @@ export function OpportunityList({ opportunities, companies }: OpportunityListPro
                     <TableHead>Value</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Deadline</TableHead>
-                    <TableHead className="text-right">Created</TableHead>
+                    <TableHead>Created By</TableHead>
+                    <TableHead>Updated By</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
@@ -170,8 +171,15 @@ export function OpportunityList({ opportunities, companies }: OpportunityListPro
                                         <span className="text-muted-foreground text-xs">-</span>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-right text-sm text-muted-foreground">
-                                    {format(new Date(opp.createdAt), "MMM d")}
+                                <TableCell className="text-xs text-muted-foreground">
+                                    {opp.createdBy?.name || "-"}
+                                    <br />
+                                    {format(new Date(opp.createdAt), "MMM d, HH:mm")}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">
+                                    {opp.updatedBy?.name || "-"}
+                                    <br />
+                                    {format(new Date(opp.updatedAt), "MMM d, HH:mm")}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div onClick={(e) => e.stopPropagation()}>

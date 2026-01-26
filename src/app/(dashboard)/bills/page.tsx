@@ -74,38 +74,40 @@ export default async function BillsPage({
                             <CardTitle>Manual Expense Transactions</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Description</TableHead>
-                                        <TableHead>Category</TableHead>
-                                        <TableHead>Linked To</TableHead>
-                                        <TableHead className="text-right">Amount</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {otherExpenses.length === 0 ? (
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center h-24">
-                                                No manual expenses recorded.
-                                            </TableCell>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Description</TableHead>
+                                            <TableHead>Category</TableHead>
+                                            <TableHead>Linked To</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
                                         </TableRow>
-                                    ) : (
-                                        otherExpenses.map((tx: any) => (
-                                            <TableRow key={tx.id}>
-                                                <TableCell>{format(new Date(tx.date), "MMM d, yyyy")}</TableCell>
-                                                <TableCell className="font-medium">{tx.description}</TableCell>
-                                                <TableCell><Badge variant="outline">{tx.category}</Badge></TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">{tx.linkedTo || "-"}</TableCell>
-                                                <TableCell className="text-right font-medium text-rose-600">
-                                                    -₹{tx.amount.toLocaleString()}
+                                    </TableHeader>
+                                    <TableBody>
+                                        {otherExpenses.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="text-center h-24">
+                                                    No manual expenses recorded.
                                                 </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                                        ) : (
+                                            otherExpenses.map((tx: any) => (
+                                                <TableRow key={tx.id}>
+                                                    <TableCell>{format(new Date(tx.date), "MMM d, yyyy")}</TableCell>
+                                                    <TableCell className="font-medium">{tx.description}</TableCell>
+                                                    <TableCell><Badge variant="outline">{tx.category}</Badge></TableCell>
+                                                    <TableCell className="text-sm text-muted-foreground">{tx.linkedTo || "-"}</TableCell>
+                                                    <TableCell className="text-right font-medium text-rose-600">
+                                                        -₹{tx.amount.toLocaleString()}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

@@ -74,60 +74,74 @@ export default async function InvoicesPage({
                             <CardTitle>All Invoices</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Invoice #</TableHead>
-                                        <TableHead>Client</TableHead>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Due Date</TableHead>
-                                        <TableHead className="text-right">Amount</TableHead>
-                                        <TableHead className="text-right">Pending</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {invoices.length === 0 ? (
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
                                         <TableRow>
-                                            <TableCell colSpan={8} className="text-center h-24">
-                                                No invoices found. Generate one from a Sales Order.
-                                            </TableCell>
+                                            <TableHead>Invoice #</TableHead>
+                                            <TableHead>Client</TableHead>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Due Date</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
+                                            <TableHead className="text-right">Pending</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Created By</TableHead>
+                                            <TableHead>Updated By</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
-                                    ) : (
-                                        invoices.map((invoice: any) => (
-                                            <TableRow key={invoice.id}>
-                                                <TableCell className="font-medium">
-                                                    {invoice.id.slice(0, 8).toUpperCase()}
-                                                </TableCell>
-                                                <TableCell>{invoice.salesOrder.client.name}</TableCell>
-                                                <TableCell>{format(new Date(invoice.createdAt), "MMM d, yyyy")}</TableCell>
-                                                <TableCell className={new Date(invoice.dueDate || "") < new Date() && invoice.status !== 'PAID' ? "text-red-500 font-medium" : ""}>
-                                                    {invoice.dueDate ? format(new Date(invoice.dueDate), "MMM d") : "-"}
-                                                </TableCell>
-                                                <TableCell className="text-right">₹{invoice.totalAmount.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right">₹{invoice.pendingAmount.toLocaleString()}</TableCell>
-                                                <TableCell>
-                                                    <Badge variant={
-                                                        invoice.status === 'PAID' ? 'default' :
-                                                            invoice.status === 'PARTIAL' ? 'secondary' : 'outline'
-                                                    } className={
-                                                        invoice.status === 'PAID' ? 'bg-green-600' :
-                                                            invoice.status === 'UNPAID' ? 'text-red-600 border-red-200 bg-red-50' : ''
-                                                    }>
-                                                        {invoice.status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <Link href={`/sales-orders/${invoice.salesOrderId}`} className="text-blue-600 hover:underline text-sm">
-                                                        View Order
-                                                    </Link>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {invoices.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={10} className="text-center h-24">
+                                                    No invoices found. Generate one from a Sales Order.
                                                 </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                                        ) : (
+                                            invoices.map((invoice: any) => (
+                                                <TableRow key={invoice.id}>
+                                                    <TableCell className="font-medium">
+                                                        {invoice.id.slice(0, 8).toUpperCase()}
+                                                    </TableCell>
+                                                    <TableCell>{invoice.salesOrder.client.name}</TableCell>
+                                                    <TableCell>{format(new Date(invoice.createdAt), "MMM d, yyyy")}</TableCell>
+                                                    <TableCell className={new Date(invoice.dueDate || "") < new Date() && invoice.status !== 'PAID' ? "text-red-500 font-medium" : ""}>
+                                                        {invoice.dueDate ? format(new Date(invoice.dueDate), "MMM d") : "-"}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">₹{invoice.totalAmount.toLocaleString()}</TableCell>
+                                                    <TableCell className="text-right">₹{invoice.pendingAmount.toLocaleString()}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={
+                                                            invoice.status === 'PAID' ? 'default' :
+                                                                invoice.status === 'PARTIAL' ? 'secondary' : 'outline'
+                                                        } className={
+                                                            invoice.status === 'PAID' ? 'bg-green-600' :
+                                                                invoice.status === 'UNPAID' ? 'text-red-600 border-red-200 bg-red-50' : ''
+                                                        }>
+                                                            {invoice.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs text-muted-foreground">
+                                                        {invoice.createdBy?.name || "-"}
+                                                        <br />
+                                                        {format(new Date(invoice.createdAt), "MMM d, HH:mm")}
+                                                    </TableCell>
+                                                    <TableCell className="text-xs text-muted-foreground">
+                                                        {invoice.updatedBy?.name || "-"}
+                                                        <br />
+                                                        {format(new Date(invoice.updatedAt), "MMM d, HH:mm")}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Link href={`/sales-orders/${invoice.salesOrderId}`} className="text-blue-600 hover:underline text-sm">
+                                                            View Order
+                                                        </Link>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
                             {pagination && (
                                 <PaginationControls
                                     hasNextPage={pagination.page < pagination.totalPages}
