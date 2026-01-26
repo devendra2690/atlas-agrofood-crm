@@ -8,8 +8,24 @@ import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddTransactionDialog } from "../finance/_components/add-transaction-dialog";
 
-export default async function InvoicesPage() {
-    const { data: invoices, success } = await getInvoices();
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { InvoiceFilters } from "./_components/invoice-filters";
+
+export default async function InvoicesPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+    const params = await searchParams;
+    const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
+    const limit = 10;
+    const status = typeof params.status === 'string' ? params.status : undefined;
+
+    const { data: invoices, success, pagination } = await getInvoices({
+        page,
+        limit,
+        status
+    });
     const otherIncome = await getOtherIncomeTransactions();
     const salesOrders = await getSalesOrdersForSelection();
 
@@ -43,12 +59,15 @@ export default async function InvoicesPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-green-600">
+                                    {/* Note: This total is currently only for fetched invoices if filters applied */}
                                     ₹{totalReceivable.toLocaleString()}
                                 </div>
                                 <p className="text-xs text-muted-foreground">Pending payments</p>
                             </CardContent>
                         </Card>
                     </div>
+
+                    <InvoiceFilters />
 
                     <Card>
                         <CardHeader>
@@ -109,6 +128,14 @@ export default async function InvoicesPage() {
                                     )}
                                 </TableBody>
                             </Table>
+                            {pagination && (
+                                <PaginationControls
+                                    hasNextPage={pagination.page < pagination.totalPages}
+                                    hasPrevPage={pagination.page > 1}
+                                    totalPages={pagination.totalPages}
+                                    currentPage={pagination.page}
+                                />
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>

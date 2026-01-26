@@ -16,19 +16,88 @@ export type CreateInvoiceData = {
 
 // --- Invoice Actions ---
 
-export async function getInvoices() {
+export async function getBills(filters?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+}) {
     try {
-        const invoices = await prisma.invoice.findMany({
-            orderBy: { createdAt: 'desc' },
-            include: {
-                salesOrder: {
-                    include: {
-                        client: true,
-                        opportunity: true
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const skip = (page - 1) * limit;
+
+        const where: any = {};
+        if (filters?.status && filters.status !== 'all') {
+            where.status = filters.status;
+        }
+
+        const [bills, total] = await prisma.$transaction([
+            prisma.bill.findMany({
+                where,
+                orderBy: { createdAt: "desc" },
+                skip,
+                take: limit,
+                include: {
+                    vendor: true
+                }
+            }),
+            prisma.bill.count({ where })
+        ]);
+
+        const safeBills = bills.map(bill => ({
+            ...bill,
+            totalAmount: bill.totalAmount.toNumber(),
+            pendingAmount: bill.pendingAmount.toNumber()
+        }));
+
+        return {
+            success: true,
+            data: safeBills,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
+    } catch (e) {
+        console.error("Failed to fetch bills", e);
+        return { success: false, error: "Failed to fetch bills" };
+    }
+}
+
+export async function getInvoices(filters?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+}) {
+    try {
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const skip = (page - 1) * limit;
+
+        const where: any = {};
+        if (filters?.status && filters.status !== 'all') {
+            where.status = filters.status;
+        }
+
+        const [invoices, total] = await prisma.$transaction([
+            prisma.invoice.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit,
+                include: {
+                    salesOrder: {
+                        include: {
+                            client: true,
+                            opportunity: true
+                        }
                     }
                 }
-            }
-        });
+            }),
+            prisma.invoice.count({ where })
+        ]);
 
         // Sanitize decimals
         const safeInvoices = invoices.map(inv => ({
@@ -46,7 +115,16 @@ export async function getInvoices() {
             }
         }));
 
-        return { success: true, data: safeInvoices };
+        return {
+            success: true,
+            data: safeInvoices,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
     } catch (error) {
         console.error("Failed to fetch invoices:", error);
         return { success: false, error: "Failed to fetch invoices" };

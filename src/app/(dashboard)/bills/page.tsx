@@ -3,36 +3,31 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { BillList } from "./_components/bill-list";
 import { Separator } from "@/components/ui/separator";
-import { getOtherExpenseTransactions, getSalesOrdersForSelection } from "@/app/actions/finance";
+import { getBills, getOtherExpenseTransactions, getSalesOrdersForSelection } from "@/app/actions/finance";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddTransactionDialog } from "../finance/_components/add-transaction-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { BillFilters } from "./_components/bill-filters";
 
-async function getBills() {
-    try {
-        const bills = await prisma.bill.findMany({
-            orderBy: { createdAt: "desc" },
-            include: {
-                vendor: true
-            }
-        });
+export default async function BillsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+    const params = await searchParams;
+    const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
+    const limit = 10;
+    const status = typeof params.status === 'string' ? params.status : undefined;
 
-        return bills.map(bill => ({
-            ...bill,
-            totalAmount: bill.totalAmount.toNumber(),
-            pendingAmount: bill.pendingAmount.toNumber()
-        }));
-    } catch (e) {
-        console.error("Failed to fetch bills", e);
-        return [];
-    }
-}
-
-export default async function BillsPage() {
-    const bills = await getBills();
+    const { data: bills, pagination } = await getBills({
+        page,
+        limit,
+        status
+    });
     const otherExpenses = await getOtherExpenseTransactions();
     const salesOrders = await getSalesOrdersForSelection();
 
@@ -51,9 +46,18 @@ export default async function BillsPage() {
                 </TabsList>
 
                 <TabsContent value="bills" className="space-y-4">
+                    <BillFilters />
                     <Suspense fallback={<div>Loading bills...</div>}>
-                        <BillList bills={bills} />
+                        <BillList bills={bills || []} />
                     </Suspense>
+                    {pagination && (
+                        <PaginationControls
+                            hasNextPage={pagination.page < pagination.totalPages}
+                            hasPrevPage={pagination.page > 1}
+                            totalPages={pagination.totalPages}
+                            currentPage={pagination.page}
+                        />
+                    )}
                 </TabsContent>
 
                 <TabsContent value="other-expenses" className="space-y-4">
