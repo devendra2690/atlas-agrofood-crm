@@ -11,9 +11,10 @@ interface CompanyOpportunitiesProps {
         id: string;
         name: string;
     };
+    commodities: any[];
 }
 
-export function CompanyOpportunities({ opportunities, company }: CompanyOpportunitiesProps) {
+export function CompanyOpportunities({ opportunities, company, commodities }: CompanyOpportunitiesProps) {
     const [selectedOpportunity, setSelectedOpportunity] = useState<any | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -65,6 +66,7 @@ export function CompanyOpportunities({ opportunities, company }: CompanyOpportun
                 onOpenChange={setIsDialogOpen}
                 initialData={selectedOpportunity}
                 companies={[{ ...company, commodities: [] }]} // Pass the current company with empty commodities to satisfy type
+                commodities={commodities || []}
                 trigger={null}
             />
         </>

@@ -47,10 +47,27 @@ export async function createOpportunity(data: OpportunityFormData) {
         );
 
         const session = await auth();
+        let userId = session?.user?.id;
+
+        // Verify user exists
+        if (userId) {
+            const userExists = await prisma.user.findUnique({ where: { id: userId } });
+            if (!userExists) {
+                console.log("DEBUG: Session user not found in DB, falling back to admin.");
+                userId = undefined;
+            }
+        }
+
+        // Fallback to first admin if no valid user
+        if (!userId) {
+            const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+            userId = admin?.id;
+        }
+
         const opportunity = await prisma.salesOpportunity.create({
             data: {
-                createdById: session?.user?.id,
-                updatedById: session?.user?.id,
+                createdById: userId,
+                updatedById: userId,
                 companyId: data.companyId,
                 productName: data.productName,
                 commodityId: data.commodityId,
@@ -91,10 +108,25 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
         );
 
         const session = await auth();
+        let userId = session?.user?.id;
+
+        // Verify user exists
+        if (userId) {
+            const userExists = await prisma.user.findUnique({ where: { id: userId } });
+            if (!userExists) {
+                userId = undefined;
+            }
+        }
+
+        if (!userId) {
+            const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+            userId = admin?.id;
+        }
+
         const opportunity = await prisma.salesOpportunity.update({
             where: { id },
             data: {
-                updatedById: session?.user?.id,
+                updatedById: userId,
                 companyId: data.companyId,
                 productName: data.productName,
                 commodityId: data.commodityId,

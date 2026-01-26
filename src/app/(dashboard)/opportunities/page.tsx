@@ -1,5 +1,6 @@
 import { getOpportunities } from "@/app/actions/opportunity";
 import { getCompanies } from "@/app/actions/company";
+import { getCommodities } from "@/app/actions/commodity";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { OpportunityList } from "./_components/opportunity-list";
 import { OpportunityDialog } from "./_components/opportunity-dialog";
@@ -26,6 +27,7 @@ export default async function OpportunitiesPage({
         date
     });
     const { data: companies } = await getCompanies();
+    const { data: allCommodities } = await getCommodities();
 
     // Filter only companies that are clients or prospects for the dropdown
     const clientOptions = companies?.filter(c => c.type === 'CLIENT' || c.type === 'PROSPECT').map(c => ({
@@ -43,7 +45,7 @@ export default async function OpportunitiesPage({
                         Manage your active deals and pipeline. Click on a row to view details.
                     </p>
                 </div>
-                <OpportunityDialog companies={clientOptions} />
+                <OpportunityDialog companies={clientOptions} commodities={allCommodities || []} />
             </div>
 
             <OpportunityFilters />
@@ -56,7 +58,7 @@ export default async function OpportunitiesPage({
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <OpportunityList opportunities={opportunities || []} companies={clientOptions} />
+                    <OpportunityList opportunities={opportunities || []} companies={clientOptions} commodities={allCommodities || []} />
                     {pagination && (
                         <PaginationControls
                             hasNextPage={pagination.page < pagination.totalPages}

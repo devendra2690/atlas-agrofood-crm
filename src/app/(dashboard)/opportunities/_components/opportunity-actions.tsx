@@ -26,9 +26,10 @@ import {
 interface OpportunityActionsProps {
     opportunity: any; // Ideally typed
     companies: any[];
+    commodities: any[];
 }
 
-export function OpportunityActions({ opportunity, companies }: OpportunityActionsProps) {
+export function OpportunityActions({ opportunity, companies, commodities }: OpportunityActionsProps) {
     const [open, setOpen] = useState(false);
     const [showDeleteAlert, setShowDeleteAlert] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -99,6 +100,7 @@ export function OpportunityActions({ opportunity, companies }: OpportunityAction
             <OpportunityDialog
                 trigger={null}
                 companies={companies}
+                commodities={commodities}
                 initialData={opportunity}
                 open={isEditOpen}
                 onOpenChange={setIsEditOpen}

@@ -30,9 +30,10 @@ import {
 interface OpportunityListProps {
     opportunities: any[]; // Using any because of included relations complexity
     companies: any[];
+    commodities: any[];
 }
 
-export function OpportunityList({ opportunities, companies }: OpportunityListProps) {
+export function OpportunityList({ opportunities, companies, commodities }: OpportunityListProps) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [loadingSampleId, setLoadingSampleId] = useState<string | null>(null);
 
@@ -183,7 +184,7 @@ export function OpportunityList({ opportunities, companies }: OpportunityListPro
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div onClick={(e) => e.stopPropagation()}>
-                                        <OpportunityActions opportunity={opp} companies={companies} />
+                                        <OpportunityActions opportunity={opp} companies={companies} commodities={commodities} />
                                     </div>
                                 </TableCell>
                             </TableRow>

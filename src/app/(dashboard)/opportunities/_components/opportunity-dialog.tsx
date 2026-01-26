@@ -39,13 +39,14 @@ interface CompanyOption {
 
 interface OpportunityDialogProps {
     companies: CompanyOption[];
+    commodities: Commodity[];
     initialData?: any;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     trigger?: React.ReactNode;
 }
 
-export function OpportunityDialog({ companies, initialData, open: controlledOpen, onOpenChange: setControlledOpen, trigger }: OpportunityDialogProps) {
+export function OpportunityDialog({ companies, commodities, initialData, open: controlledOpen, onOpenChange: setControlledOpen, trigger }: OpportunityDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -82,8 +83,9 @@ export function OpportunityDialog({ companies, initialData, open: controlledOpen
     }, [initialData, open]);
 
     // Filter available commodities
-    const selectedCompany = companies.find(c => c.id === companyId);
-    const availableCommodities = selectedCompany?.commodities || [];
+    // const selectedCompany = companies.find(c => c.id === companyId);
+    // const availableCommodities = selectedCompany?.commodities || [];
+    const availableCommodities = commodities || [];
 
     // Auto-calculate procurement quantity
     useEffect(() => {
@@ -225,9 +227,9 @@ export function OpportunityDialog({ companies, initialData, open: controlledOpen
 
                         <div className="grid gap-2">
                             <Label htmlFor="commodity">Commodity</Label>
-                            <Select value={commodityId} onValueChange={handleCommodityChange} disabled={!companyId}>
+                            <Select value={commodityId} onValueChange={handleCommodityChange}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder={!companyId ? "Select company first" : "Select commodity"} />
+                                    <SelectValue placeholder="Select commodity" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {availableCommodities.length === 0 ? (

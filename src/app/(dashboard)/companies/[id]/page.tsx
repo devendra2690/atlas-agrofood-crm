@@ -1,4 +1,5 @@
 import { getCompany } from "@/app/actions/company";
+import { getCommodities } from "@/app/actions/commodity";
 import { InteractionTimeline } from "@/components/companies/interaction-timeline";
 import { CompanyDialog } from "../_components/company-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { CompanyOpportunities } from "../_components/company-opportunities";
 export default async function CompanyDetailsPage({ params }: { params: { id: string } }) {
     const { id } = await params;
     const { data: company, success } = await getCompany(id);
+    const { data: commodities } = await getCommodities();
 
     if (!success || !company) {
         notFound();
@@ -149,6 +151,7 @@ export default async function CompanyDetailsPage({ params }: { params: { id: str
                             <CompanyOpportunities
                                 opportunities={company.salesOpportunities}
                                 company={{ id: company.id, name: company.name }}
+                                commodities={commodities || []}
                             />
                         </TabsContent>
 
