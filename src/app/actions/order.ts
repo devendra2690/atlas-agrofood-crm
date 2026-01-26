@@ -82,15 +82,65 @@ export async function createSalesOrder(opportunityId: string) {
     }
 }
 
-export async function getSalesOrders() {
+export async function getSalesOrders(filters?: {
+    page?: number;
+    limit?: number;
+    query?: string;
+    status?: SalesOrderStatus | 'all';
+    date?: string;
+}) {
     try {
-        const orders = await prisma.salesOrder.findMany({
-            orderBy: { createdAt: 'desc' },
-            include: {
-                client: true,
-                opportunity: true
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const skip = (page - 1) * limit;
+
+        const where: any = {};
+
+        if (filters?.query) {
+            const search = filters.query.trim();
+            where.OR = [
+                { id: { contains: search, mode: 'insensitive' } },
+                {
+                    client: {
+                        name: { contains: search, mode: 'insensitive' }
+                    }
+                }
+            ];
+        }
+
+        if (filters?.status && filters.status !== 'all') {
+            where.status = filters.status;
+        }
+
+        if (filters?.date) {
+            const date = new Date(filters.date);
+            if (!isNaN(date.getTime())) {
+                const startOfDay = new Date(date);
+                startOfDay.setHours(0, 0, 0, 0);
+
+                const endOfDay = new Date(date);
+                endOfDay.setHours(23, 59, 59, 999);
+
+                where.createdAt = {
+                    gte: startOfDay,
+                    lte: endOfDay
+                };
             }
-        });
+        }
+
+        const [orders, total] = await prisma.$transaction([
+            prisma.salesOrder.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit,
+                include: {
+                    client: true,
+                    opportunity: true
+                }
+            }),
+            prisma.salesOrder.count({ where })
+        ]);
 
         const safeOrders = orders.map(order => ({
             ...order,
@@ -103,7 +153,16 @@ export async function getSalesOrders() {
             }
         }));
 
-        return { success: true, data: safeOrders };
+        return {
+            success: true,
+            data: safeOrders,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
     } catch (error: any) {
         console.error("Failed to fetch sales orders:", error);
         return { success: false, error: "Failed to fetch orders" };

@@ -5,6 +5,8 @@ import { FlaskConical } from "lucide-react";
 import { SampleFilters } from "./_components/sample-filters";
 import { getCommodities } from "@/app/actions/commodity";
 
+import { PaginationControls } from "@/components/ui/pagination-controls";
+
 export default async function SamplesPage({
     searchParams,
 }: {
@@ -15,10 +17,16 @@ export default async function SamplesPage({
     const commodityId = typeof params.commodityId === 'string' ? params.commodityId : undefined;
     const trustLevel = typeof params.trustLevel === 'string' ? params.trustLevel : undefined;
 
-    const { data: samples } = await getAllSamples({
+    // Pagination
+    const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
+    const limit = 10;
+
+    const { data: samples, pagination } = await getAllSamples({
         location,
         commodityId,
-        trustLevel
+        trustLevel,
+        page,
+        limit
     });
 
     const { data: commodities } = await getCommodities();
@@ -48,6 +56,14 @@ export default async function SamplesPage({
                 </CardHeader>
                 <CardContent>
                     <SampleList samples={samples || []} />
+                    {pagination && (
+                        <PaginationControls
+                            hasNextPage={pagination.page < pagination.totalPages}
+                            hasPrevPage={pagination.page > 1}
+                            totalPages={pagination.totalPages}
+                            currentPage={pagination.page}
+                        />
+                    )}
                 </CardContent>
             </Card>
         </div>

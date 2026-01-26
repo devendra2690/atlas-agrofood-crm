@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { OpportunityStatus } from "@prisma/client";
+import { OpportunityStatus, TrustLevel } from "@prisma/client";
 import { auth } from "@/auth";
 
 export type OpportunityFormData = {
@@ -141,39 +141,131 @@ export async function deleteOpportunity(id: string) {
     }
 }
 
-export async function getOpportunities() {
+export async function getOpportunities(filters?: {
+    location?: string;
+    commodityId?: string;
+    trustLevel?: string;
+    page?: number;
+    limit?: number;
+    query?: string;
+    status?: string;
+    date?: string;
+}) {
     try {
-        const opportunities = await prisma.salesOpportunity.findMany({
-            orderBy: { createdAt: 'desc' },
-            include: {
-                company: true,
-                commodity: true, // NEW
-                sampleSubmissions: {
-                    include: {
-                        sample: {
-                            include: {
-                                vendor: true
-                            }
-                        }
-                    },
-                    orderBy: {
-                        createdAt: 'desc'
-                    }
-                },
-                procurementProject: {
-                    include: {
-                        samples: {
-                            include: {
-                                vendor: true
-                            },
-                            orderBy: {
-                                receivedDate: 'desc'
-                            }
-                        }
+        const where: any = {};
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const skip = (page - 1) * limit;
+
+        if (filters?.query) {
+            const search = filters.query.trim();
+            where.OR = [
+                { productName: { contains: search, mode: 'insensitive' } },
+                {
+                    company: {
+                        name: { contains: search, mode: 'insensitive' }
                     }
                 }
-            },
-        });
+            ];
+        }
+
+        if (filters?.status && filters.status !== 'all') {
+            where.status = filters.status;
+        }
+
+        if (filters?.date) {
+            const date = new Date(filters.date);
+            if (!isNaN(date.getTime())) {
+                const startOfDay = new Date(date);
+                startOfDay.setHours(0, 0, 0, 0);
+
+                const endOfDay = new Date(date);
+                endOfDay.setHours(23, 59, 59, 999);
+
+                where.createdAt = {
+                    gte: startOfDay,
+                    lte: endOfDay
+                };
+            }
+        }
+
+        if (filters?.commodityId && filters.commodityId !== 'all') {
+            where.commodityId = filters.commodityId;
+        }
+
+        if (filters?.location) {
+            // If query is also present, we need to be careful not to overwrite the OR.
+            // But usually location filter is specific. Let's use AND for location if query exists.
+            const locationFilter = {
+                OR: [
+                    { city: { name: { contains: filters.location, mode: 'insensitive' } } },
+                    { state: { name: { contains: filters.location, mode: 'insensitive' } } },
+                    { country: { name: { contains: filters.location, mode: 'insensitive' } } }
+                ]
+            };
+
+            if (where.company) {
+                // If company filter exists (e.g. from OR above... wait, OR is top level)
+                // This is getting tricky with Prisma OR logic if we mix them.
+                // Simpler approach: Apply location filter to company relation inside the AND structure if possible
+                // OR just separate them.
+
+                // Let's attach to where.company if it exists or create it.
+                // Actually, the structure where.company = { OR: [...] } matches the previous code.
+                // If we have query search on company name, we might have a conflict if we blindly assign.
+                // Let's merge them properly.
+
+                where.company = {
+                    ...(where.company || {}),
+                    ...locationFilter
+                };
+            } else {
+                where.company = locationFilter;
+            }
+        }
+
+        if (filters?.trustLevel && filters.trustLevel !== 'all') {
+            if (!where.company) where.company = {};
+            where.company.trustLevel = filters.trustLevel as TrustLevel;
+        }
+
+        const [opportunities, total] = await prisma.$transaction([
+            prisma.salesOpportunity.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit,
+                include: {
+                    company: true,
+                    commodity: true, // NEW
+                    sampleSubmissions: {
+                        include: {
+                            sample: {
+                                include: {
+                                    vendor: true
+                                }
+                            }
+                        },
+                        orderBy: {
+                            createdAt: 'desc'
+                        }
+                    },
+                    procurementProject: {
+                        include: {
+                            samples: {
+                                include: {
+                                    vendor: true
+                                },
+                                orderBy: {
+                                    receivedDate: 'desc'
+                                }
+                            }
+                        }
+                    }
+                },
+            }),
+            prisma.salesOpportunity.count({ where })
+        ]);
 
         // Sanitize Decimal types
         const safeOpportunities = opportunities.map(opp => ({
@@ -197,7 +289,16 @@ export async function getOpportunities() {
             } : null
         }));
 
-        return { success: true, data: safeOpportunities };
+        return {
+            success: true,
+            data: safeOpportunities,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
     } catch (error) {
         console.error("Failed to get opportunities DEBUG:", error);
         return { success: false, error: "Failed to fetch opportunities" };

@@ -110,30 +110,77 @@ export async function updateCompanyTrustLevel(id: string, trustLevel: TrustLevel
     }
 }
 
-export async function getCompanies() {
+export async function getCompanies(filters?: {
+    location?: string;
+    commodityId?: string;
+    trustLevel?: string;
+    page?: number;
+    limit?: number;
+}) {
     try {
-        const companies = await prisma.company.findMany({
-            where: {
-                type: {
-                    not: "VENDOR"
-                }
-            },
-            orderBy: { createdAt: "desc" },
-            include: {
-                _count: {
-                    select: {
-                        interactions: true,
-                        salesOpportunities: true,
-                        projectVendors: true
-                    }
-                },
-                commodities: true,
-                country: true,
-                state: true,
-                city: true
+        const where: any = {
+            type: {
+                not: "VENDOR"
             }
-        });
-        return { success: true, data: companies };
+        };
+
+        if (filters?.location) {
+            where.OR = [
+                { city: { name: { contains: filters.location, mode: 'insensitive' } } },
+                { state: { name: { contains: filters.location, mode: 'insensitive' } } },
+                { country: { name: { contains: filters.location, mode: 'insensitive' } } }
+            ];
+        }
+
+        if (filters?.commodityId && filters.commodityId !== 'all') {
+            where.commodities = {
+                some: {
+                    id: filters.commodityId
+                }
+            };
+        }
+
+        if (filters?.trustLevel && filters.trustLevel !== 'all') {
+            where.trustLevel = filters.trustLevel as TrustLevel;
+        }
+
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const skip = (page - 1) * limit;
+
+        const [companies, total] = await prisma.$transaction([
+            prisma.company.findMany({
+                where,
+                orderBy: { createdAt: "desc" },
+                skip,
+                take: limit,
+                include: {
+                    _count: {
+                        select: {
+                            interactions: true,
+                            salesOpportunities: true,
+                            projectVendors: true
+                        }
+                    },
+                    commodities: true,
+                    country: true,
+                    state: true,
+                    city: true
+                }
+            }),
+            prisma.company.count({ where })
+        ]);
+
+        return {
+            success: true,
+            data: companies,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
     } catch (error) {
         console.error("Failed to get companies:", error);
         return { success: false, error: "Failed to fetch companies" };
@@ -194,26 +241,72 @@ export async function getCompany(id: string) {
     }
 }
 
-export async function getVendors() {
+export async function getVendors(filters?: {
+    location?: string;
+    commodityId?: string;
+    trustLevel?: string;
+    page?: number;
+    limit?: number;
+}) {
     try {
-        const vendors = await prisma.company.findMany({
-            where: { type: "VENDOR" },
-            orderBy: { name: "asc" },
-            include: {
-                _count: {
-                    select: {
-                        projectVendors: true,
-                        purchaseOrders: true,
-                        sampleRecords: true
-                    }
-                },
-                commodities: true,
-                city: true,
-                state: true,
-                country: true
+        const where: any = { type: "VENDOR" };
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const skip = (page - 1) * limit;
+
+        if (filters?.location) {
+            where.OR = [
+                { city: { name: { contains: filters.location, mode: 'insensitive' } } },
+                { state: { name: { contains: filters.location, mode: 'insensitive' } } },
+                { country: { name: { contains: filters.location, mode: 'insensitive' } } }
+            ];
+        }
+
+        if (filters?.commodityId && filters.commodityId !== 'all') {
+            where.commodities = {
+                some: {
+                    id: filters.commodityId
+                }
+            };
+        }
+
+        if (filters?.trustLevel && filters.trustLevel !== 'all') {
+            where.trustLevel = filters.trustLevel as TrustLevel;
+        }
+
+        const [vendors, total] = await prisma.$transaction([
+            prisma.company.findMany({
+                where,
+                orderBy: { name: "asc" },
+                skip,
+                take: limit,
+                include: {
+                    _count: {
+                        select: {
+                            projectVendors: true,
+                            purchaseOrders: true,
+                            sampleRecords: true
+                        }
+                    },
+                    commodities: true,
+                    city: true,
+                    state: true,
+                    country: true
+                }
+            }),
+            prisma.company.count({ where })
+        ]);
+
+        return {
+            success: true,
+            data: vendors,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
             }
-        });
-        return { success: true, data: vendors };
+        };
     } catch (error) {
         console.error("Failed to get vendors:", error);
         return { success: false, error: "Failed to fetch vendors" };

@@ -1,12 +1,36 @@
 import { getVendors } from "@/app/actions/company";
+import { getCommodities } from "@/app/actions/commodity";
 import { VendorTable } from "./_components/vendor-table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { CompanyDialog } from "../companies/_components/company-dialog";
+import { VendorFilters } from "./_components/vendor-filters";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 
-export default async function VendorsPage() {
-    const { data: vendors } = await getVendors();
+export default async function VendorsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+    const params = await searchParams;
+    const location = typeof params.location === 'string' ? params.location : undefined;
+    const commodityId = typeof params.commodityId === 'string' ? params.commodityId : undefined;
+    const trustLevel = typeof params.trustLevel === 'string' ? params.trustLevel : undefined;
+
+    // Pagination params
+    const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
+    const limit = 10;
+
+    const { data: vendors, pagination } = await getVendors({
+        location,
+        commodityId,
+        trustLevel,
+        page,
+        limit
+    });
+
+    const { data: commodities } = await getCommodities();
 
     return (
         <div className="space-y-6">
@@ -28,6 +52,8 @@ export default async function VendorsPage() {
                 />
             </div>
 
+            <VendorFilters commodities={commodities || []} />
+
             <Card>
                 <CardHeader>
                     <CardTitle>All Vendors</CardTitle>
@@ -37,6 +63,14 @@ export default async function VendorsPage() {
                 </CardHeader>
                 <CardContent>
                     <VendorTable vendors={vendors || []} />
+                    {pagination && (
+                        <PaginationControls
+                            hasNextPage={pagination.page < pagination.totalPages}
+                            hasPrevPage={pagination.page > 1}
+                            totalPages={pagination.totalPages}
+                            currentPage={pagination.page}
+                        />
+                    )}
                 </CardContent>
             </Card>
         </div>

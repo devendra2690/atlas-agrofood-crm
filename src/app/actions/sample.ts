@@ -132,9 +132,14 @@ export async function getAllSamples(filters?: {
     location?: string;
     commodityId?: string;
     trustLevel?: string; // TrustLevel enum as string
+    page?: number;
+    limit?: number;
 }) {
     try {
         const where: any = {};
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const skip = (page - 1) * limit;
 
         if (filters?.location) {
             where.vendor = {
@@ -157,29 +162,45 @@ export async function getAllSamples(filters?: {
             where.vendor.trustLevel = filters.trustLevel as TrustLevel;
         }
 
-        const samples = await prisma.sampleRecord.findMany({
-            where,
-            orderBy: { id: 'desc' },
-            include: {
-                vendor: {
-                    include: {
-                        city: true,
-                        state: true,
-                        country: true
-                    }
-                },
-                project: {
-                    include: {
-                        commodity: true
+        const [samples, total] = await prisma.$transaction([
+            prisma.sampleRecord.findMany({
+                where,
+                orderBy: { id: 'desc' },
+                skip,
+                take: limit,
+                include: {
+                    vendor: {
+                        include: {
+                            city: true,
+                            state: true,
+                            country: true
+                        }
+                    },
+                    project: {
+                        include: {
+                            commodity: true
+                        }
                     }
                 }
-            }
-        });
+            }),
+            prisma.sampleRecord.count({ where })
+        ]);
+
         const safeSamples = samples.map(sample => ({
             ...sample,
             priceQuoted: sample.priceQuoted?.toNumber()
         }));
-        return { success: true, data: safeSamples };
+
+        return {
+            success: true,
+            data: safeSamples,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
     } catch (error: any) {
         console.error("Failed to get all samples:", error);
         return { success: false, error: "Failed to fetch samples" };

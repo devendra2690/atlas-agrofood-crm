@@ -157,19 +157,38 @@ export async function createGRN(data: GRNData) {
     }
 }
 
-export async function getShipments() {
+export async function getShipments(filters?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+}) {
     try {
-        const shipments = await prisma.shipment.findMany({
-            orderBy: { createdAt: 'desc' },
-            include: {
-                purchaseOrder: {
-                    include: {
-                        project: true,
-                        vendor: true
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const skip = (page - 1) * limit;
+
+        const where: any = {};
+        if (filters?.status && filters.status !== 'all') {
+            where.status = filters.status;
+        }
+
+        const [shipments, total] = await prisma.$transaction([
+            prisma.shipment.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit,
+                include: {
+                    purchaseOrder: {
+                        include: {
+                            project: true,
+                            vendor: true
+                        }
                     }
                 }
-            }
-        });
+            }),
+            prisma.shipment.count({ where })
+        ]);
 
         // Sanitize decimals
         const safeShipments = shipments.map(s => ({
@@ -181,7 +200,16 @@ export async function getShipments() {
             }
         }));
 
-        return { success: true, data: safeShipments };
+        return {
+            success: true,
+            data: safeShipments,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
     } catch (error) {
         console.error("Failed to fetch shipments:", error);
         return { success: false, error: "Failed to fetch shipments" };

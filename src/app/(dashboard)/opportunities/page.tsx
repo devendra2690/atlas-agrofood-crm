@@ -3,9 +3,28 @@ import { getCompanies } from "@/app/actions/company";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { OpportunityList } from "./_components/opportunity-list";
 import { OpportunityDialog } from "./_components/opportunity-dialog";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { OpportunityFilters } from "./_components/opportunity-filters";
 
-export default async function OpportunitiesPage() {
-    const { data: opportunities } = await getOpportunities();
+export default async function OpportunitiesPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+    const params = await searchParams;
+    const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
+    const limit = 10;
+    const query = typeof params.query === 'string' ? params.query : undefined;
+    const status = typeof params.status === 'string' ? params.status : undefined;
+    const date = typeof params.date === 'string' ? params.date : undefined;
+
+    const { data: opportunities, pagination } = await getOpportunities({
+        page,
+        limit,
+        query,
+        status,
+        date
+    });
     const { data: companies } = await getCompanies();
 
     // Filter only companies that are clients or prospects for the dropdown
@@ -27,6 +46,8 @@ export default async function OpportunitiesPage() {
                 <OpportunityDialog companies={clientOptions} />
             </div>
 
+            <OpportunityFilters />
+
             <Card>
                 <CardHeader>
                     <CardTitle>Active Deals</CardTitle>
@@ -36,6 +57,14 @@ export default async function OpportunitiesPage() {
                 </CardHeader>
                 <CardContent>
                     <OpportunityList opportunities={opportunities || []} companies={clientOptions} />
+                    {pagination && (
+                        <PaginationControls
+                            hasNextPage={pagination.page < pagination.totalPages}
+                            hasPrevPage={pagination.page > 1}
+                            totalPages={pagination.totalPages}
+                            currentPage={pagination.page}
+                        />
+                    )}
                 </CardContent>
             </Card>
         </div>

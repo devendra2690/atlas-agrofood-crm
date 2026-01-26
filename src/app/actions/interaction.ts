@@ -50,16 +50,74 @@ export async function logInteraction(data: InteractionFormData) {
     }
 }
 
-export async function getInteractions() {
+export async function getInteractions(filters?: {
+    page?: number;
+    limit?: number;
+    query?: string;
+    status?: string;
+    date?: string;
+}) {
     try {
-        const interactions = await prisma.interactionLog.findMany({
-            orderBy: { date: 'desc' },
-            include: {
-                company: true,
-                user: true
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const skip = (page - 1) * limit;
+
+        const where: any = {};
+
+        if (filters?.query) {
+            const search = filters.query.trim();
+            where.OR = [
+                { description: { contains: search, mode: 'insensitive' } },
+                {
+                    company: {
+                        name: { contains: search, mode: 'insensitive' }
+                    }
+                }
+            ];
+        }
+
+        if (filters?.status && filters.status !== 'all') {
+            where.status = filters.status;
+        }
+
+        if (filters?.date) {
+            const date = new Date(filters.date);
+            if (!isNaN(date.getTime())) {
+                const startOfDay = new Date(date);
+                startOfDay.setHours(0, 0, 0, 0);
+                const endOfDay = new Date(date);
+                endOfDay.setHours(23, 59, 59, 999);
+                where.date = {
+                    gte: startOfDay,
+                    lte: endOfDay
+                };
             }
-        });
-        return { success: true, data: interactions };
+        }
+
+        const [interactions, total] = await prisma.$transaction([
+            prisma.interactionLog.findMany({
+                where,
+                orderBy: { date: 'desc' },
+                skip,
+                take: limit,
+                include: {
+                    company: true,
+                    user: true
+                }
+            }),
+            prisma.interactionLog.count({ where })
+        ]);
+
+        return {
+            success: true,
+            data: interactions,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
     } catch (error) {
         console.error("Failed to get interactions:", error);
         return { success: false, error: "Failed to fetch interactions" };

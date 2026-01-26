@@ -8,14 +8,29 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { format } from "date-fns";
-import { Calendar, User, MessageSquare } from "lucide-react";
 import { InteractionRow } from "./_components/interaction-row";
+import { InteractionFilters } from "./_components/interaction-filters";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 
-export default async function InteractionsPage() {
-    const { data: interactions } = await getInteractions();
+export default async function InteractionsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+    const params = await searchParams;
+    const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
+    const limit = 10;
+    const query = typeof params.query === 'string' ? params.query : undefined;
+    const status = typeof params.status === 'string' ? params.status : undefined;
+    const date = typeof params.date === 'string' ? params.date : undefined;
+
+    const { data: interactions, pagination } = await getInteractions({
+        page,
+        limit,
+        query,
+        status,
+        date
+    });
 
     return (
         <div className="space-y-6">
@@ -27,6 +42,8 @@ export default async function InteractionsPage() {
                     </p>
                 </div>
             </div>
+
+            <InteractionFilters />
 
             <Card>
                 <CardHeader>
@@ -59,6 +76,14 @@ export default async function InteractionsPage() {
                             )}
                         </TableBody>
                     </Table>
+                    {pagination && (
+                        <PaginationControls
+                            hasNextPage={pagination.page < pagination.totalPages}
+                            hasPrevPage={pagination.page > 1}
+                            totalPages={pagination.totalPages}
+                            currentPage={pagination.page}
+                        />
+                    )}
                 </CardContent>
             </Card>
         </div>

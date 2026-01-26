@@ -11,42 +11,95 @@ export type ProcurementProjectFormData = {
     commodityId?: string; // NEW
 };
 
-export async function getProcurementProjects() {
+export async function getProcurementProjects(filters?: {
+    location?: string;
+    commodityId?: string;
+    trustLevel?: string;
+    page?: number;
+    limit?: number;
+    query?: string;
+    status?: string;
+}) {
     try {
-        const projects = await prisma.procurementProject.findMany({
-            orderBy: { createdAt: "desc" },
-            include: {
-                _count: {
-                    select: {
-                        projectVendors: true,
-                        salesOpportunities: true,
-                        samples: true,
-                        purchaseOrders: true
-                    }
-                },
-                commodity: true,
-                projectVendors: {
-                    include: {
-                        vendor: true
-                    }
-                },
-                salesOpportunities: {
-                    select: {
-                        id: true,
-                        quantity: true,
-                        procurementQuantity: true,
-                        status: true
-                    }
-                },
-                purchaseOrders: {
-                    select: {
-                        id: true,
-                        quantity: true,
-                        status: true
+        const where: any = {};
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const skip = (page - 1) * limit;
+
+        if (filters?.query) {
+            const search = filters.query.trim();
+            where.name = { contains: search, mode: "insensitive" };
+        }
+
+        if (filters?.status && filters.status !== 'all') {
+            where.status = filters.status;
+        }
+
+        if (filters?.commodityId && filters.commodityId !== 'all') {
+            where.commodityId = filters.commodityId;
+        }
+
+        if (filters?.location || (filters?.trustLevel && filters.trustLevel !== 'all')) {
+            where.projectVendors = {
+                some: {
+                    vendor: {
+                        AND: [
+                            filters?.location ? {
+                                OR: [
+                                    { city: { name: { contains: filters.location, mode: 'insensitive' } } },
+                                    { state: { name: { contains: filters.location, mode: 'insensitive' } } },
+                                    { country: { name: { contains: filters.location, mode: 'insensitive' } } }
+                                ]
+                            } : {},
+                            (filters?.trustLevel && filters.trustLevel !== 'all') ? {
+                                trustLevel: filters.trustLevel as any
+                            } : {}
+                        ]
                     }
                 }
-            }
-        });
+            };
+        }
+
+        const [projects, total] = await prisma.$transaction([
+            prisma.procurementProject.findMany({
+                where,
+                orderBy: { createdAt: "desc" },
+                skip,
+                take: limit,
+                include: {
+                    _count: {
+                        select: {
+                            projectVendors: true,
+                            salesOpportunities: true,
+                            samples: true,
+                            purchaseOrders: true
+                        }
+                    },
+                    commodity: true,
+                    projectVendors: {
+                        include: {
+                            vendor: true
+                        }
+                    },
+                    salesOpportunities: {
+                        select: {
+                            id: true,
+                            quantity: true,
+                            procurementQuantity: true,
+                            status: true
+                        }
+                    },
+                    purchaseOrders: {
+                        select: {
+                            id: true,
+                            quantity: true,
+                            status: true
+                        }
+                    }
+                }
+            }),
+            prisma.procurementProject.count({ where })
+        ]);
 
         const safeProjects = projects.map(p => ({
             ...p,
@@ -61,7 +114,16 @@ export async function getProcurementProjects() {
             }))
         }));
 
-        return { success: true, data: safeProjects };
+        return {
+            success: true,
+            data: safeProjects,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
     } catch (error) {
         console.error("Failed to get procurement projects:", error);
         return { success: false, error: "Failed to fetch procurement projects" };
@@ -405,16 +467,28 @@ export async function addVendorToProject(projectId: string, vendorId: string) {
     }
 }
 
-export async function getPurchaseOrders() {
+export async function getPurchaseOrders(filters?: {
+    page?: number;
+    limit?: number;
+}) {
     try {
-        const orders = await prisma.purchaseOrder.findMany({
-            orderBy: { createdAt: "desc" },
-            include: {
-                vendor: true,
-                project: true,
-                sample: true
-            }
-        });
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const skip = (page - 1) * limit;
+
+        const [orders, total] = await prisma.$transaction([
+            prisma.purchaseOrder.findMany({
+                orderBy: { createdAt: "desc" },
+                skip,
+                take: limit,
+                include: {
+                    vendor: true,
+                    project: true,
+                    sample: true
+                }
+            }),
+            prisma.purchaseOrder.count()
+        ]);
 
         // Deserialize decimals
         const safeOrders = orders.map(order => ({
@@ -427,7 +501,16 @@ export async function getPurchaseOrders() {
             } : null
         }));
 
-        return { success: true, data: safeOrders };
+        return {
+            success: true,
+            data: safeOrders,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
     } catch (error) {
         console.error("Failed to fetch purchase orders:", error);
         return { success: false, error: "Failed to fetch purchase orders" };

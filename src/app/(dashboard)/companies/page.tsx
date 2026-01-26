@@ -10,14 +10,24 @@ import {
     TableHeader,
     TableRow
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Phone, Mail, Building } from "lucide-react";
+import { Search } from "lucide-react";
 import { CompanyDialog } from "./_components/company-dialog";
-import { CompanyActions } from "./_components/company-actions";
 import { CompanyRow } from "./_components/company-row";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 
-export default async function CompaniesPage() {
-    const { data: companies } = await getCompanies();
+export default async function CompaniesPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+    const params = await searchParams;
+    const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
+    const limit = 10;
+
+    const { data: companies, pagination } = await getCompanies({
+        page,
+        limit
+    });
 
     return (
         <div className="space-y-6">
@@ -69,6 +79,14 @@ export default async function CompaniesPage() {
                             )}
                         </TableBody>
                     </Table>
+                    {pagination && (
+                        <PaginationControls
+                            hasNextPage={pagination.page < pagination.totalPages}
+                            hasPrevPage={pagination.page > 1}
+                            totalPages={pagination.totalPages}
+                            currentPage={pagination.page}
+                        />
+                    )}
                 </CardContent>
             </Card>
         </div>
