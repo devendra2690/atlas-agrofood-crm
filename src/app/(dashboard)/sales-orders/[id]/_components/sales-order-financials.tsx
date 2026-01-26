@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
-import { ArrowUpRight, TrendingUp, DollarSign, Wallet } from "lucide-react";
+import { ArrowUpRight, TrendingUp, IndianRupee, Wallet } from "lucide-react";
 import { AddTransactionDialog } from "../../../finance/_components/add-transaction-dialog";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -90,7 +90,7 @@ export function SalesOrderFinancials({ salesOrderId, financials, transactions }:
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-                        <DollarSign className="h-4 w-4 text-emerald-600" />
+                        <IndianRupee className="h-4 w-4 text-emerald-600" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">₹{financials.revenue.toLocaleString()}</div>

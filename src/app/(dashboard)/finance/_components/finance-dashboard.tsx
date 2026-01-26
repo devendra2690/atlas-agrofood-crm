@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, TrendingUp, DollarSign, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, TrendingUp, IndianRupee, Wallet } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { Separator } from "@/components/ui/separator";
 
@@ -31,7 +31,7 @@ export function FinanceDashboard({ stats, transactions }: FinanceDashboardProps)
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                        <DollarSign className="h-4 w-4 text-emerald-600" />
+                        <IndianRupee className="h-4 w-4 text-emerald-600" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">₹{stats.revenue.toLocaleString()}</div>

@@ -76,7 +76,7 @@ export function SampleList({ samples }: SampleListProps) {
                                 <span className="font-bold text-lg">{sample.vendor?.name || "Unknown Vendor"}</span>
                                 {sample.priceQuoted && (
                                     <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-0">
-                                        ${Number(sample.priceQuoted).toFixed(2)} / {sample.priceUnit?.replace("PER_", "").toLowerCase() || "kg"}
+                                        ₹{Number(sample.priceQuoted).toFixed(2)} / {sample.priceUnit?.replace("PER_", "").toLowerCase() || "kg"}
                                     </Badge>
                                 )}
                             </div>

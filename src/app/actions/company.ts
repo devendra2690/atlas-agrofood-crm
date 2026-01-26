@@ -177,7 +177,17 @@ export async function getCompany(id: string) {
             return { success: false, error: "Company not found" };
         }
 
-        return { success: true, data: company };
+        const safeCompany = {
+            ...company,
+            salesOpportunities: company.salesOpportunities.map(opp => ({
+                ...opp,
+                targetPrice: opp.targetPrice?.toNumber(),
+                quantity: opp.quantity?.toNumber(),
+                procurementQuantity: opp.procurementQuantity?.toNumber(),
+            }))
+        };
+
+        return { success: true, data: safeCompany };
     } catch (error) {
         console.error("Failed to get company:", error);
         return { success: false, error: "Failed to fetch company details" };
