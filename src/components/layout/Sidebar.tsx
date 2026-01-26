@@ -25,7 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { logout } from "@/app/actions/auth-actions";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { useState } from "react";
 
 const sidebarItems = [
@@ -83,7 +83,7 @@ interface SidebarProps {
 
 function SidebarContent({ user, pathname, onNavigate }: { user?: any, pathname: string, onNavigate?: () => void }) {
     return (
-        <div className="flex flex-col h-full w-full bg-slate-900 text-white overflow-hidden">
+        <div className="flex flex-col h-[100dvh] w-full bg-slate-900 text-white overflow-hidden">
             <div className="p-6 border-b border-slate-800 shrink-0">
                 <Link href="/" className="flex items-center gap-2">
                     <h1 className="text-2xl font-bold tracking-tight text-white/90">
@@ -92,7 +92,7 @@ function SidebarContent({ user, pathname, onNavigate }: { user?: any, pathname: 
                 </Link>
             </div>
 
-            <div className="flex-1 overflow-y-auto pt-4 pb-24 overscroll-contain">
+            <div className="flex-1 overflow-y-auto min-h-0 pt-4 pb-24 overscroll-contain">
                 {sidebarItems.map((group, i) => (
                     <div key={i} className="mb-6 px-4">
                         <h3 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -133,6 +133,7 @@ export function MobileSidebar({ user }: SidebarProps) {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-72 bg-slate-900 border-r-slate-800 text-white">
+                <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
                 <SidebarContent user={user} pathname={pathname} onNavigate={() => setOpen(false)} />
             </SheetContent>
         </Sheet>
