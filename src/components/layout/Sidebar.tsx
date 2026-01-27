@@ -115,7 +115,7 @@ export function Sidebar({ user, className }: SidebarProps) {
     const pathname = usePathname();
 
     return (
-        <div className={cn("hidden md:flex w-64 flex-col h-screen fixed left-0 top-0 border-r border-slate-800", className)}>
+        <div className={cn("hidden md:flex w-64 flex-col h-screen sticky top-0 border-r border-slate-800 shrink-0", className)}>
             <SidebarContent user={user} pathname={pathname} />
         </div>
     );

@@ -18,7 +18,7 @@ export default async function DashboardLayout({
     return (
         <div className="flex min-h-screen bg-slate-50">
             <Sidebar user={user} />
-            <div className="md:ml-64 flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-w-0">
                 <header className="h-16 border-b bg-white px-6 flex items-center gap-4 sticky top-0 z-10">
                     <MobileSidebar user={user} />
                     <div className="flex-1">
