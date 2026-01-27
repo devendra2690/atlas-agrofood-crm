@@ -10,12 +10,23 @@ import { updateTodo, deleteTodo } from "@/app/actions/notes";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
+import { useEffect, useRef } from "react"; // Add hooks
+
 interface NoteCardProps {
     note: any;
+    isHighlighted?: boolean;
 }
 
-export function NoteCard({ note }: NoteCardProps) {
+export function NoteCard({ note, isHighlighted }: NoteCardProps) {
     const [isUpdating, setIsUpdating] = useState(false);
+    const cardRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isHighlighted && cardRef.current) {
+            cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [isHighlighted]);
+    // ... rest of init
 
     const toggleStatus = async () => {
         setIsUpdating(true);
@@ -40,7 +51,14 @@ export function NoteCard({ note }: NoteCardProps) {
     };
 
     return (
-        <Card className={cn("flex flex-col h-full", note.status === 'COMPLETED' && "opacity-60")}>
+        <Card
+            ref={cardRef}
+            className={cn(
+                "flex flex-col h-full transition-all duration-500",
+                note.status === 'COMPLETED' && "opacity-60",
+                isHighlighted && "ring-2 ring-primary ring-offset-2 shadow-lg scale-[1.02]"
+            )}
+        >
             <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
                 <Badge variant="outline" className={cn("font-mono text-[10px]", getPriorityColor(note.priority))}>
                     {note.priority}

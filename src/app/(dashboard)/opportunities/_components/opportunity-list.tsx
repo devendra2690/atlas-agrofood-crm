@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { Briefcase, Calendar, Package, Factory, CheckCircle, XCircle, Send, Loader2, PlusCircle } from "lucide-react";
 import Link from "next/link";
@@ -31,11 +31,19 @@ interface OpportunityListProps {
     opportunities: any[]; // Using any because of included relations complexity
     companies: any[];
     commodities: any[];
+    initialExpandedId?: string;
 }
 
-export function OpportunityList({ opportunities, companies, commodities }: OpportunityListProps) {
-    const [expandedId, setExpandedId] = useState<string | null>(null);
+export function OpportunityList({ opportunities, companies, commodities, initialExpandedId }: OpportunityListProps) {
+    const [expandedId, setExpandedId] = useState<string | null>(initialExpandedId || null);
     const [loadingSampleId, setLoadingSampleId] = useState<string | null>(null);
+    const rowRefs = useRef<{ [key: string]: HTMLTableRowElement | null }>({});
+
+    useEffect(() => {
+        if (initialExpandedId && rowRefs.current[initialExpandedId]) {
+            rowRefs.current[initialExpandedId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [initialExpandedId]);
 
     const handleRowClick = (id: string) => {
         setExpandedId(prev => prev === id ? null : id);
@@ -103,6 +111,7 @@ export function OpportunityList({ opportunities, companies, commodities }: Oppor
                     return (
                         <Fragment key={opp.id}>
                             <TableRow
+                                ref={(el) => { if (el) rowRefs.current[opp.id] = el; }}
                                 className={`cursor-pointer transition-colors ${expandedId === opp.id ? "bg-muted/50" : "hover:bg-muted/50"}`}
                                 onClick={() => handleRowClick(opp.id)}
                             >

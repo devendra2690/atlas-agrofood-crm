@@ -182,12 +182,17 @@ export async function getOpportunities(filters?: {
     query?: string;
     status?: string;
     date?: string;
+    priorityId?: string;
 }) {
     try {
         const where: any = {};
         const page = filters?.page || 1;
         const limit = filters?.limit || 10;
         const skip = (page - 1) * limit;
+
+        // If priorityId is provided, we want to ensure it's included or handled.
+        // Option 1: If priorityId exists, we can ignore pagination for that item or fetch it separately.
+        // Let's fetch it separately if it doesn't appear in the main query to ensure it's visible.
 
         if (filters?.query) {
             const search = filters.query.trim();
@@ -269,40 +274,59 @@ export async function getOpportunities(filters?: {
                 take: limit,
                 include: {
                     company: true,
-                    commodity: true, // NEW
+                    commodity: true,
                     createdBy: { select: { name: true } },
                     updatedBy: { select: { name: true } },
                     sampleSubmissions: {
-                        include: {
-                            sample: {
-                                include: {
-                                    vendor: true
-                                }
-                            }
-                        },
-                        orderBy: {
-                            createdAt: 'desc'
-                        }
+                        include: { sample: { include: { vendor: true } } },
+                        orderBy: { createdAt: 'desc' }
                     },
                     procurementProject: {
-                        include: {
-                            samples: {
-                                include: {
-                                    vendor: true
-                                },
-                                orderBy: {
-                                    receivedDate: 'desc'
-                                }
-                            }
-                        }
+                        include: { samples: { include: { vendor: true }, orderBy: { receivedDate: 'desc' } } }
                     }
                 },
             }),
             prisma.salesOpportunity.count({ where })
         ]);
 
+        let finalOpportunities = opportunities;
+
+        // If we have a priorityId, ensure it's in the list
+        if (filters?.priorityId) {
+            console.log(`DEBUG: Checking priorityId ${filters.priorityId} on page ${page}`);
+            const isIncluded = opportunities.some(o => o.id === filters.priorityId);
+            console.log(`DEBUG: isIncluded? ${isIncluded}`);
+
+            if (!isIncluded) {
+                console.log(`DEBUG: Fetching priority opportunity separately`);
+                const priorityOpp = await prisma.salesOpportunity.findUnique({
+                    where: { id: filters.priorityId },
+                    include: {
+                        company: true,
+                        commodity: true,
+                        createdBy: { select: { name: true } },
+                        updatedBy: { select: { name: true } },
+                        sampleSubmissions: {
+                            include: { sample: { include: { vendor: true } } },
+                            orderBy: { createdAt: 'desc' }
+                        },
+                        procurementProject: {
+                            include: { samples: { include: { vendor: true }, orderBy: { receivedDate: 'desc' } } }
+                        }
+                    }
+                });
+
+                if (priorityOpp) {
+                    console.log(`DEBUG: Found priority opp, prepending`);
+                    finalOpportunities = [priorityOpp, ...opportunities];
+                } else {
+                    console.log(`DEBUG: Priority opp not found in DB`);
+                }
+            }
+        }
+
         // Sanitize Decimal types
-        const safeOpportunities = opportunities.map(opp => ({
+        const safeOpportunities = finalOpportunities.map(opp => ({
             ...opp,
             targetPrice: opp.targetPrice?.toNumber(),
             quantity: opp.quantity?.toNumber(),

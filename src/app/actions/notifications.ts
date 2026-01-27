@@ -10,13 +10,14 @@ export type NotificationItem = {
     time: string; // e.g., "Due in 2 days" or "Overdue by 1 day"
     type: "OVERDUE" | "DUE_SOON";
     link: string;
-    entityType: "Invoice" | "Bill" | "Opportunity";
+    entityType: "Invoice" | "Bill" | "Opportunity" | "Activity";
     date: Date;
 };
 
 export async function getDeadlineAlerts(): Promise<{ success: boolean; data: NotificationItem[] }> {
     try {
         const today = new Date();
+        const startOfToday = new Date(today.setHours(0, 0, 0, 0)); // Start of "Today"
         const nextWeek = addDays(today, 7);
 
         const alerts: NotificationItem[] = [];
@@ -43,7 +44,7 @@ export async function getDeadlineAlerts(): Promise<{ success: boolean; data: Not
                     message: `${inv.salesOrder.client.name} - ₹${Number(inv.pendingAmount).toLocaleString()}`,
                     time: formatDistanceToNow(inv.dueDate, { addSuffix: true }),
                     type: isOverdue ? "OVERDUE" : "DUE_SOON",
-                    link: `/invoices`,
+                    link: `/sales-orders/${inv.salesOrder.id}`,
                     entityType: "Invoice",
                     date: inv.dueDate
                 });
@@ -72,7 +73,7 @@ export async function getDeadlineAlerts(): Promise<{ success: boolean; data: Not
                     message: `${bill.vendor.name} - ₹${Number(bill.pendingAmount).toLocaleString()}`,
                     time: formatDistanceToNow(bill.dueDate, { addSuffix: true }),
                     type: isOverdue ? "OVERDUE" : "DUE_SOON",
-                    link: `/bills`,
+                    link: bill.purchaseOrderId ? `/purchase-orders/${bill.purchaseOrderId}` : `/bills`,
                     entityType: "Bill",
                     date: bill.dueDate
                 });
@@ -101,9 +102,40 @@ export async function getDeadlineAlerts(): Promise<{ success: boolean; data: Not
                     message: `${opp.company.name} - ${opp.productName}`,
                     time: formatDistanceToNow(opp.deadline, { addSuffix: true }),
                     type: isOverdue ? "OVERDUE" : "DUE_SOON",
-                    link: `/opportunities`,
+                    link: `/opportunities?highlight=${opp.id}`,
                     entityType: "Opportunity",
                     date: opp.deadline
+                });
+            }
+        }
+
+
+        // 4. Activity/Todos - PENDING & Due Date exists
+        const todos = await prisma.todo.findMany({
+            where: {
+                status: { not: "COMPLETED" },
+                dueDate: { not: null }
+            }
+        });
+
+        for (const todo of todos) {
+            if (!todo.dueDate) continue;
+
+            // Overdue if strictly before TODAY (Start of today)
+            const isOverdue = isBefore(todo.dueDate, startOfToday);
+            // Due soon if NOT overdue but before next week (includes today)
+            const isDueSoon = !isOverdue && isBefore(todo.dueDate, nextWeek);
+
+            if (isOverdue || isDueSoon) {
+                alerts.push({
+                    id: todo.id,
+                    title: isOverdue ? "Activity Overdue" : "Activity Due Soon", // Maybe "Activity Due Today" if matches today?
+                    message: todo.content,
+                    time: formatDistanceToNow(todo.dueDate, { addSuffix: true }),
+                    type: isOverdue ? "OVERDUE" : "DUE_SOON",
+                    link: `/notes?highlight=${todo.id}`,
+                    entityType: "Activity",
+                    date: todo.dueDate
                 });
             }
         }

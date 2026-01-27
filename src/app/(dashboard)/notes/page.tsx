@@ -17,6 +17,8 @@ export default async function NotesPage({
     const search = typeof params.search === 'string' ? params.search : undefined;
     const limit = 12; // Grid view, maybe 12 is good
 
+    const highlight = typeof params.highlight === 'string' ? params.highlight : undefined;
+
     const { data: todos, success, pagination } = await getTodos({
         page,
         limit,
@@ -48,7 +50,11 @@ export default async function NotesPage({
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                             {todos?.map((todo: any) => (
-                                <NoteCard key={todo.id} note={todo} />
+                                <NoteCard
+                                    key={todo.id}
+                                    note={todo}
+                                    isHighlighted={highlight === todo.id}
+                                />
                             ))}
                         </div>
                     )}

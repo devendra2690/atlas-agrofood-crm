@@ -18,13 +18,17 @@ export default async function OpportunitiesPage({
     const query = typeof params.query === 'string' ? params.query : undefined;
     const status = typeof params.status === 'string' ? params.status : undefined;
     const date = typeof params.date === 'string' ? params.date : undefined;
+    const highlight = typeof params.highlight === 'string' ? params.highlight : undefined;
+
+    console.log(`DEBUG: Page ${page}, Highlight: ${highlight}`);
 
     const { data: opportunities, pagination } = await getOpportunities({
         page,
         limit,
         query,
         status,
-        date
+        date,
+        priorityId: highlight
     });
     const { data: companies } = await getCompanies();
     const { data: allCommodities } = await getCommodities();
@@ -58,7 +62,12 @@ export default async function OpportunitiesPage({
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <OpportunityList opportunities={opportunities || []} companies={clientOptions} commodities={allCommodities || []} />
+                    <OpportunityList
+                        opportunities={opportunities || []}
+                        companies={clientOptions}
+                        commodities={allCommodities || []}
+                        initialExpandedId={highlight}
+                    />
                     {pagination && (
                         <PaginationControls
                             hasNextPage={pagination.page < pagination.totalPages}
