@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LucideIcon, Package, MapPin, Shield } from "lucide-react";
+import { LucideIcon, Package, MapPin, Shield, User } from "lucide-react";
 
 interface SettingsNavProps {
     items: {
@@ -17,6 +17,7 @@ export function SettingsNav({ role }: { role?: string }) {
     const pathname = usePathname();
 
     const items = [
+        { name: "Profile", href: "/settings/profile", icon: User },
         { name: "Commodities", href: "/settings/commodities", icon: Package },
         { name: "Locations", href: "/settings/locations", icon: MapPin },
     ];

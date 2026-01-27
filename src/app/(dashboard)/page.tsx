@@ -1,13 +1,23 @@
-import { getDashboardStats } from "@/app/actions/dashboard";
+import { getDashboardStats, getSalesChartData, getRecentActivity, getPendingTasks } from "@/app/actions/dashboard";
 import {
     SalesSummaryCard,
     ProcurementSummaryCard,
     LogisticsSummaryCard,
     FinanceSummaryCard
 } from "./_components/department-cards";
+import { OverviewChart } from "./_components/overview-chart";
+import { RecentActivity } from "./_components/recent-activity";
+import { RecentTasks } from "./_components/recent-tasks";
 
 export default async function DashboardPage() {
     const { success, data } = await getDashboardStats();
+
+    // Fetch widget data in parallel
+    const [salesChartData, recentActivity, pendingTasks] = await Promise.all([
+        getSalesChartData(),
+        getRecentActivity(),
+        getPendingTasks()
+    ]);
 
     if (!success || !data) {
         return (
@@ -30,9 +40,14 @@ export default async function DashboardPage() {
                 <FinanceSummaryCard stats={data.finance} />
             </div>
 
-            {/* Placeholder for future detailed widgets */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                {/* We can add a recent activity feed or charts here later */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
+                <div className="col-span-1 lg:col-span-4">
+                    <OverviewChart data={salesChartData} />
+                </div>
+                <div className="col-span-1 lg:col-span-3 grid gap-4">
+                    <RecentTasks tasks={pendingTasks} />
+                    <RecentActivity activities={recentActivity} />
+                </div>
             </div>
         </div>
     );

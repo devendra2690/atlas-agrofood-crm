@@ -147,3 +147,81 @@ async function getFinanceStats() {
         totalPayables
     };
 }
+
+export async function getSalesChartData() {
+    // Group sales by month for the current year
+    const currentYear = new Date().getFullYear();
+    const startOfYear = new Date(currentYear, 0, 1);
+    const endOfYear = new Date(currentYear, 11, 31);
+
+    const salesOrders = await prisma.salesOrder.findMany({
+        where: {
+            status: { not: 'CANCELLED' },
+            createdAt: {
+                gte: startOfYear,
+                lte: endOfYear
+            }
+        },
+        select: {
+            createdAt: true,
+            totalAmount: true
+        }
+    });
+
+    // Initialize months
+    const monthlyData = Array.from({ length: 12 }, (_, i) => ({
+        name: new Date(0, i).toLocaleString('default', { month: 'short' }),
+        total: 0
+    }));
+
+    salesOrders.forEach(order => {
+        const month = new Date(order.createdAt).getMonth();
+        monthlyData[month].total += Number(order.totalAmount);
+    });
+
+    return monthlyData;
+}
+
+export async function getRecentActivity() {
+    const interactions = await prisma.interactionLog.findMany({
+        take: 5,
+        orderBy: { date: 'desc' },
+        include: {
+            company: { select: { name: true } },
+            user: { select: { name: true, image: true } }
+        }
+    });
+
+    return interactions.map(interaction => ({
+        id: interaction.id,
+        user: interaction.user,
+        action: `logged an interaction`,
+        target: interaction.company.name,
+        timestamp: interaction.date,
+        details: interaction.description
+    }));
+}
+
+export async function getPendingTasks() {
+    const session = await auth();
+    if (!session?.user?.id) return [];
+
+    const tasks = await prisma.todo.findMany({
+        where: {
+            // userId: session.user.id, // Ideally filter by user, but schema might not link Todo to User properly? checked earlier it does.
+            // Wait, schema check: Todo has userId? Yes (Todo_userId_fkey).
+            userId: session.user.id,
+            status: { not: 'COMPLETED' }
+        },
+        take: 5,
+        orderBy: { dueDate: 'asc' }, // Urgent first
+        select: {
+            id: true,
+            content: true,
+            dueDate: true,
+            priority: true
+        }
+    });
+
+    return tasks;
+}

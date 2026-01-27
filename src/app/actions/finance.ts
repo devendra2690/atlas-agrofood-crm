@@ -643,3 +643,84 @@ export async function getOtherExpenseTransactions() {
     }
 }
 
+export async function getProfitabilityAnalytics() {
+    try {
+        // 1. Fetch all Invoices (Revenue) linked to Sales Orders
+        // We can group by SalesOrder -> Opportunity -> Product/Commodity?
+        // Let's get "Profit by Customer" and "Profit by Product"
+
+        const invoices = await prisma.invoice.findMany({
+            where: { status: 'PAID' }, // Realized revenue
+            include: {
+                salesOrder: {
+                    include: {
+                        client: true,
+                        opportunity: { include: { commodity: true } }
+                    }
+                }
+            }
+        });
+
+        // 2. Fetch costs (Bills) linked to Projects -> Opportunities -> ... hard to link backwards easily if not direct.
+        // Alternative: Use Transactions for simple "Money In" vs "Money Out" tagging?
+        // Better: Use the `getSalesOrderFinancials` logic for each invoice's order.
+
+        const customerStats: Record<string, { revenue: number, costs: number, margin: number, name: string }> = {};
+        const productStats: Record<string, { revenue: number, costs: number, margin: number, name: string }> = {};
+
+        let totalRevenue = 0;
+        let totalCOGS = 0;
+        let totalExpenses = 0;
+
+        // Iterate over realized revenue (Invoices)
+        for (const inv of invoices) {
+            const amount = inv.totalAmount.toNumber();
+            totalRevenue += amount;
+
+            // Estimate cost for this specific order (Pro-rated?)
+            // We call the existing helper:
+            const financials = await getSalesOrderFinancials(inv.salesOrderId);
+            const cost = financials.cogs + financials.otherExpenses;
+            totalCOGS += financials.cogs;
+            totalExpenses += financials.otherExpenses;
+
+            const margin = amount - cost;
+
+            // Group by Customer
+            const clientName = inv.salesOrder.client.name;
+            if (!customerStats[clientName]) {
+                customerStats[clientName] = { name: clientName, revenue: 0, costs: 0, margin: 0 };
+            }
+            customerStats[clientName].revenue += amount;
+            customerStats[clientName].costs += cost;
+            customerStats[clientName].margin += margin;
+
+            // Group by Product
+            const productName = inv.salesOrder.opportunity.productName || "Unknown Product";
+            if (!productStats[productName]) {
+                productStats[productName] = { name: productName, revenue: 0, costs: 0, margin: 0 };
+            }
+            productStats[productName].revenue += amount;
+            productStats[productName].costs += cost;
+            productStats[productName].margin += margin;
+        }
+
+        // Waterfall Data
+        const waterfallData = [
+            { name: "Gross Revenue", value: totalRevenue, fill: "#10b981" }, // Green
+            { name: "COGS", value: -totalCOGS, fill: "#f43f5e" }, // Red
+            { name: "Expenses", value: -totalExpenses, fill: "#f59e0b" }, // Orange
+            { name: "Net Profit", value: totalRevenue - totalCOGS - totalExpenses, fill: "#3b82f6" } // Blue
+        ];
+
+        return {
+            waterfall: waterfallData,
+            byCustomer: Object.values(customerStats).sort((a, b) => b.margin - a.margin),
+            byProduct: Object.values(productStats).sort((a, b) => b.margin - a.margin)
+        };
+
+    } catch (error) {
+        console.error("Failed to fetch profitability analytics:", error);
+        return { waterfall: [], byCustomer: [], byProduct: [] };
+    }
+}

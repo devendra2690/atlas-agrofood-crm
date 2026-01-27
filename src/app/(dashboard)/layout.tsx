@@ -3,6 +3,7 @@ import { getDeadlineAlerts } from "@/app/actions/notifications";
 import { Sidebar, MobileSidebar } from "@/components/layout/Sidebar";
 import { UserNav } from "@/components/layout/user-nav";
 import { auth } from "@/auth";
+import { SearchCommand } from "@/components/layout/search-command";
 
 export default async function DashboardLayout({
     children,
@@ -25,6 +26,7 @@ export default async function DashboardLayout({
                         <h2 className="text-lg font-semibold text-slate-800">Workspace</h2>
                     </div>
                     <div className="flex items-center gap-4">
+                        <SearchCommand />
                         <NotificationsDropdown alerts={alerts || []} />
                         <UserNav user={user || undefined} />
                     </div>
