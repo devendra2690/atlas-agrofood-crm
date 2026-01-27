@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,11 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Briefcase, Calendar } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { FlaskConical } from "lucide-react";
+
 interface KanbanCardProps {
     opportunity: any;
+    onClick?: () => void;
+    onAttachSample?: () => void;
 }
 
-export function KanbanCard({ opportunity }: KanbanCardProps) {
+export function KanbanCard({ opportunity, onClick, onAttachSample }: KanbanCardProps) {
     const {
         attributes,
         listeners,
@@ -28,8 +35,15 @@ export function KanbanCard({ opportunity }: KanbanCardProps) {
     };
 
     return (
-        <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none">
-            <Card className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
+        <div
+            ref={setNodeRef}
+            style={style}
+            {...attributes}
+            {...listeners}
+            className="touch-none"
+            onClick={onClick}
+        >
+            <Card className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group relative">
                 <CardHeader className="p-3 pb-0 space-y-0">
                     <CardTitle className="text-sm font-medium leading-none">
                         {opportunity.productName}
@@ -49,6 +63,21 @@ export function KanbanCard({ opportunity }: KanbanCardProps) {
                                 {format(new Date(opportunity.deadline), "MMM d")}
                             </div>
                         )}
+                    </div>
+                    {/* Add Sample Action on Hover/Always */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            title="Attach Sample"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onAttachSample?.();
+                            }}
+                        >
+                            <FlaskConical className="h-3 w-3" />
+                        </Button>
                     </div>
                 </CardContent>
             </Card>

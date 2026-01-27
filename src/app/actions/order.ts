@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { SalesOrderStatus } from "@prisma/client";
 import { auth } from "@/auth";
 import { logActivity } from "./audit";
+import { sendOrderConfirmationEmail } from "./email";
 
 export async function createSalesOrder(opportunityId: string) {
     try {
@@ -75,6 +76,9 @@ export async function createSalesOrder(opportunityId: string) {
             entityTitle: `Order #${salesOrder.id.slice(0, 8).toUpperCase()}`,
             details: `Created sales order for ${opportunity.company.name} - ₹${totalAmount.toLocaleString()}`
         });
+
+        // Send Confirmation Email
+        await sendOrderConfirmationEmail(salesOrder.id);
 
         revalidatePath("/opportunities");
         revalidatePath("/sales-orders");

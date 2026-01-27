@@ -17,6 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { useState } from "react";
 import { toast } from "sonner";
 import { createTransaction } from "@/app/actions/finance";
@@ -87,7 +88,7 @@ export function AddTransactionDialog({ type, salesOrders = [] }: AddTransactionD
                     Register {type === 'CREDIT' ? 'Income' : 'Expense'}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Register {type === 'CREDIT' ? 'Income' : 'Expense'}</DialogTitle>
                 </DialogHeader>
@@ -104,22 +105,20 @@ export function AddTransactionDialog({ type, salesOrders = [] }: AddTransactionD
                     {salesOrders && salesOrders.length > 0 && (
                         <div className="grid gap-2">
                             <Label>Link to Sales Order (Optional)</Label>
-                            <Select
+                            <Combobox
+                                options={[
+                                    { label: `None (General ${type === 'CREDIT' ? 'Income' : 'Expense'})`, value: "none" },
+                                    ...salesOrders.map(order => ({
+                                        label: `${order.client.name} - ${order.opportunity.productName} (${order.id.slice(0, 8)})`,
+                                        value: order.id
+                                    }))
+                                ]}
                                 value={formData.salesOrderId}
-                                onValueChange={(value) => setFormData({ ...formData, salesOrderId: value })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select Order" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">None (General {type === 'CREDIT' ? 'Income' : 'Expense'})</SelectItem>
-                                    {salesOrders.map((order) => (
-                                        <SelectItem key={order.id} value={order.id}>
-                                            {order.client.name} - {order.opportunity.productName} ({order.id.slice(0, 8)})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                onChange={(value) => setFormData({ ...formData, salesOrderId: value })}
+                                placeholder="Select Order"
+                                searchPlaceholder="Search order..."
+                                emptyMessage="No orders found."
+                            />
                         </div>
                     )}
                     <div className="grid gap-2">

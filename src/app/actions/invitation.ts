@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { signIn, auth } from "@/auth";
+import { sendWelcomeEmail } from "./email";
 
 /**
  * Creates an invitation token for a new user
@@ -76,6 +77,9 @@ export async function registerWithToken(token: string, password: string, name: s
                 image: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}` // Random avatar
             }
         });
+
+        // Send Welcome Email
+        await sendWelcomeEmail(user.email, user.name || "User");
 
         // Mark invitation as accepted
         await prisma.invitation.update({

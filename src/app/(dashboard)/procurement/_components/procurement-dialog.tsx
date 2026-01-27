@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Combobox } from "@/components/ui/combobox";
 import {
     Select,
     SelectContent,
@@ -120,7 +121,7 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{project ? "Edit Sourcing Project" : "New Sourcing Project"}</DialogTitle>
                     <DialogDescription>
@@ -132,18 +133,13 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
                             <Label htmlFor="commodity">Commodity</Label>
-                            <Select value={selectedCommodityId} onValueChange={handleCommodityChange}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select commodity (Optional)" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {commodities.map((c) => (
-                                        <SelectItem key={c.id} value={c.id}>
-                                            {c.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                options={commodities.map(c => ({ label: c.name, value: c.id }))}
+                                value={selectedCommodityId}
+                                onChange={handleCommodityChange}
+                                placeholder="Select commodity (Optional)"
+                                searchPlaceholder="Search commodity..."
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="name">Project Name</Label>

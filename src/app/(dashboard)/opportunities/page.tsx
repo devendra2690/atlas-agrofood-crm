@@ -73,7 +73,11 @@ export default async function OpportunitiesPage({
 
             {view === 'board' ? (
                 <div className="h-[calc(100vh-220px)]">
-                    <OpportunityBoard opportunities={safeOpportunities} />
+                    <OpportunityBoard
+                        opportunities={safeOpportunities}
+                        companies={clientOptions}
+                        commodities={allCommodities || []}
+                    />
                 </div>
             ) : (
                 <Card>

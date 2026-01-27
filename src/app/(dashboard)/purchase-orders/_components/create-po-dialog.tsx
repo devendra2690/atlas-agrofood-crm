@@ -11,13 +11,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
@@ -93,7 +87,7 @@ export function CreatePurchaseOrderDialog() {
                     Create Purchase Order
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Create Purchase Order</DialogTitle>
                     <DialogDescription>
@@ -103,45 +97,29 @@ export function CreatePurchaseOrderDialog() {
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label>Project</Label>
-                        <Select value={projectId} onValueChange={(val) => {
-                            setProjectId(val);
-                            setVendorId(""); // Reset vendor when project changes
-                        }}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select project..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {projects.length === 0 ? (
-                                    <SelectItem value="none" disabled>No projects found</SelectItem>
-                                ) : (
-                                    projects.map((project) => (
-                                        <SelectItem key={project.id} value={project.id}>
-                                            {project.name}
-                                        </SelectItem>
-                                    ))
-                                )}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            options={projects.map(p => ({ label: p.name, value: p.id }))}
+                            value={projectId}
+                            onChange={(val) => {
+                                setProjectId(val);
+                                setVendorId(""); // Reset vendor when project changes
+                            }}
+                            placeholder="Select project..."
+                            searchPlaceholder="Search project..."
+                            emptyMessage="No projects found"
+                        />
                     </div>
 
                     <div className="grid gap-2">
                         <Label>Vendor</Label>
-                        <Select value={vendorId} onValueChange={setVendorId} disabled={!projectId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder={!projectId ? "Select project first" : "Select vendor..."} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {vendors.length === 0 ? (
-                                    <SelectItem value="none" disabled>No vendors in this project</SelectItem>
-                                ) : (
-                                    vendors.map((vendor: any) => (
-                                        <SelectItem key={vendor.id} value={vendor.id}>
-                                            {vendor.name}
-                                        </SelectItem>
-                                    ))
-                                )}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            options={vendors.map((v: any) => ({ label: v.name, value: v.id }))}
+                            value={vendorId}
+                            onChange={setVendorId}
+                            placeholder={!projectId ? "Select project first" : "Select vendor..."}
+                            searchPlaceholder="Search vendor..."
+                            emptyMessage="No vendors in this project"
+                        />
                         {projectId && vendors.length === 0 && (
                             <p className="text-xs text-red-500">
                                 This project has no vendors. Add a vendor to the project first.

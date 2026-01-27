@@ -9,9 +9,11 @@ interface KanbanColumnProps {
     title: string;
     count: number;
     opportunities: any[];
+    onCardClick?: (opportunity: any) => void;
+    onAttachSample?: (opportunity: any) => void;
 }
 
-export function KanbanColumn({ id, title, count, opportunities }: KanbanColumnProps) {
+export function KanbanColumn({ id, title, count, opportunities, onCardClick, onAttachSample }: KanbanColumnProps) {
     const { setNodeRef } = useDroppable({ id });
 
     return (
@@ -26,7 +28,12 @@ export function KanbanColumn({ id, title, count, opportunities }: KanbanColumnPr
             <div ref={setNodeRef} className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[150px]">
                 <SortableContext items={opportunities.map((o) => o.id)} strategy={verticalListSortingStrategy}>
                     {opportunities.map((opportunity) => (
-                        <KanbanCard key={opportunity.id} opportunity={opportunity} />
+                        <KanbanCard
+                            key={opportunity.id}
+                            opportunity={opportunity}
+                            onClick={() => onCardClick?.(opportunity)}
+                            onAttachSample={() => onAttachSample?.(opportunity)}
+                        />
                     ))}
                 </SortableContext>
                 {opportunities.length === 0 && (

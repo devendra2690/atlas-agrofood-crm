@@ -372,7 +372,9 @@ export async function getUnassignedOpportunities() {
         const opportunities = await prisma.salesOpportunity.findMany({
             where: {
                 procurementProjectId: null,
-                status: "OPEN"
+                status: {
+                    in: ["OPEN", "QUALIFICATION", "PROPOSAL", "NEGOTIATION", "CLOSED_WON"]
+                }
             },
             include: {
                 company: true

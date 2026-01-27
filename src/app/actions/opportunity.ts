@@ -92,6 +92,7 @@ export async function createOpportunity(data: OpportunityFormData) {
         };
 
         revalidatePath(`/companies/${data.companyId}`);
+        revalidatePath("/opportunities");
         return { success: true, data: safeOpportunity };
     } catch (error: any) {
         console.error("Failed to create opportunity:", error);

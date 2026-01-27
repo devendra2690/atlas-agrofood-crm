@@ -18,6 +18,7 @@ import { KanbanCard } from "./kanban-card";
 import { updateOpportunityStatus } from "@/app/actions/opportunity";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { OpportunityDialog } from "./opportunity-dialog";
 
 // Define columns/statuses in order
 const COLUMNS = [
@@ -31,11 +32,21 @@ const COLUMNS = [
 
 interface OpportunityBoardProps {
     opportunities: any[];
+    companies: any[];
+    commodities: any[];
 }
 
-export function OpportunityBoard({ opportunities: initialOpportunities }: OpportunityBoardProps) {
+import { AttachSampleDialog } from "./attach-sample-dialog";
+
+export function OpportunityBoard({ opportunities: initialOpportunities, companies, commodities }: OpportunityBoardProps) {
     const [opportunities, setOpportunities] = useState(initialOpportunities);
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [editingOpportunity, setEditingOpportunity] = useState<any>(null);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+    const [attachingOpportunity, setAttachingOpportunity] = useState<any>(null);
+    const [attachSampleDialogOpen, setAttachSampleDialogOpen] = useState(false);
+
     const router = useRouter();
 
     const sensors = useSensors(
@@ -135,6 +146,14 @@ export function OpportunityBoard({ opportunities: initialOpportunities }: Opport
                         title={col.title}
                         count={col.opportunities.length}
                         opportunities={col.opportunities}
+                        onCardClick={(opp) => {
+                            setEditingOpportunity(opp);
+                            setEditDialogOpen(true);
+                        }}
+                        onAttachSample={(opp) => {
+                            setAttachingOpportunity(opp);
+                            setAttachSampleDialogOpen(true);
+                        }}
                     />
                 ))}
             </div>
@@ -142,6 +161,20 @@ export function OpportunityBoard({ opportunities: initialOpportunities }: Opport
             <DragOverlay>
                 {activeOpportunity ? <KanbanCard opportunity={activeOpportunity} /> : null}
             </DragOverlay>
+
+            <OpportunityDialog
+                open={editDialogOpen}
+                onOpenChange={setEditDialogOpen}
+                initialData={editingOpportunity}
+                companies={companies}
+                commodities={commodities}
+            />
+
+            <AttachSampleDialog
+                open={attachSampleDialogOpen}
+                onOpenChange={setAttachSampleDialogOpen}
+                opportunity={attachingOpportunity}
+            />
         </DndContext>
     );
 }

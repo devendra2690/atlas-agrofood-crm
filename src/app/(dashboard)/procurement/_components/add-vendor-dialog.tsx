@@ -11,13 +11,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { getAvailableVendors, addVendorToProject } from "@/app/actions/procurement";
 import { Plus, Building } from "lucide-react";
 import { toast } from "sonner";
@@ -85,26 +79,21 @@ export function AddVendorDialog({ projectId }: AddVendorDialogProps) {
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label>Select Vendor</Label>
-                        <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select vendor..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {vendors.length === 0 ? (
-                                    <SelectItem value="none" disabled>No available vendors found</SelectItem>
-                                ) : (
-                                    vendors.map((vendor) => {
-                                        const locationParts = [vendor.city?.name, vendor.state?.name, vendor.country?.name].filter(Boolean);
-                                        const locationString = locationParts.length > 0 ? locationParts.join(", ") : "No Location";
-                                        return (
-                                            <SelectItem key={vendor.id} value={vendor.id}>
-                                                {vendor.name} ({locationString})
-                                            </SelectItem>
-                                        );
-                                    })
-                                )}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            options={vendors.map(v => {
+                                const locationParts = [v.city?.name, v.state?.name, v.country?.name].filter(Boolean);
+                                const locationString = locationParts.length > 0 ? locationParts.join(", ") : "No Location";
+                                return {
+                                    label: `${v.name} (${locationString})`,
+                                    value: v.id
+                                };
+                            })}
+                            value={selectedVendorId}
+                            onChange={setSelectedVendorId}
+                            placeholder="Select vendor..."
+                            searchPlaceholder="Search vendor..."
+                            emptyMessage="No available vendors found"
+                        />
                     </div>
                 </div>
                 <DialogFooter>

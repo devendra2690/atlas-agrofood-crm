@@ -24,21 +24,8 @@ import { createOpportunity, updateOpportunity } from "@/app/actions/opportunity"
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { OpportunityStatus } from "@prisma/client";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
+import { useRouter } from "next/navigation";
+import { Combobox } from "@/components/ui/combobox";
 
 interface Commodity {
     id: string;
@@ -64,7 +51,6 @@ interface OpportunityDialogProps {
 export function OpportunityDialog({ companies, commodities, initialData, open: controlledOpen, onOpenChange: setControlledOpen, trigger }: OpportunityDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [companyOpen, setCompanyOpen] = useState(false);
 
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : internalOpen;
@@ -178,6 +164,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
             if (result.success) {
                 toast.success(initialData ? "Opportunity updated" : "Opportunity created");
                 setOpen(false);
+                router.refresh();
                 if (!initialData) {
                     setCompanyId("");
                     setCommodityId("");
@@ -213,7 +200,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
             ) : (
                 trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>
             )}
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{initialData ? "Edit Opportunity" : "Add Opportunity"}</DialogTitle>
                     <DialogDescription>
@@ -224,70 +211,29 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
                             <Label htmlFor="company">Company (Client)</Label>
-                            <Popover open={companyOpen} onOpenChange={setCompanyOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        role="combobox"
-                                        aria-expanded={companyOpen}
-                                        className="w-full justify-between"
-                                    >
-                                        {companyId
-                                            ? companies.find((company) => company.id === companyId)?.name
-                                            : "Select company..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                                    <Command>
-                                        <CommandInput placeholder="Search company..." />
-                                        <CommandList className="max-h-[200px] overflow-y-auto">
-                                            <CommandEmpty>No company found.</CommandEmpty>
-                                            <CommandGroup>
-                                                {companies.map((company) => (
-                                                    <CommandItem
-                                                        key={company.id}
-                                                        value={company.name} // Use name for search filtering
-                                                        onSelect={() => {
-                                                            setCompanyId(company.id);
-                                                            setCommodityId("");
-                                                            setCompanyOpen(false);
-                                                        }}
-                                                    >
-                                                        <Check
-                                                            className={cn(
-                                                                "mr-2 h-4 w-4",
-                                                                companyId === company.id ? "opacity-100" : "opacity-0"
-                                                            )}
-                                                        />
-                                                        {company.name}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
+                            <Combobox
+                                options={companies.map(c => ({ label: c.name, value: c.id }))}
+                                value={companyId}
+                                onChange={(val) => {
+                                    setCompanyId(val);
+                                    setCommodityId("");
+                                }}
+                                placeholder="Select company..."
+                                searchPlaceholder="Search company..."
+                                emptyMessage="No company found."
+                            />
                         </div>
 
                         <div className="grid gap-2">
                             <Label htmlFor="commodity">Commodity</Label>
-                            <Select value={commodityId} onValueChange={handleCommodityChange}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select commodity" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableCommodities.length === 0 ? (
-                                        <SelectItem value="_none" disabled>No commodities found</SelectItem>
-                                    ) : (
-                                        availableCommodities.map((c) => (
-                                            <SelectItem key={c.id} value={c.id}>
-                                                {c.name}
-                                            </SelectItem>
-                                        ))
-                                    )}
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                options={availableCommodities.map(c => ({ label: c.name, value: c.id }))}
+                                value={commodityId}
+                                onChange={handleCommodityChange}
+                                placeholder="Select commodity..."
+                                searchPlaceholder="Search commodity..."
+                                emptyMessage="No commodities found"
+                            />
                         </div>
 
                         <div className="grid gap-2">
