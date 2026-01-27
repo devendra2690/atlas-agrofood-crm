@@ -4,11 +4,19 @@ import { ActivityList } from "./_components/activity-list";
 import { ActivityFilters } from "./_components/activity-filters";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+
 export default async function ActivityPage({
     searchParams,
 }: {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+    const session = await auth();
+    if (session?.user?.role !== "ADMIN") {
+        redirect("/");
+    }
+
     const params = await searchParams;
     const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
     const entityType = typeof params.entityType === 'string' ? params.entityType : undefined;

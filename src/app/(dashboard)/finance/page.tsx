@@ -7,7 +7,15 @@ import { ProfitabilityWaterfall } from "./_components/profitability-waterfall";
 import { MarginTable } from "./_components/margin-table";
 import { ExportButton } from "./_components/export-button";
 
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+
 export default async function FinancePage() {
+    const session = await auth();
+    if (session?.user?.role !== "ADMIN") {
+        redirect("/");
+    }
+
     const stats = await getFinancialStats();
     const transactions = await getRecentTransactions();
     const salesOrders = await getSalesOrdersForSelection();

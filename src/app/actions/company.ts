@@ -111,11 +111,13 @@ export async function updateCompanyTrustLevel(id: string, trustLevel: TrustLevel
 }
 
 export async function getCompanies(filters?: {
+    query?: string;
     location?: string;
     commodityId?: string;
     trustLevel?: string;
     page?: number;
     limit?: number;
+    type?: CompanyType; // Add type filter support if needed/used
 }) {
     try {
         const where: any = {
@@ -124,24 +126,42 @@ export async function getCompanies(filters?: {
             }
         };
 
-        if (filters?.location) {
-            where.OR = [
-                { city: { name: { contains: filters.location, mode: 'insensitive' } } },
-                { state: { name: { contains: filters.location, mode: 'insensitive' } } },
-                { country: { name: { contains: filters.location, mode: 'insensitive' } } }
-            ];
-        }
-
-        if (filters?.commodityId && filters.commodityId !== 'all') {
-            where.commodities = {
-                some: {
-                    id: filters.commodityId
-                }
-            };
-        }
-
         if (filters?.trustLevel && filters.trustLevel !== 'all') {
             where.trustLevel = filters.trustLevel as TrustLevel;
+        }
+
+
+
+        // Refined Logic for Query + Location mixing
+        // If both exist, we need AND condition for the groups.
+        const conditions: any[] = [];
+
+        if (filters?.type) {
+            // We already set type at top level, but let's keep it clean.
+        }
+
+        if (filters?.location) {
+            conditions.push({
+                OR: [
+                    { city: { name: { contains: filters.location, mode: 'insensitive' } } },
+                    { state: { name: { contains: filters.location, mode: 'insensitive' } } },
+                    { country: { name: { contains: filters.location, mode: 'insensitive' } } }
+                ]
+            });
+        }
+
+        if (filters?.query) {
+            conditions.push({
+                OR: [
+                    { name: { contains: filters.query, mode: 'insensitive' } },
+                    { email: { contains: filters.query, mode: 'insensitive' } },
+                    { phone: { contains: filters.query, mode: 'insensitive' } }
+                ]
+            });
+        }
+
+        if (conditions.length > 0) {
+            where.AND = conditions;
         }
 
         const page = filters?.page || 1;

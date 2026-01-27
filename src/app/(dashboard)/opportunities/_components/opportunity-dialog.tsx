@@ -24,6 +24,21 @@ import { createOpportunity, updateOpportunity } from "@/app/actions/opportunity"
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { OpportunityStatus } from "@prisma/client";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface Commodity {
     id: string;
@@ -49,6 +64,7 @@ interface OpportunityDialogProps {
 export function OpportunityDialog({ companies, commodities, initialData, open: controlledOpen, onOpenChange: setControlledOpen, trigger }: OpportunityDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [companyOpen, setCompanyOpen] = useState(false);
 
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : internalOpen;
@@ -208,21 +224,50 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
                             <Label htmlFor="company">Company (Client)</Label>
-                            <Select value={companyId} onValueChange={(val) => {
-                                setCompanyId(val);
-                                setCommodityId("");
-                            }}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select company" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {companies.map((company) => (
-                                        <SelectItem key={company.id} value={company.id}>
-                                            {company.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Popover open={companyOpen} onOpenChange={setCompanyOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={companyOpen}
+                                        className="w-full justify-between"
+                                    >
+                                        {companyId
+                                            ? companies.find((company) => company.id === companyId)?.name
+                                            : "Select company..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Search company..." />
+                                        <CommandList className="max-h-[200px] overflow-y-auto">
+                                            <CommandEmpty>No company found.</CommandEmpty>
+                                            <CommandGroup>
+                                                {companies.map((company) => (
+                                                    <CommandItem
+                                                        key={company.id}
+                                                        value={company.name} // Use name for search filtering
+                                                        onSelect={() => {
+                                                            setCompanyId(company.id);
+                                                            setCommodityId("");
+                                                            setCompanyOpen(false);
+                                                        }}
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                companyId === company.id ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        {company.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
 
                         <div className="grid gap-2">

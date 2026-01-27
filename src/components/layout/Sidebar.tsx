@@ -82,6 +82,21 @@ interface SidebarProps {
 }
 
 function SidebarContent({ user, pathname, onNavigate }: { user?: any, pathname: string, onNavigate?: () => void }) {
+    const filteredItems = sidebarItems.map(group => {
+        // 1. Filter items within the group
+        const items = group.items.filter(item => {
+            if (item.name === "Activity" && user?.role !== "ADMIN") return false;
+            return true;
+        });
+
+        // 2. Filter entire group (e.g. Finance)
+        if (group.title === "Finance" && user?.role !== "ADMIN") return null;
+
+        if (items.length === 0) return null;
+
+        return { ...group, items };
+    }).filter(Boolean) as typeof sidebarItems;
+
     return (
         <div className="flex flex-col h-[100dvh] w-full bg-slate-900 text-white overflow-hidden">
             <div className="p-6 border-b border-slate-800 shrink-0">
@@ -93,7 +108,7 @@ function SidebarContent({ user, pathname, onNavigate }: { user?: any, pathname: 
             </div>
 
             <div className="flex-1 overflow-y-auto min-h-0 pt-4 pb-24 overscroll-contain">
-                {sidebarItems.map((group, i) => (
+                {filteredItems.map((group, i) => (
                     <div key={i} className="mb-6 px-4">
                         <h3 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
                             {group.title}

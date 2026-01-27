@@ -12,7 +12,7 @@ export default async function TeamSettingsPage() {
     const session = await auth();
     // @ts-ignore
     if (session?.user?.role !== 'ADMIN') {
-        return <div className="p-8 text-destructive">Access Denied: Admin privileges required.</div>;
+        redirect("/");
     }
 
     const users = await getTeamMembers();

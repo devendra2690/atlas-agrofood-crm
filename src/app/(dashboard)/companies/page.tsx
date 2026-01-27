@@ -1,7 +1,7 @@
+import { Suspense } from "react";
 import { getCompanies } from "@/app/actions/company";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
     Table,
     TableBody,
@@ -10,7 +10,7 @@ import {
     TableHeader,
     TableRow
 } from "@/components/ui/table";
-import { Search } from "lucide-react";
+import { SearchInput } from "@/components/search-input";
 import { CompanyDialog } from "./_components/company-dialog";
 import { CompanyRow } from "./_components/company-row";
 import { PaginationControls } from "@/components/ui/pagination-controls";
@@ -24,9 +24,12 @@ export default async function CompaniesPage({
     const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
     const limit = 10;
 
+    const query = typeof params.query === 'string' ? params.query : undefined;
+
     const { data: companies, pagination } = await getCompanies({
         page,
-        limit
+        limit,
+        query
     });
 
     return (
@@ -45,13 +48,9 @@ export default async function CompaniesPage({
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-lg font-medium">All Companies</CardTitle>
                     <div className="flex w-[300px] items-center space-x-2">
-                        <Input
-                            placeholder="Search companies..."
-                            className="h-9"
-                        />
-                        <Button size="icon" variant="ghost">
-                            <Search className="h-4 w-4" />
-                        </Button>
+                        <Suspense fallback={<div className="h-9 w-full bg-muted animate-pulse rounded-md" />}>
+                            <SearchInput placeholder="Search companies..." />
+                        </Suspense>
                     </div>
                 </CardHeader>
                 <CardContent>

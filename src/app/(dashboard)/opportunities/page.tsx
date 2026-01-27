@@ -6,6 +6,8 @@ import { OpportunityList } from "./_components/opportunity-list";
 import { OpportunityDialog } from "./_components/opportunity-dialog";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { OpportunityFilters } from "./_components/opportunity-filters";
+import { OpportunityBoard } from "./_components/opportunity-board";
+import { OpportunityViewToggle } from "./_components/opportunity-view-toggle";
 
 export default async function OpportunitiesPage({
     searchParams,
@@ -14,7 +16,8 @@ export default async function OpportunitiesPage({
 }) {
     const params = await searchParams;
     const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
-    const limit = 10;
+    const view = typeof params.view === 'string' ? params.view : 'board';
+    const limit = view === 'board' ? 1000 : 10; // Fetch all (effectively) for board view
     const query = typeof params.query === 'string' ? params.query : undefined;
     const status = typeof params.status === 'string' ? params.status : undefined;
     const date = typeof params.date === 'string' ? params.date : undefined;
@@ -30,8 +33,11 @@ export default async function OpportunitiesPage({
         date,
         priorityId: highlight
     });
-    const { data: companies } = await getCompanies();
-    const { data: allCommodities } = await getCommodities();
+    const { data: companies } = await getCompanies({ limit: 1000 });
+    const allCommoditiesResponse = await getCommodities();
+
+    // Flatten result to get array
+    const allCommodities = allCommoditiesResponse.data;
 
     // Filter only companies that are clients or prospects for the dropdown
     const clientOptions = companies?.filter(c => c.type === 'CLIENT' || c.type === 'PROSPECT').map(c => ({
@@ -40,44 +46,61 @@ export default async function OpportunitiesPage({
         commodities: c.commodities // Pass commodities
     })) || [];
 
+    // Sanitize opportunities for Client Components (Decimal to Number)
+    const safeOpportunities = opportunities?.map(opp => ({
+        ...opp,
+        targetPrice: opp.targetPrice ? Number(opp.targetPrice) : null,
+        quantity: opp.quantity ? Number(opp.quantity) : null,
+        procurementQuantity: opp.procurementQuantity ? Number(opp.procurementQuantity) : null,
+    })) || [];
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Sales Opportunities</h2>
                     <p className="text-muted-foreground">
-                        Manage your active deals and pipeline. Click on a row to view details.
+                        Manage your active deals and pipeline.
                     </p>
                 </div>
-                <OpportunityDialog companies={clientOptions} commodities={allCommodities || []} />
+                <div className="flex items-center gap-4">
+                    <OpportunityViewToggle />
+                    <OpportunityDialog companies={clientOptions} commodities={allCommodities || []} />
+                </div>
             </div>
 
             <OpportunityFilters />
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Active Deals</CardTitle>
-                    <CardDescription>
-                        Track progress on all open opportunities.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <OpportunityList
-                        opportunities={opportunities || []}
-                        companies={clientOptions}
-                        commodities={allCommodities || []}
-                        initialExpandedId={highlight}
-                    />
-                    {pagination && (
-                        <PaginationControls
-                            hasNextPage={pagination.page < pagination.totalPages}
-                            hasPrevPage={pagination.page > 1}
-                            totalPages={pagination.totalPages}
-                            currentPage={pagination.page}
+            {view === 'board' ? (
+                <div className="h-[calc(100vh-220px)]">
+                    <OpportunityBoard opportunities={safeOpportunities} />
+                </div>
+            ) : (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Active Deals</CardTitle>
+                        <CardDescription>
+                            Track progress on all open opportunities.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <OpportunityList
+                            opportunities={safeOpportunities}
+                            companies={clientOptions}
+                            commodities={allCommodities || []}
+                            initialExpandedId={highlight}
                         />
-                    )}
-                </CardContent>
-            </Card>
+                        {pagination && (
+                            <PaginationControls
+                                hasNextPage={pagination.page < pagination.totalPages}
+                                hasPrevPage={pagination.page > 1}
+                                totalPages={pagination.totalPages}
+                                currentPage={pagination.page}
+                            />
+                        )}
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

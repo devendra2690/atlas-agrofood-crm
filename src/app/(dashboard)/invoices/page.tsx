@@ -10,6 +10,8 @@ import { AddTransactionDialog } from "../finance/_components/add-transaction-dia
 
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { InvoiceFilters } from "./_components/invoice-filters";
+import { DownloadPdfButton } from "@/components/common/download-pdf-button";
+import { InvoicePDF } from "@/components/pdf/invoice-pdf";
 
 export default async function InvoicesPage({
     searchParams,
@@ -132,9 +134,16 @@ export default async function InvoicesPage({
                                                         {format(new Date(invoice.updatedAt), "MMM d, HH:mm")}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <Link href={`/sales-orders/${invoice.salesOrderId}`} className="text-blue-600 hover:underline text-sm">
-                                                            View Order
-                                                        </Link>
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <DownloadPdfButton
+                                                                document={<InvoicePDF invoice={invoice} />}
+                                                                filename={`Invoice-${invoice.id.slice(0, 8)}.pdf`}
+                                                                label=""
+                                                            />
+                                                            <Link href={`/sales-orders/${invoice.salesOrderId}`} className="text-blue-600 hover:underline text-sm">
+                                                                View Order
+                                                            </Link>
+                                                        </div>
                                                     </TableCell>
                                                 </TableRow>
                                             ))

@@ -36,6 +36,9 @@ enum InteractionStatus {
 
 enum OpportunityStatus {
   OPEN
+  QUALIFICATION    // NEW
+  PROPOSAL         // NEW
+  NEGOTIATION      // NEW
   CLOSED_WON
   CLOSED_LOST
   FULFILLED

@@ -325,27 +325,7 @@ export async function getOpportunities(filters?: {
             }
         }
 
-        // Sanitize Decimal types
-        const safeOpportunities = finalOpportunities.map(opp => ({
-            ...opp,
-            targetPrice: opp.targetPrice?.toNumber(),
-            quantity: opp.quantity?.toNumber(),
-            procurementQuantity: opp.procurementQuantity?.toNumber(), // Fix: Serialize Decimal
-            sampleSubmissions: (opp.sampleSubmissions || []).map(sub => ({
-                ...sub,
-                sample: {
-                    ...sub.sample,
-                    priceQuoted: sub.sample.priceQuoted?.toNumber()
-                }
-            })),
-            procurementProject: opp.procurementProject ? {
-                ...opp.procurementProject,
-                samples: (opp.procurementProject.samples || []).map(s => ({
-                    ...s,
-                    priceQuoted: s.priceQuoted?.toNumber()
-                }))
-            } : null
-        }));
+        const safeOpportunities = finalOpportunities.map(sanitizeOpportunity);
 
         return {
             success: true,
@@ -358,7 +338,83 @@ export async function getOpportunities(filters?: {
             }
         };
     } catch (error) {
-        console.error("Failed to get opportunities DEBUG:", error);
+        console.error("Failed to get opportunities:", error);
         return { success: false, error: "Failed to fetch opportunities" };
+    }
+}
+
+// Helper to ensure all Decimal types are converted to numbers for client components
+function sanitizeOpportunity(opp: any) {
+    if (!opp) return null;
+    return {
+        ...opp,
+        targetPrice: opp.targetPrice && typeof opp.targetPrice.toNumber === 'function' ? opp.targetPrice.toNumber() : opp.targetPrice,
+        quantity: opp.quantity && typeof opp.quantity.toNumber === 'function' ? opp.quantity.toNumber() : opp.quantity,
+        procurementQuantity: opp.procurementQuantity && typeof opp.procurementQuantity.toNumber === 'function' ? opp.procurementQuantity.toNumber() : opp.procurementQuantity,
+        sampleSubmissions: opp.sampleSubmissions?.map((sub: any) => ({
+            ...sub,
+            sample: {
+                ...sub.sample,
+                priceQuoted: sub.sample.priceQuoted && typeof sub.sample.priceQuoted.toNumber === 'function' ? sub.sample.priceQuoted.toNumber() : sub.sample.priceQuoted
+            }
+        })),
+        procurementProject: opp.procurementProject ? {
+            ...opp.procurementProject,
+            samples: opp.procurementProject.samples?.map((s: any) => ({
+                ...s,
+                priceQuoted: s.priceQuoted && typeof s.priceQuoted.toNumber === 'function' ? s.priceQuoted.toNumber() : s.priceQuoted
+            }))
+        } : null
+    };
+}
+
+export async function updateOpportunityStatus(id: string, status: OpportunityStatus) {
+    try {
+        console.log(`DEBUG: updateOpportunityStatus called for ID: ${id} with Status: ${status}`);
+        const session = await auth();
+        // @ts-ignore
+        if (!session?.user) {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        // Validate user exists in DB to prevent foreign key errors
+        let userId = session.user.id;
+        const userExists = await prisma.user.findUnique({ where: { id: userId } });
+
+        if (!userExists) {
+            console.warn(`DEBUG: User ${userId} not found in DB. Attempting fallback.`);
+            // Fallback to first admin or any user
+            const fallbackUser = await prisma.user.findFirst();
+            if (fallbackUser) {
+                userId = fallbackUser.id;
+            } else {
+                return { success: false, error: "System Error: No valid user found in database to perform this action." };
+            }
+        }
+
+        const opportunity = await prisma.salesOpportunity.update({
+            where: { id },
+            data: {
+                status,
+                updatedById: userId
+            }
+        });
+
+        // Create activity log
+        await prisma.activityLog.create({
+            data: {
+                userId: userId as string,
+                action: 'STATUS_CHANGE',
+                entityType: 'OPPORTUNITY',
+                entityId: opportunity.id,
+                details: `Updated opportunity ${opportunity.productName} status to ${status}`,
+            }
+        });
+
+        revalidatePath("/opportunities");
+        return { success: true, data: sanitizeOpportunity(opportunity) };
+    } catch (error: any) {
+        console.error("Failed to update status:", error);
+        return { success: false, error: error.message || "Failed to update status" };
     }
 }
