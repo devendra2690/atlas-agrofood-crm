@@ -84,6 +84,14 @@ export function ProcurementList({ projects, commodities = [] }: ProcurementListP
                                     <Badge variant="outline" className="font-normal">
                                         {project.commodity.name}
                                     </Badge>
+                                ) : project.salesOpportunities?.[0]?.commodity ? (
+                                    <Badge variant="outline" className="font-normal text-muted-foreground border-dashed">
+                                        {project.salesOpportunities[0].commodity.name}
+                                    </Badge>
+                                ) : project.salesOpportunities?.[0]?.productName ? (
+                                    <Badge variant="outline" className="font-normal text-muted-foreground border-dashed bg-slate-50">
+                                        {project.salesOpportunities[0].productName} (Product)
+                                    </Badge>
                                 ) : (
                                     <span className="text-muted-foreground text-sm">-</span>
                                 )}

@@ -13,6 +13,15 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -36,6 +45,7 @@ interface CompanyDialogProps {
 export function CompanyDialog({ company, trigger, defaultType = "PROSPECT" }: CompanyDialogProps) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const isEditMode = !!company;
 
     // Form State
@@ -137,6 +147,20 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT" }: Co
         e.preventDefault();
         setIsLoading(true);
 
+        const errors: string[] = [];
+        if (!formData.name) errors.push("Name is required");
+        if (!formData.phone) errors.push("Phone is required");
+        if (!countryId) errors.push("Country is required");
+        if (!stateId) errors.push("State is required");
+        if (!cityId) errors.push("City is required");
+        if (selectedCommodities.length === 0) errors.push("At least one commodity is required");
+
+        if (errors.length > 0) {
+            setError(errors.join("\n"));
+            setIsLoading(false);
+            return;
+        }
+
         try {
             const data = {
                 name: formData.name,
@@ -166,181 +190,198 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT" }: Co
                     setSelectedCommodities([]);
                 }
             } else {
-                alert("Failed to save company");
+                setError(result.error || "Failed to save company");
             }
         } catch (error) {
             console.error(error);
+            setError("An unexpected error occurred");
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {trigger ? trigger : (
-                    <Button>
-                        <Plus className="mr-2 h-4 w-4" /> Add Company
-                    </Button>
-                )}
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] overflow-y-auto max-h-[90vh]">
-                <form onSubmit={handleSubmit}>
-                    <DialogHeader>
-                        <DialogTitle>{isEditMode ? "Edit Company" : "Add New Company"}</DialogTitle>
-                        <DialogDescription>
-                            {isEditMode ? "Update company details." : "Create a new Client, Prospect, or Vendor profile."}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="name" className="text-right">
-                                Name
-                            </Label>
-                            <Input
-                                id="name"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="col-span-3"
-                                required
-                            />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="type" className="text-right">
-                                Type
-                            </Label>
-                            <div className="col-span-3">
-                                <Select
-                                    value={formData.type}
-                                    onValueChange={(val) => setFormData({ ...formData, type: val as CompanyType })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="PROSPECT">Prospect</SelectItem>
-                                        <SelectItem value="CLIENT">Client</SelectItem>
-                                        <SelectItem value="VENDOR">Vendor</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="phone" className="text-right">
-                                Phone
-                            </Label>
-                            <Input
-                                id="phone"
-                                value={formData.phone}
-                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                className="col-span-3"
-                            />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="email" className="text-right">
-                                Email
-                            </Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="col-span-3"
-                            />
-                        </div>
+        <>
+            <AlertDialog open={!!error} onOpenChange={(open) => !open && setError(null)}>
+                <AlertDialogContent className="z-[100]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-destructive">Error</AlertDialogTitle>
+                        <AlertDialogDescription className="whitespace-pre-line">
+                            {error}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction onClick={() => setError(null)}>OK</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
-                        {/* Location Fields */}
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Country</Label>
-                            <div className="col-span-3">
-                                <Select value={countryId} onValueChange={handleCountryChange}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select Country" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {countries.map(c => (
-                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">State</Label>
-                            <div className="col-span-3">
-                                <Select value={stateId} onValueChange={handleStateChange} disabled={!countryId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select State" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {states.map(s => (
-                                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">City</Label>
-                            <div className="col-span-3">
-                                <Select value={cityId} onValueChange={(val) => setCityId(val)} disabled={!stateId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select City" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {cities.map(c => (
-                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-4 items-start gap-4">
-                            <Label className="text-right pt-2">
-                                Commodities
-                            </Label>
-                            <div className="col-span-3 border rounded-md p-3 h-32 overflow-y-auto space-y-2">
-                                {availableCommodities.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">No commodities found. Add some in Settings.</p>
-                                ) : (
-                                    availableCommodities.map(c => (
-                                        <div key={c.id} className="flex items-center space-x-2">
-                                            <input
-                                                type="checkbox"
-                                                id={`commodity-${c.id}`}
-                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                                checked={selectedCommodities.includes(c.id)}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setSelectedCommodities([...selectedCommodities, c.id]);
-                                                    } else {
-                                                        setSelectedCommodities(selectedCommodities.filter(id => id !== c.id));
-                                                    }
-                                                }}
-                                            />
-                                            <label
-                                                htmlFor={`commodity-${c.id}`}
-                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                                            >
-                                                {c.name}
-                                            </label>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="submit" disabled={isLoading}>
-                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isEditMode ? "Save Changes" : "Save Company"}
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                    {trigger ? trigger : (
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4" /> Add Company
                         </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog >
+                    )}
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px] overflow-y-auto max-h-[90vh]">
+                    <form onSubmit={handleSubmit}>
+                        <DialogHeader>
+                            <DialogTitle>{isEditMode ? "Edit Company" : "Add New Company"}</DialogTitle>
+                            <DialogDescription>
+                                {isEditMode ? "Update company details." : "Create a new Client, Prospect, or Vendor profile."}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="name" className="text-right">
+                                    Name <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                    id="name"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    className="col-span-3"
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="type" className="text-right">
+                                    Type <span className="text-red-500">*</span>
+                                </Label>
+                                <div className="col-span-3">
+                                    <Select
+                                        value={formData.type}
+                                        onValueChange={(val) => setFormData({ ...formData, type: val as CompanyType })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="PROSPECT">Prospect</SelectItem>
+                                            <SelectItem value="CLIENT">Client</SelectItem>
+                                            <SelectItem value="VENDOR">Vendor</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="phone" className="text-right">
+                                    Phone <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                    id="phone"
+                                    value={formData.phone}
+                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                    className="col-span-3"
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="email" className="text-right">
+                                    Email
+                                </Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    className="col-span-3"
+                                />
+                            </div>
+
+                            {/* Location Fields */}
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">Country <span className="text-red-500">*</span></Label>
+                                <div className="col-span-3">
+                                    <Select value={countryId} onValueChange={handleCountryChange}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Country" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {countries.map(c => (
+                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">State <span className="text-red-500">*</span></Label>
+                                <div className="col-span-3">
+                                    <Select value={stateId} onValueChange={handleStateChange} disabled={!countryId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select State" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {states.map(s => (
+                                                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">City <span className="text-red-500">*</span></Label>
+                                <div className="col-span-3">
+                                    <Select value={cityId} onValueChange={(val) => setCityId(val)} disabled={!stateId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select City" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {cities.map(c => (
+                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-4 items-start gap-4">
+                                <Label className="text-right pt-2">
+                                    Commodities <span className="text-red-500">*</span>
+                                </Label>
+                                <div className="col-span-3 border rounded-md p-3 h-32 overflow-y-auto space-y-2">
+                                    {availableCommodities.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">No commodities found. Add some in Settings.</p>
+                                    ) : (
+                                        availableCommodities.map(c => (
+                                            <div key={c.id} className="flex items-center space-x-2">
+                                                <input
+                                                    type="checkbox"
+                                                    id={`commodity-${c.id}`}
+                                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                    checked={selectedCommodities.includes(c.id)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedCommodities([...selectedCommodities, c.id]);
+                                                        } else {
+                                                            setSelectedCommodities(selectedCommodities.filter(id => id !== c.id));
+                                                        }
+                                                    }}
+                                                />
+                                                <label
+                                                    htmlFor={`commodity-${c.id}`}
+                                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                                >
+                                                    {c.name}
+                                                </label>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit" disabled={isLoading}>
+                                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {isEditMode ? "Save Changes" : "Save Company"}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog >
+        </>
     );
 }

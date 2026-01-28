@@ -4,6 +4,8 @@ import { SalesOrderList } from "./_components/sales-order-list";
 import { Separator } from "@/components/ui/separator";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { SalesOrderFilters } from "./_components/sales-order-filters";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SalesOrderBoard } from "./_components/kanban-board";
 import { SalesOrderStatus } from "@prisma/client";
 
 export default async function SalesOrdersPage({
@@ -38,17 +40,30 @@ export default async function SalesOrdersPage({
 
             <SalesOrderFilters />
 
-            <Suspense fallback={<div>Loading orders...</div>}>
-                <SalesOrderList orders={orders || []} />
-            </Suspense>
-            {pagination && (
-                <PaginationControls
-                    hasNextPage={pagination.page < pagination.totalPages}
-                    hasPrevPage={pagination.page > 1}
-                    totalPages={pagination.totalPages}
-                    currentPage={pagination.page}
-                />
-            )}
+            <Tabs defaultValue="board" className="space-y-4">
+                <TabsList>
+                    <TabsTrigger value="list">List View</TabsTrigger>
+                    <TabsTrigger value="board">Kanban Board</TabsTrigger>
+                </TabsList>
+                <TabsContent value="list" className="space-y-4">
+                    <Suspense fallback={<div>Loading orders...</div>}>
+                        <SalesOrderList orders={orders || []} />
+                    </Suspense>
+                    {pagination && (
+                        <PaginationControls
+                            hasNextPage={pagination.page < pagination.totalPages}
+                            hasPrevPage={pagination.page > 1}
+                            totalPages={pagination.totalPages}
+                            currentPage={pagination.page}
+                        />
+                    )}
+                </TabsContent>
+                <TabsContent value="board" className="pt-2">
+                    <Suspense fallback={<div>Loading board...</div>}>
+                        <SalesOrderBoard orders={orders || []} />
+                    </Suspense>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

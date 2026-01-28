@@ -219,9 +219,12 @@ export async function linkSampleToOpportunity(sampleId: string, opportunityId: s
         revalidatePath("/opportunities");
         revalidatePath("/procurement");
         return { success: true, data: submission };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to link sample:", error);
-        return { success: false, error: "Failed to link sample" };
+        if (error.code === 'P2002') {
+            return { success: false, error: "This sample is already linked to this opportunity." };
+        }
+        return { success: false, error: `Failed to link sample: ${error.message}` };
     }
 }
 
@@ -232,6 +235,7 @@ export async function updateSubmissionStatus(id: string, status: SampleStatus) {
             data: { status }
         });
         revalidatePath("/opportunities");
+        revalidatePath("/procurement");
         return { success: true, data: submission };
     } catch (error) {
         console.error("Failed to update submission status:", error);

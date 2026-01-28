@@ -18,21 +18,48 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createManualPurchaseOrder, getProcurementProjects } from "@/app/actions/procurement";
 
-export function CreatePurchaseOrderDialog() {
+export function CreatePurchaseOrderDialog({
+    defaultProjectId,
+    defaultVendorId,
+    trigger
+}: {
+    defaultProjectId?: string,
+    defaultVendorId?: string,
+    trigger?: React.ReactNode
+}) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [projects, setProjects] = useState<any[]>([]);
 
     // Form State
-    const [projectId, setProjectId] = useState("");
-    const [vendorId, setVendorId] = useState("");
+    const [projectId, setProjectId] = useState(defaultProjectId || "");
+    const [vendorId, setVendorId] = useState(defaultVendorId || "");
     const [amount, setAmount] = useState("");
     const [quantity, setQuantity] = useState("");
     const [rate, setRate] = useState("");
 
     // Derived State
     const selectedProject = projects.find(p => p.id === projectId);
-    const vendors = selectedProject?.projectVendors?.map((pv: any) => pv.vendor) || [];
+
+    // Combine vendors from ProjectVendor link AND from Samples
+    // Use Map to deduplicate by ID
+    const vendorMap = new Map();
+
+    selectedProject?.projectVendors?.forEach((pv: any) => {
+        if (pv.vendor) vendorMap.set(pv.vendor.id, pv.vendor);
+    });
+
+    selectedProject?.samples?.forEach((s: any) => {
+        if (s.vendor) vendorMap.set(s.vendor.id, s.vendor);
+    });
+
+    selectedProject?.salesOpportunities?.forEach((opp: any) => {
+        opp.sampleSubmissions?.forEach((sub: any) => {
+            if (sub.sample?.vendor) vendorMap.set(sub.sample.vendor.id, sub.sample.vendor);
+        });
+    });
+
+    const vendors = Array.from(vendorMap.values());
 
     useEffect(() => {
         if (open) {
@@ -82,10 +109,12 @@ export function CreatePurchaseOrderDialog() {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Purchase Order
-                </Button>
+                {trigger ? trigger : (
+                    <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Purchase Order
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>

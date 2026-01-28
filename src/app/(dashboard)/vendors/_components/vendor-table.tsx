@@ -14,6 +14,14 @@ import { Building, MapPin, Phone, MoreHorizontal, ArrowRight, Eye } from "lucide
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TrustLevelSelector } from "./trust-level-selector";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Trash2, Pencil } from "lucide-react";
+import { DeleteCompanyDialog } from "../../companies/_components/delete-company-dialog";
 
 interface VendorTableProps {
     vendors: any[];
@@ -88,9 +96,32 @@ export function VendorTable({ vendors }: VendorTableProps) {
                                 </div>
                             </TableCell>
                             <TableCell className="text-right">
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                    <Eye className="h-4 w-4 text-muted-foreground" />
-                                </Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/vendors/${vendor.id}`); }}>
+                                            <Eye className="mr-2 h-4 w-4" /> View Details
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Edit logic would go here, usually opening dialog */ }}>
+                                            {/* For now, generic edit links to details page where edit exists, or we need to wrap CompanyDialog here */}
+                                            <Pencil className="mr-2 h-4 w-4" /> Edit
+                                        </DropdownMenuItem>
+                                        <DeleteCompanyDialog
+                                            id={vendor.id}
+                                            name={vendor.name}
+                                            type="Vendor"
+                                            trigger={
+                                                <div className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-destructive focus:text-destructive">
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                </div>
+                                            }
+                                        />
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </TableCell>
                         </TableRow>
                     ))

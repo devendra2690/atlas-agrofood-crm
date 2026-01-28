@@ -72,9 +72,10 @@ export function OpportunityFilters() {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="OPEN">Open</SelectItem>
-                    <SelectItem value="WON">Won</SelectItem>
-                    <SelectItem value="LOST">Lost</SelectItem>
+                    <SelectItem value="NEW">New / Open</SelectItem>
+                    <SelectItem value="QUALIFICATION">Qualification</SelectItem>
+                    <SelectItem value="PROPOSAL">Proposal</SelectItem>
+                    <SelectItem value="NEGOTIATION">Negotiation</SelectItem>
                     <SelectItem value="CLOSED_WON">Closed Won</SelectItem>
                     <SelectItem value="CLOSED_LOST">Closed Lost</SelectItem>
                 </SelectContent>

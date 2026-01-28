@@ -3,6 +3,7 @@
 import { resend } from "@/lib/mail";
 import { OrderConfirmationEmail } from "@/components/email/order-confirmation";
 import { WelcomeEmail } from "@/components/email/welcome-email";
+import { ClientWelcomeEmail } from "@/components/email/client-welcome";
 import { prisma } from "@/lib/prisma"; // Assuming we might need DB access for complex data gathering later
 
 const FROM_EMAIL = "Atlas CRM <onboarding@resend.dev>"; // Default Resend testing domain
@@ -67,6 +68,29 @@ export async function sendWelcomeEmail(email: string, name: string) {
         return { success: true, data };
     } catch (error) {
         console.error("Failed to send welcome email:", error);
+        return { success: false, error: "Failed to send email" };
+    }
+}
+
+export async function sendClientWelcomeEmail(email: string, clientName: string) {
+    try {
+        console.log(`Attempting to send welcome email to: ${email}`);
+        const data = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: email,
+            subject: "Welcome to Atlas Agro Food",
+            react: ClientWelcomeEmail({ clientName }),
+        });
+
+        console.log("Resend API Response:", JSON.stringify(data, null, 2));
+
+        if (data.error) {
+            console.error("Resend returned an error:", data.error);
+        }
+
+        return { success: true, data };
+    } catch (error) {
+        console.error("Failed to send client welcome email:", error);
         return { success: false, error: "Failed to send email" };
     }
 }

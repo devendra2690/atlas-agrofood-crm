@@ -8,6 +8,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { TrustLevelSelector } from "../_components/trust-level-selector";
+import { DeleteCompanyDialog } from "../../companies/_components/delete-company-dialog";
+import { Trash2 } from "lucide-react";
 
 export default async function VendorDetailsPage({ params }: { params: { id: string } }) {
     const { id } = await params;
@@ -45,11 +47,25 @@ export default async function VendorDetailsPage({ params }: { params: { id: stri
                             ID: {company.id.substring(0, 8)}...
                         </p>
                     </div>
-                    <CompanyDialog
-                        company={company}
-                        defaultType="VENDOR"
-                        trigger={<Button variant="outline">Edit Vendor</Button>}
-                    />
+                    <div className="flex items-center gap-2">
+                        <DeleteCompanyDialog
+                            id={company.id}
+                            name={company.name}
+                            type="Vendor"
+                            redirectTo="/vendors"
+                            trigger={
+                                <Button variant="destructive" size="sm">
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                </Button>
+                            }
+                        />
+                        <CompanyDialog
+                            company={company}
+                            defaultType="VENDOR"
+                            trigger={<Button variant="outline">Edit Vendor</Button>}
+                        />
+                    </div>
                 </div>
             </div>
 

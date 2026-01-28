@@ -87,9 +87,27 @@ export async function getProcurementProjects(filters?: {
                     salesOpportunities: {
                         select: {
                             id: true,
+                            productName: true, // Add this
                             quantity: true,
                             procurementQuantity: true,
-                            status: true
+                            status: true,
+                            commodity: true, // Fetch commodity from opportunity as fallback
+                            sampleSubmissions: {
+                                where: { status: 'CLIENT_APPROVED' },
+                                select: {
+                                    sample: {
+                                        select: {
+                                            vendor: {
+                                                include: {
+                                                    city: true,
+                                                    state: true,
+                                                    country: true
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     },
                     purchaseOrders: {
@@ -97,6 +115,17 @@ export async function getProcurementProjects(filters?: {
                             id: true,
                             quantity: true,
                             status: true
+                        }
+                    },
+                    samples: {
+                        select: {
+                            vendor: {
+                                include: {
+                                    city: true,
+                                    state: true,
+                                    country: true
+                                }
+                            }
                         }
                     }
                 }
@@ -413,11 +442,30 @@ export async function linkOpportunityToProject(projectId: string, opportunityId:
 
 export async function getAvailableVendors(projectId: string) {
     try {
-        // First get the project to check its commodity
+        // First get the project to check its commodity AND rejected vendors from linked opportunities
         const project = await prisma.procurementProject.findUnique({
             where: { id: projectId },
-            select: { commodityId: true }
+            select: {
+                name: true,
+                commodityId: true,
+                salesOpportunities: {
+                    select: {
+                        sampleSubmissions: {
+                            where: { status: 'CLIENT_REJECTED' },
+                            select: { sample: { select: { vendorId: true } } }
+                        }
+                    }
+                }
+            }
         });
+
+        const isFulfillment = project?.name.startsWith("Fulfillment");
+
+        const rejectedVendorIds = isFulfillment
+            ? (project?.salesOpportunities
+                .flatMap(opp => opp.sampleSubmissions)
+                .map(sub => sub.sample.vendorId) || [])
+            : [];
 
         // Get vendors NOT already linked to this project
         // AND match the commodity if project has one
@@ -430,6 +478,10 @@ export async function getAvailableVendors(projectId: string) {
             },
             status: "ACTIVE"
         };
+
+        if (rejectedVendorIds.length > 0) {
+            where.id = { notIn: rejectedVendorIds };
+        }
 
         if (project?.commodityId) {
             where.commodities = {

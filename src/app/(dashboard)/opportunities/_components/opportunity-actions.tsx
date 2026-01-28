@@ -76,8 +76,8 @@ export function OpportunityActions({ opportunity, companies, commodities }: Oppo
                             e.preventDefault();
                             handleCreateOrder();
                         }}
-                        disabled={creatingOrder || opportunity.status === 'CLOSED_WON'}
-                        className="font-medium text-green-700 focus:text-green-800"
+                        disabled={creatingOrder || opportunity.status !== 'CLOSED_WON'}
+                        className="font-medium text-green-700 focus:text-green-800 data-[disabled]:text-muted-foreground"
                     >
                         {creatingOrder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                         Create Sales Order

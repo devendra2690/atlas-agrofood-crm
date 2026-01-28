@@ -21,26 +21,32 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { updateSampleDetails, UpdateSampleData } from "@/app/actions/sample";
-import { Loader2, Pencil, X, Upload } from "lucide-react";
+import { updateSampleDetails, UpdateSampleData, updateSubmissionStatus } from "@/app/actions/sample";
+import { Loader2, Pencil, X, Upload, Check } from "lucide-react";
 import { toast } from "sonner";
-import { OpportunityPriceType } from "@prisma/client";
+import { OpportunityPriceType, SampleStatus } from "@prisma/client";
+import { cn } from "@/lib/utils";
 
 interface UpdateSampleDialogProps {
-    sample: any; // Using any for simplicity as it includes relations
+    sample: any;
     trigger?: React.ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
-export function UpdateSampleDialog({ sample, trigger }: UpdateSampleDialogProps) {
-    const [open, setOpen] = useState(false);
+export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOpenChange: setControlledOpen }: UpdateSampleDialogProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
+    const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+    const setOpen = setControlledOpen || setInternalOpen;
+
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState<UpdateSampleData>({
-        priceQuoted: sample.priceQuoted ? Number(sample.priceQuoted) : undefined,
-        priceUnit: sample.priceUnit || "PER_KG",
-        images: sample.images || [],
-        qualityNotes: sample.qualityNotes || "",
-        feedback: sample.feedback || "",
-        notes: sample.notes || "",
+        priceQuoted: sample.priceQuoted ?? undefined,
+        priceUnit: sample.priceUnit ?? "PER_KG",
+        images: sample.images ?? [],
+        qualityNotes: sample.qualityNotes ?? "",
+        feedback: sample.feedback ?? "",
+        notes: sample.notes ?? "",
         status: sample.status
     });
 
@@ -52,13 +58,26 @@ export function UpdateSampleDialog({ sample, trigger }: UpdateSampleDialogProps)
                 toast.success("Sample details updated");
                 setOpen(false);
             } else {
-                toast.error(result.error || "Failed to update sample");
+                toast.error(result.error || "Failed to update");
             }
-        } catch (error: any) {
-            console.error(error);
-            toast.error("An error occurred: " + (error.message || "Unknown error"));
+        } catch (error) {
+            toast.error("An error occurred");
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function handleSubmissionStatus(submissionId: string, status: SampleStatus) {
+        const toastId = toast.loading("Updating status...");
+        try {
+            const result = await updateSubmissionStatus(submissionId, status);
+            if (result.success) {
+                toast.success("Status updated", { id: toastId });
+            } else {
+                toast.error("Failed to update status", { id: toastId });
+            }
+        } catch (error) {
+            toast.error("An error occurred", { id: toastId });
         }
     }
 
@@ -91,8 +110,6 @@ export function UpdateSampleDialog({ sample, trigger }: UpdateSampleDialogProps)
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files && files.length > 0) {
-            // Use a separate loading state or just reuse global loading? 
-            // Reuse loading to block interaction
             const toastId = toast.loading("Compressing images...");
             setLoading(true);
 
@@ -114,7 +131,6 @@ export function UpdateSampleDialog({ sample, trigger }: UpdateSampleDialogProps)
                 toast.error("Failed to process images", { id: toastId });
             } finally {
                 setLoading(false);
-                // Reset input?
                 e.target.value = "";
             }
         }
@@ -143,7 +159,62 @@ export function UpdateSampleDialog({ sample, trigger }: UpdateSampleDialogProps)
                         Update information for sample from <strong>{sample.vendor?.name}</strong>.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="grid gap-6 py-4">
+                    {/* Linked Clients UI - New Section */}
+                    {sample.submissions && sample.submissions.length > 0 && (
+                        <div className="space-y-3 p-4 bg-slate-50 rounded-lg border">
+                            <h4 className="font-semibold text-sm flex items-center gap-2">
+                                <span className="bg-blue-100 text-blue-700 p-1 rounded">🔗</span> Linked Clients
+                            </h4>
+                            <div className="space-y-3">
+                                {sample.submissions.map((sub: any) => (
+                                    <div key={sub.id} className="flex items-center justify-between bg-white p-2 rounded border text-sm">
+                                        <div>
+                                            <div className="font-medium">{sub.opportunity?.company?.name}</div>
+                                            <div className="text-xs text-muted-foreground">{sub.opportunity?.productName}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {/* Status Badge */}
+                                            <div className={cn(
+                                                "text-xs font-medium px-2 py-1 rounded",
+                                                sub.status === "CLIENT_APPROVED" ? "bg-green-100 text-green-700" :
+                                                    sub.status === "CLIENT_REJECTED" ? "bg-red-100 text-red-700" :
+                                                        "bg-slate-100 text-slate-700"
+                                            )}>
+                                                {sub.status.replace(/_/g, " ")}
+                                            </div>
+
+                                            {/* Actions */}
+                                            {sub.status !== "CLIENT_APPROVED" && sub.status !== "CLIENT_REJECTED" && (
+                                                <div className="flex gap-1 ml-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                        onClick={() => handleSubmissionStatus(sub.id, "CLIENT_APPROVED")}
+                                                        title="Approve for Client"
+                                                    >
+                                                        <Check className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                        onClick={() => handleSubmissionStatus(sub.id, "CLIENT_REJECTED")}
+                                                        title="Reject for Client"
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+
                     <div className="grid gap-2">
                         <Label>Price Quote</Label>
                         <div className="flex gap-2">
@@ -219,7 +290,7 @@ export function UpdateSampleDialog({ sample, trigger }: UpdateSampleDialogProps)
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="status">Status (Revert/Update)</Label>
+                        <Label htmlFor="status">Global Status</Label>
                         <Select
                             value={formData.status}
                             onValueChange={(val) => setFormData({ ...formData, status: val as any })}
@@ -235,6 +306,9 @@ export function UpdateSampleDialog({ sample, trigger }: UpdateSampleDialogProps)
                                 <SelectItem value="Result_REJECTED">Rejected</SelectItem>
                             </SelectContent>
                         </Select>
+                        <p className="text-[10px] text-muted-foreground">
+                            Note: Changing status here updates the sample globally.
+                        </p>
                     </div>
                 </div>
 

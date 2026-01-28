@@ -49,6 +49,7 @@ interface OpportunityDialogProps {
 }
 
 export function OpportunityDialog({ companies, commodities, initialData, open: controlledOpen, onOpenChange: setControlledOpen, trigger }: OpportunityDialogProps) {
+    const router = useRouter();
     const [internalOpen, setInternalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -112,8 +113,14 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
     const handleCommodityChange = (val: string) => {
         setCommodityId(val);
         const comm = availableCommodities.find(c => c.id === val);
+        const selectedCompany = companies.find(c => c.id === companyId);
+
         if (comm) {
-            setProductName(comm.name); // Auto-fill
+            if (selectedCompany) {
+                setProductName(`${comm.name} - ${selectedCompany.name}`);
+            } else {
+                setProductName(comm.name);
+            }
         }
     };
 
@@ -135,6 +142,36 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
 
             if (!companyId) {
                 toast.error("Company is required");
+                setLoading(false);
+                return;
+            }
+            if (!commodityId) {
+                toast.error("Commodity is required");
+                setLoading(false);
+                return;
+            }
+            if (!productName.trim()) {
+                toast.error("Product name is required");
+                setLoading(false);
+                return;
+            }
+            if (!quantityStr || parseFloat(quantityStr) <= 0) {
+                toast.error("Quantity is required");
+                setLoading(false);
+                return;
+            }
+            if (!procurementQuantityStr || parseFloat(procurementQuantityStr) <= 0) {
+                toast.error("Raw material needed is required");
+                setLoading(false);
+                return;
+            }
+            if (!targetPriceStr || parseFloat(targetPriceStr) <= 0) {
+                toast.error("Target selling price is required");
+                setLoading(false);
+                return;
+            }
+            if (!deadlineStr) {
+                toast.error("Deadline is required");
                 setLoading(false);
                 return;
             }
@@ -210,7 +247,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                 <form action={handleSubmit}>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="company">Company (Client)</Label>
+                            <Label htmlFor="company">Company (Client) <span className="text-red-500">*</span></Label>
                             <Combobox
                                 options={companies.map(c => ({ label: c.name, value: c.id }))}
                                 value={companyId}
@@ -225,7 +262,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="commodity">Commodity</Label>
+                            <Label htmlFor="commodity">Commodity <span className="text-red-500">*</span></Label>
                             <Combobox
                                 options={availableCommodities.map(c => ({ label: c.name, value: c.id }))}
                                 value={commodityId}
@@ -237,7 +274,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="productName">Product Name / Deal Title</Label>
+                            <Label htmlFor="productName">Product Name / Deal Title <span className="text-red-500">*</span></Label>
                             <Input
                                 id="productName"
                                 name="productName"
@@ -250,7 +287,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="type">Type</Label>
+                                <Label htmlFor="type">Type <span className="text-red-500">*</span></Label>
                                 <Select
                                     name="type"
                                     value={opportunityType}
@@ -283,7 +320,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="quantity">Quantity (MT)</Label>
+                                <Label htmlFor="quantity">Quantity (MT) <span className="text-red-500">*</span></Label>
                                 <Input
                                     id="quantity"
                                     name="quantity"
@@ -293,7 +330,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="procurementQuantity">Raw Material Needed (MT)</Label>
+                                <Label htmlFor="procurementQuantity">Raw Material Needed (MT) <span className="text-red-500">*</span></Label>
                                 <Input
                                     id="procurementQuantity"
                                     name="procurementQuantity"
@@ -312,7 +349,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="targetPrice">Target Selling Price (INR)</Label>
+                                <Label htmlFor="targetPrice">Target Selling Price (INR) <span className="text-red-500">*</span></Label>
                                 <div className="flex gap-2">
                                     <Input
                                         id="targetPrice"
@@ -335,13 +372,16 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                                 </div>
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="status">Status</Label>
+                                <Label htmlFor="status">Status <span className="text-red-500">*</span></Label>
                                 <Select name="status" defaultValue={initialData?.status || "OPEN"}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="OPEN">Open</SelectItem>
+                                        <SelectItem value="OPEN">New / Open</SelectItem>
+                                        <SelectItem value="QUALIFICATION">Qualification</SelectItem>
+                                        <SelectItem value="PROPOSAL">Proposal</SelectItem>
+                                        <SelectItem value="NEGOTIATION">Negotiation</SelectItem>
                                         <SelectItem value="CLOSED_WON">Closed Won</SelectItem>
                                         <SelectItem value="CLOSED_LOST">Closed Lost</SelectItem>
                                     </SelectContent>
@@ -350,7 +390,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                         </div>
                         {/* Deadline Field - Was missing or previously garbled */}
                         <div className="grid gap-2">
-                            <Label htmlFor="deadline">Deadline</Label>
+                            <Label htmlFor="deadline">Deadline <span className="text-red-500">*</span></Label>
                             <Input
                                 id="deadline"
                                 name="deadline"

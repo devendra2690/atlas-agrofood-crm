@@ -299,8 +299,7 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
                             where: { status: 'CLIENT_APPROVED' },
                             include: {
                                 sample: { include: { vendor: true } }
-                            },
-                            take: 1
+                            }
                         }
                     }
                 }
@@ -329,7 +328,8 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
                 const project = await prisma.procurementProject.create({
                     data: {
                         name: `Fulfillment: ${order.opportunity.productName} - ${order.opportunity.company.name}`,
-                        status: 'SOURCING'
+                        status: 'SOURCING',
+                        commodityId: order.opportunity.commodityId
                     }
                 });
 

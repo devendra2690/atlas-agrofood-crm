@@ -14,6 +14,7 @@ import { AddVendorDialog } from "../_components/add-vendor-dialog";
 import { VendorList } from "../_components/vendor-list";
 import { SampleList } from "../_components/sample-list";
 import { ProjectPOList } from "./_components/project-po-list";
+import { SampleBoard } from "./_components/sample-board";
 
 export default async function ProcurementProjectPage({ params }: { params: { id: string } }) {
     const { id } = await params;
@@ -31,6 +32,8 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
 
     // Sort samples if they exist, or rely on db sort?
     // Let's just pass them.
+
+    const isFulfillment = project.name.startsWith("Fulfillment");
 
     return (
         <div className="space-y-6">
@@ -132,12 +135,12 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
 
                 {/* Right Col: Tabs */}
                 <div className="md:col-span-2">
-                    <Tabs defaultValue="opportunities" className="w-full">
+                    <Tabs defaultValue={isFulfillment ? "purchase-orders" : "opportunities"} className="w-full">
                         <TabsList className="grid w-full grid-cols-4">
-                            <TabsTrigger value="opportunities">Demand (Opportunities)</TabsTrigger>
+                            <TabsTrigger value="opportunities">Demand</TabsTrigger>
                             <TabsTrigger value="purchase-orders">Purchase Orders</TabsTrigger>
                             <TabsTrigger value="vendors">Vendors</TabsTrigger>
-                            <TabsTrigger value="samples">Samples</TabsTrigger>
+                            {!isFulfillment && <TabsTrigger value="samples">Samples</TabsTrigger>}
                         </TabsList>
 
                         <TabsContent value="opportunities" className="mt-4">
@@ -214,22 +217,43 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                     <AddVendorDialog projectId={project.id} />
                                 </CardHeader>
                                 <CardContent>
-                                    <VendorList projectVendors={project.projectVendors} samples={project.samples || []} />
+                                    <VendorList projectVendors={project.projectVendors} samples={project.samples || []} isFulfillment={isFulfillment} />
                                 </CardContent>
                             </Card>
                         </TabsContent>
 
-                        <TabsContent value="samples" className="mt-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Samples Tracking</CardTitle>
-                                    <CardDescription>Manage sample requests and approvals.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <SampleList samples={project.samples || []} />
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
+                        {!isFulfillment && (
+                            <TabsContent value="samples" className="mt-4">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Samples Tracking</CardTitle>
+                                        <CardDescription>Manage sample requests and approvals.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="h-full">
+                                        {/* Switched to Board View by default */}
+                                        {(() => {
+                                            // Merge project samples with confirmed/approved samples from linked opportunities
+                                            const opportunitySamples = project.salesOpportunities.flatMap((opp: any) =>
+                                                (opp.sampleSubmissions || []).map((sub: any) => sub.sample)
+                                            ).filter(Boolean);
+
+                                            const allSamples = [...(project.samples || []), ...opportunitySamples];
+
+                                            // Deduplicate by ID
+                                            const uniqueSamples = Array.from(new Map(allSamples.map((s: any) => [s.id, s])).values());
+
+                                            return (
+                                                <SampleBoard
+                                                    initialSamples={uniqueSamples}
+                                                    projectId={project.id}
+                                                    projectVendors={project.projectVendors || []}
+                                                />
+                                            );
+                                        })()}
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        )}
                     </Tabs>
                 </div>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     DndContext,
     DragOverlay,
@@ -40,6 +40,12 @@ import { AttachSampleDialog } from "./attach-sample-dialog";
 
 export function OpportunityBoard({ opportunities: initialOpportunities, companies, commodities }: OpportunityBoardProps) {
     const [opportunities, setOpportunities] = useState(initialOpportunities);
+
+    // Sync local state when server data changes (e.g. after router.refresh())
+    useEffect(() => {
+        setOpportunities(initialOpportunities);
+    }, [initialOpportunities]);
+
     const [activeId, setActiveId] = useState<string | null>(null);
     const [editingOpportunity, setEditingOpportunity] = useState<any>(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);

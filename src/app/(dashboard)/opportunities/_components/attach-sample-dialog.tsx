@@ -97,12 +97,16 @@ export function AttachSampleDialog({ open, onOpenChange, opportunity }: AttachSa
                                 {samples.length === 0 ? (
                                     <SelectItem value="none" disabled>No samples found</SelectItem>
                                 ) : (
-                                    samples.map((sample) => (
-                                        <SelectItem key={sample.id} value={sample.id}>
-                                            {sample.project?.commodity?.name || "Sample"} - {sample.vendor.name}
-                                            {sample.priceQuoted ? ` (₹${sample.priceQuoted})` : ""}
-                                        </SelectItem>
-                                    ))
+                                    samples.map((sample) => {
+                                        const isLinked = opportunity.sampleSubmissions?.some((sub: any) => sub.sampleId === sample.id);
+                                        return (
+                                            <SelectItem key={sample.id} value={sample.id} disabled={isLinked}>
+                                                {sample.project?.commodity?.name || "Sample"} - {sample.vendor.name}
+                                                {sample.priceQuoted ? ` (₹${sample.priceQuoted})` : ""}
+                                                {isLinked ? " (Linked)" : ""}
+                                            </SelectItem>
+                                        );
+                                    })
                                 )}
                             </SelectContent>
                         </Select>

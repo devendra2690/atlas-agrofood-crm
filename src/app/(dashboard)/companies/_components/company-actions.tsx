@@ -14,20 +14,35 @@ import {
 import { CompanyDialog } from "./company-dialog";
 import { deleteCompany } from "@/app/actions/company";
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 interface CompanyActionsProps {
     company: any;
 }
 
 export function CompanyActions({ company }: CompanyActionsProps) {
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleDelete = async () => {
         if (confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
             setIsLoading(true);
             try {
-                await deleteCompany(company.id);
+                const res = await deleteCompany(company.id);
+                if (!res.success) {
+                    setError(res.error || "Failed to delete company");
+                }
             } catch (error) {
                 console.error("Failed to delete company", error);
+                setError("An unexpected error occurred");
             } finally {
                 setIsLoading(false);
             }
@@ -36,6 +51,20 @@ export function CompanyActions({ company }: CompanyActionsProps) {
 
     return (
         <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+            <AlertDialog open={!!error} onOpenChange={(open) => !open && setError(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-destructive">Deletion Failed</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {error}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction onClick={() => setError(null)}>OK</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
@@ -49,15 +78,6 @@ export function CompanyActions({ company }: CompanyActionsProps) {
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        {/* We use select logic to intercept the click and prevent dropdown close if needed, but for dialog trigger we usually want it to stay or let component handle it. 
-                            However, trigger inside item can be weird. Let's try putting the Dialog completely outside but controlled? 
-                            Actually, CompanyDialog takes a trigger. We can put the trigger inside the item? No, that's nested button.
-                            
-                            Better pattern: 
-                            Make CompanyDialog "controlled" or just use it as the item?
-                            If we put <CompanyDialog trigger={<DropdownMenuItem>Edit</DropdownMenuItem>} /> it might work?
-                            Let's try:
-                        */}
                         <CompanyDialog
                             company={company}
                             trigger={

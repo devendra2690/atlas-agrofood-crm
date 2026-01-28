@@ -1,15 +1,17 @@
+import { CreatePurchaseOrderDialog } from "../../purchase-orders/_components/create-po-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building, MapPin, Phone, TestTube } from "lucide-react";
+import { Building, MapPin, Phone, TestTube, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { RequestSampleDialog } from "./request-sample-dialog";
 
 interface VendorListProps {
     projectVendors: any[];
     samples?: any[];
+    isFulfillment?: boolean;
 }
 
-export function VendorList({ projectVendors, samples = [] }: VendorListProps) {
+export function VendorList({ projectVendors, samples = [], isFulfillment = false }: VendorListProps) {
     if (projectVendors.length === 0) {
         return (
             <div className="text-center py-8 text-muted-foreground">
@@ -23,6 +25,9 @@ export function VendorList({ projectVendors, samples = [] }: VendorListProps) {
             {projectVendors.map((pv) => {
                 const vendor = pv.vendor;
                 // Check if there is an existing sample for this vendor in this project
+                // OR if there is an approved sample for this vendor linked to the Opportunity (if we had that context here, but we rely on passed samples or projectVendors logic)
+                // Actually, for Fulfillment, we rely on `samples` prop which should contain relevant samples.
+
                 const existingSample = samples.find(s => s.vendorId === vendor.id);
 
                 return (
@@ -45,27 +50,37 @@ export function VendorList({ projectVendors, samples = [] }: VendorListProps) {
                                             {vendor.city?.name || 'N/A'}, {vendor.country?.name || 'N/A'}
                                         </span>
                                     )}
-                                    {vendor.phone && (
-                                        <span className="flex items-center gap-1">
-                                            <Phone className="h-3 w-3" />
-                                            {vendor.phone}
-                                        </span>
-                                    )}
                                 </div>
                             </div>
                         </div>
-                        <div>
-                            {existingSample ? (
-                                <div className="flex flex-col items-end gap-1">
-                                    <Badge variant="outline" className="flex items-center gap-1 border-blue-200 text-blue-700 bg-blue-50">
+                        <div className="flex items-center gap-2">
+                            {existingSample && (
+                                <div className="flex flex-col items-end gap-1 mr-2">
+                                    <Badge
+                                        variant="outline"
+                                        className={`flex items-center gap-1 border-blue-200 text-blue-700 bg-blue-50 ${existingSample.status === 'CLIENT_APPROVED' || existingSample.status === 'Result_APPROVED_INTERNAL' ? 'border-green-200 text-green-700 bg-green-50' : ''}`}
+                                    >
                                         <TestTube className="h-3 w-3" />
-                                        Sample Requested
+                                        {existingSample.status === 'CLIENT_APPROVED' ? 'Approved' : existingSample.status}
                                     </Badge>
-                                    <span className="text-xs text-muted-foreground">
-                                        {existingSample.status}
-                                    </span>
                                 </div>
-                            ) : (
+                            )}
+
+                            {/* Always allow PO creation for listed vendors, especially for Fulfillment */}
+                            {isFulfillment && (
+                                <CreatePurchaseOrderDialog
+                                    defaultProjectId={pv.projectId}
+                                    defaultVendorId={vendor.id}
+                                    trigger={
+                                        <Button size="sm" variant="outline" className="gap-2">
+                                            <ShoppingCart className="h-4 w-4" />
+                                            Order
+                                        </Button>
+                                    }
+                                />
+                            )}
+
+                            {!existingSample && !isFulfillment && (
                                 <RequestSampleDialog
                                     projectId={pv.projectId}
                                     vendorId={vendor.id}
