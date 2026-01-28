@@ -67,6 +67,16 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
             return;
         }
 
+        if (!receivedQty || parseFloat(receivedQty) <= 0) {
+            toast.error("Please enter a valid received quantity");
+            return;
+        }
+
+        if (!receivedBy || receivedBy.trim() === "") {
+            toast.error("Received By name is required");
+            return;
+        }
+
         setLoading(true);
         const result = await createGRN({
             purchaseOrderId: poId,
@@ -82,7 +92,7 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
             toast.success("Goods Received Successfully");
             setIsGRNOpen(false);
         } else {
-            toast.error("Failed to create GRN");
+            toast.error(result.error || "Failed to create GRN");
         }
         setLoading(false);
     };
@@ -140,7 +150,7 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">
-                                        <Label>Total Quantity Received</Label>
+                                        <Label>Total Quantity Received <span className="text-red-500">*</span></Label>
                                         <Input
                                             type="number"
                                             placeholder={`Expected: ${orderedQuantity}`}
@@ -163,7 +173,7 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                                         </div>
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label>Received By (Name)</Label>
+                                        <Label>Received By (Name) <span className="text-red-500">*</span></Label>
                                         <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} />
                                     </div>
                                     <div className="grid gap-2">

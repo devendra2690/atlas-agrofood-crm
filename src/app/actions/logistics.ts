@@ -96,6 +96,24 @@ export async function updateShipmentStatus(id: string, status: string) {
 export async function createGRN(data: GRNData) {
     try {
         const session = await auth();
+
+        // 0. Prerequisite Check
+        const checkPO = await prisma.purchaseOrder.findUnique({
+            where: { id: data.purchaseOrderId },
+            include: { bills: true, shipments: true }
+        });
+
+        if (!checkPO) return { success: false, error: "Purchase Order not found" };
+        if (checkPO.bills.length === 0) return { success: false, error: "Cannot receive goods: Please add a Bill first." };
+        // if (checkPO.shipments.length === 0) return { success: false, error: "Cannot receive goods: Please add a Shipment first." }; 
+        // Note: Sometimes GRN creates the shipment logic implicitly in some systems, but strict req requested.
+        if (checkPO.shipments.length === 0) return { success: false, error: "Cannot receive goods: Please add a Shipment first." };
+
+        // New Check: Shipment must be DELIVERED
+        if (checkPO.shipments.some(s => s.status !== 'DELIVERED')) {
+            return { success: false, error: "Cannot receive goods: Shipment is not in DELIVERED status." };
+        }
+
         // 1. Create GRN Record
         const grn = await prisma.gRN.create({
             data: {

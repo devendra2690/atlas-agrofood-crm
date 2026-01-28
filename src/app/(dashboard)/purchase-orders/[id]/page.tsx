@@ -85,6 +85,7 @@ export default async function PurchaseOrderDetailsPage({ params }: PageProps) {
                 <BillManager
                     poId={order.id}
                     vendorId={order.vendorId}
+                    totalAmount={order.totalAmount}
                     bills={(order.bills as any[]).map(b => ({
                         ...b,
                         createdAt: new Date(b.createdAt)

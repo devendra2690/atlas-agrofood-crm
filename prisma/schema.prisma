@@ -500,6 +500,7 @@ model Bill {
   pendingAmount   Decimal    @default(0) // Will be initialized to totalAmount
   dueDate         DateTime?
   status          BillStatus @default(DRAFT)
+  notes           String?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 

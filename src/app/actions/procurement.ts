@@ -727,6 +727,27 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
                     data: { status: 'COMPLETED' }
                 });
             }
+
+            // 4. PREREQUISITES CHECK for RECEIVED status
+            const fullOrder = await prisma.purchaseOrder.findUnique({
+                where: { id },
+                include: { bills: true, shipments: true, grn: true }
+            });
+
+            if (!fullOrder) return { success: false, error: "Order details not found" };
+
+            if (fullOrder.bills.length === 0) {
+                return { success: false, error: "Cannot mark as Received: No Bill created." };
+            }
+            if (fullOrder.shipments.length === 0) {
+                return { success: false, error: "Cannot mark as Received: No Shipment created." };
+            }
+            if (fullOrder.shipments.some(s => s.status !== 'DELIVERED')) {
+                return { success: false, error: "Cannot mark as Received: All shipments must be in DELIVERED status." };
+            }
+            if (!fullOrder.grn) {
+                return { success: false, error: "Cannot mark as Received manually. Please use the 'Receive Goods (GRN)' button to confirm quantities." };
+            }
         }
 
         const session = await auth();
@@ -777,6 +798,7 @@ export async function createBill(data: {
     totalAmount: number;
     invoiceNumber?: string;
     date: Date;
+    notes?: string;
 }) {
     try {
         const invoiceNumber = data.invoiceNumber || `BILL-${Date.now().toString().slice(-6)}`;
@@ -792,7 +814,8 @@ export async function createBill(data: {
                 invoiceNumber: invoiceNumber,
                 createdAt: data.date,
                 status: 'DRAFT',
-                pendingAmount: data.totalAmount // Initialize pending amount
+                pendingAmount: data.totalAmount, // Initialize pending amount
+                notes: data.notes
             }
         });
 

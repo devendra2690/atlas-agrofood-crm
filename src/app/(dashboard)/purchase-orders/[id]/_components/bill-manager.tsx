@@ -35,28 +35,47 @@ interface BillManagerProps {
     poId: string;
     vendorId: string;
     bills: Bill[];
+    totalAmount: number;
 }
 
-export function BillManager({ poId, vendorId, bills }: BillManagerProps) {
+export function BillManager({ poId, vendorId, bills, totalAmount }: BillManagerProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         amount: "",
         invoiceNumber: "",
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
+        notes: ""
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
+        const amount = parseFloat(formData.amount);
+
+        // Validation 1: Amount mandatory
+        if (!formData.amount || isNaN(amount) || amount <= 0) {
+            toast.error("Please enter a valid amount");
+            setLoading(false);
+            return;
+        }
+
+        // Validation 2: Notes required if mismatch
+        if (amount !== totalAmount && (!formData.notes || formData.notes.trim() === "")) {
+            toast.error(`Amount mismatch! Expected ₹${totalAmount.toLocaleString()}. Please add notes explaining the difference.`);
+            setLoading(false);
+            return;
+        }
+
         try {
             const result = await createBill({
                 purchaseOrderId: poId,
                 vendorId: vendorId,
-                totalAmount: parseFloat(formData.amount),
+                totalAmount: amount,
                 invoiceNumber: formData.invoiceNumber || undefined,
-                date: new Date(formData.date)
+                date: new Date(formData.date),
+                notes: formData.notes // Ensure backend accepts this
             });
 
             if (result.success) {
@@ -65,7 +84,8 @@ export function BillManager({ poId, vendorId, bills }: BillManagerProps) {
                 setFormData({
                     amount: "",
                     invoiceNumber: "",
-                    date: new Date().toISOString().split('T')[0]
+                    date: new Date().toISOString().split('T')[0],
+                    notes: ""
                 });
             } else {
                 toast.error(result.error || "Failed to add bill");
@@ -96,7 +116,7 @@ export function BillManager({ poId, vendorId, bills }: BillManagerProps) {
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="amount">Amount</Label>
+                                <Label htmlFor="amount">Amount <span className="text-red-500">*</span></Label>
                                 <Input
                                     id="amount"
                                     type="number"
@@ -113,6 +133,15 @@ export function BillManager({ poId, vendorId, bills }: BillManagerProps) {
                                     placeholder="INV-..."
                                     value={formData.invoiceNumber}
                                     onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="notes">Notes {parseFloat(formData.amount) !== totalAmount && parseFloat(formData.amount) > 0 && <span className="text-red-500">* (Required due to amount mismatch)</span>}</Label>
+                                <Input
+                                    id="notes"
+                                    placeholder="Explain amount difference (e.g. Partial Payment)"
+                                    value={formData.notes}
+                                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                 />
                             </div>
                             <div className="space-y-2">
