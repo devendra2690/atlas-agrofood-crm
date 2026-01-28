@@ -434,6 +434,7 @@ model SalesOrder {
   status        SalesOrderStatus @default(CONFIRMED)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
+  fulfillmentNotes String?       // Notes explaining why order was closed/delivered if incomplete
 
   opportunity SalesOpportunity @relation(fields: [opportunityId], references: [id])
   client      Company          @relation(fields: [clientId], references: [id])

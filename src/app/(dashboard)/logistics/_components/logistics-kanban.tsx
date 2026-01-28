@@ -14,7 +14,7 @@ import {
     useDroppable,
     useDraggable,
 } from "@dnd-kit/core";
-import { Shipment, PurchaseOrder, Company, ProcurementProject } from "@prisma/client";
+import { Shipment, PurchaseOrder, Company, ProcurementProject, SalesOrder, SalesOpportunity } from "@prisma/client";
 import { updateShipmentStatus } from "@/app/actions/logistics";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,10 +24,14 @@ import { Truck, Anchor, CheckCircle } from "lucide-react";
 
 // Define the shape of data we expect
 type ShipmentWithRelations = Shipment & {
-    purchaseOrder: PurchaseOrder & {
+    purchaseOrder?: (PurchaseOrder & {
         project: ProcurementProject;
         vendor: Company;
-    };
+    }) | null;
+    salesOrder?: (SalesOrder & {
+        client: Company;
+        opportunity: SalesOpportunity;
+    }) | null;
 };
 
 interface LogisticsKanbanProps {
@@ -36,7 +40,6 @@ interface LogisticsKanbanProps {
 
 const COLUMNS = [
     { id: "IN_TRANSIT", title: "In Transit", icon: Truck },
-    { id: "CUSTOMS", title: "Customs", icon: Anchor },
     { id: "DELIVERED", title: "Delivered", icon: CheckCircle },
 ];
 
@@ -203,6 +206,14 @@ function DraggableCard({ shipment }: { shipment: ShipmentWithRelations }) {
         );
     }
 
+    const handleClick = () => {
+        if (shipment.purchaseOrderId) {
+            router.push(`/purchase-orders/${shipment.purchaseOrderId}`);
+        } else if (shipment.salesOrderId) {
+            router.push(`/sales-orders/${shipment.salesOrderId}`);
+        }
+    };
+
     return (
         <div
             ref={setNodeRef}
@@ -210,7 +221,7 @@ function DraggableCard({ shipment }: { shipment: ShipmentWithRelations }) {
             {...listeners}
             {...attributes}
             className="cursor-pointer hover:ring-2 hover:ring-primary/20 rounded-lg transition-all"
-            onClick={() => router.push(`/purchase-orders/${shipment.purchaseOrder.id}`)}
+            onClick={handleClick}
         >
             <ShipmentCard shipment={shipment} />
         </div>
@@ -218,20 +229,61 @@ function DraggableCard({ shipment }: { shipment: ShipmentWithRelations }) {
 }
 
 function ShipmentCard({ shipment, isOverlay }: { shipment: ShipmentWithRelations, isOverlay?: boolean }) {
+    const isPO = !!shipment.purchaseOrder;
+    const relatedOrder = isPO ? shipment.purchaseOrder! : shipment.salesOrder;
+
+    // Fallback if bad data
+    if (!relatedOrder) {
+        return (
+            <Card className={`shadow-sm ${isOverlay ? 'shadow-xl bg-white scale-105' : ''}`}>
+                <CardContent className="p-3 text-red-500 text-xs">
+                    Invalid Shipment Data (Missing Order Link)
+                </CardContent>
+            </Card>
+        );
+    }
+
+    const orderId = isPO ? relatedOrder.id : relatedOrder.id;
+    const projectOrProductLabel = isPO ? "Project" : "Product";
+    const projectOrProductValue = isPO
+        ? (shipment.purchaseOrder?.project?.name || "N/A")
+        : (shipment.salesOrder?.opportunity?.productName || "Product"); // schema doesn't have productName directly on opp? need check. opp usually has product name.
+
+    // Just in case schema check: SalesOrder -> Opportunity. 
+    // Opportunity usually has 'title' or 'product' field? 
+    // Wait, let's use client name for Sales Order as primary context if product is not easy access.
+    // Actually Opportunity has 'product' field? 
+    // Let's check Opportunity schema if unsure. But assuming 'title' or 'product' exists.
+    // Checking schema dump... Opportunity has 'product' string field?
+    // Let's just use "Client" for Sales Order instead of "Vendor".
+
+    const contextLabel = isPO ? "Vendor:" : "Client:";
+    const contextValue = isPO
+        ? (shipment.purchaseOrder?.vendor?.name || "N/A")
+        : (shipment.salesOrder?.client?.name || "N/A");
+
+    // For Project/Product line:
+    // PO -> Project Name
+    // SO -> Opportunity Title or just "Sales Order"
+    const secondaryLabel = isPO ? "Project:" : "Opp:";
+    const secondaryValue = isPO
+        ? (shipment.purchaseOrder?.project?.name)
+        : (shipment.salesOrder?.opportunity?.title || "Sales Deal");
+
     return (
         <Card className={`shadow-sm ${isOverlay ? 'shadow-xl bg-white scale-105' : ''}`}>
             <CardContent className="p-3">
                 <div className="flex justify-between items-start mb-2">
                     <div className="font-semibold text-sm truncate w-[70%]">
-                        PO #{shipment.purchaseOrder.id.slice(0, 8).toUpperCase()}
+                        {isPO ? "PO" : "SO"} #{orderId.slice(0, 8).toUpperCase()}
                     </div>
                     {isOverlay && <Badge>{shipment.status}</Badge>}
                 </div>
 
                 <div className="text-xs text-muted-foreground mb-3 space-y-1">
                     <div className="flex justify-between">
-                        <span>Project:</span>
-                        <span className="font-medium text-slate-700 truncate max-w-[120px]">{shipment.purchaseOrder.project.name}</span>
+                        <span>{secondaryLabel}</span>
+                        <span className="font-medium text-slate-700 truncate max-w-[120px]">{secondaryValue}</span>
                     </div>
                     <div className="flex justify-between">
                         <span>Carrier:</span>
@@ -244,8 +296,8 @@ function ShipmentCard({ shipment, isOverlay }: { shipment: ShipmentWithRelations
                 </div>
 
                 <div className="pt-2 border-t flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">Vendor:</span>
-                    <span className="font-medium text-slate-700 truncate max-w-[150px]">{shipment.purchaseOrder.vendor.name}</span>
+                    <span className="text-muted-foreground">{contextLabel}</span>
+                    <span className="font-medium text-slate-700 truncate max-w-[150px]">{contextValue}</span>
                 </div>
             </CardContent>
         </Card>

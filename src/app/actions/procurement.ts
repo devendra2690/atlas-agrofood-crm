@@ -729,25 +729,65 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
             }
 
             // 4. PREREQUISITES CHECK for RECEIVED status
-            const fullOrder = await prisma.purchaseOrder.findUnique({
+            const FullOrder = await prisma.purchaseOrder.findUnique({
                 where: { id },
-                include: { bills: true, shipments: true, grn: true }
+                include: {
+                    bills: { include: { transactions: true } },
+                    shipments: true,
+                    grn: true
+                }
             });
 
-            if (!fullOrder) return { success: false, error: "Order details not found" };
+            if (!FullOrder) return { success: false, error: "Order details not found" };
 
-            if (fullOrder.bills.length === 0) {
-                return { success: false, error: "Cannot mark as Received: No Bill created." };
+            // 1. Check GRN
+            if (!FullOrder.grn) {
+                return { success: false, error: "Cannot mark as Received manually. Please use the 'Receive Goods (GRN)' button first." };
             }
-            if (fullOrder.shipments.length === 0) {
-                return { success: false, error: "Cannot mark as Received: No Shipment created." };
-            }
-            if (fullOrder.shipments.some(s => s.status !== 'DELIVERED')) {
+
+            // 2. Check Shipments
+            if (FullOrder.shipments.some(s => s.status !== 'DELIVERED')) {
                 return { success: false, error: "Cannot mark as Received: All shipments must be in DELIVERED status." };
             }
-            if (!fullOrder.grn) {
-                return { success: false, error: "Cannot mark as Received manually. Please use the 'Receive Goods (GRN)' button to confirm quantities." };
+
+            // 3. Payment Validation
+            const totalBillAmount = FullOrder.bills.reduce((sum, b) => sum + b.totalAmount.toNumber(), 0);
+            const totalPaid = FullOrder.bills.reduce((sum, b) =>
+                sum + b.transactions.reduce((tSum, t) => tSum + t.amount.toNumber(), 0), 0
+            );
+
+            const acceptedQty = FullOrder.grn.acceptedQuantity.toNumber();
+            const originalQty = FullOrder.quantity?.toNumber() || 0;
+            const originalTotal = FullOrder.totalAmount.toNumber();
+
+            // Calculate effective unit price (Price Per MT)
+            const unitPrice = originalQty > 0 ? (originalTotal / originalQty) : 0;
+            const requiredPaymentValue = acceptedQty * unitPrice;
+
+            // Allow small rounding difference (e.g. 1.00)
+            const paymentDiff = Math.abs(totalPaid - requiredPaymentValue);
+
+            if (paymentDiff > 50) { // Tolerance of 50 currency units
+                return {
+                    success: false,
+                    error: `Payment Mismatch: Paid ${totalPaid.toLocaleString()} vs Value of Received Goods ${requiredPaymentValue.toLocaleString()} (for ${acceptedQty} MT). Please clear pending bills.`
+                };
             }
+
+            // 4. Partial Closure Handling
+            if (acceptedQty < originalQty) {
+                // If we are closing with partial qty, we must update the PO quantity to match actuals
+                // This releases the 'reserved' space in the project logic.
+                await prisma.purchaseOrder.update({
+                    where: { id },
+                    data: {
+                        quantity: acceptedQty,
+                        totalAmount: totalPaid // Adjust total amount to what was paid/received
+                    }
+                });
+            }
+
+            // Continue with standard closure...
         }
 
         const session = await auth();
@@ -774,6 +814,7 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
             revalidatePath("/logistics");
         }
 
+        // LOGGING
         await logActivity({
             action: "STATUS_CHANGE",
             entityType: "PurchaseOrder",
@@ -784,11 +825,73 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
 
         revalidatePath('/purchase-orders');
         revalidatePath(`/purchase-orders/${id}`);
-        revalidatePath(`/procurement/${order.projectId}`); // Refresh project page to show status
+        // Refresh project to reflect status/qty changes
+        const updatedOrder = await prisma.purchaseOrder.findUnique({ where: { id }, select: { projectId: true } });
+        if (updatedOrder?.projectId) revalidatePath(`/procurement/${updatedOrder.projectId}`);
+
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to update PO status:", error);
-        return { success: false, error: "Failed to update status" };
+        return { success: false, error: error.message || "Failed to update status" };
+    }
+}
+
+
+export async function recordBillPayment(billId: string, amount: number, date: Date, notes?: string) {
+    try {
+        const session = await auth();
+
+        const bill = await prisma.bill.findUnique({
+            where: { id: billId }
+        });
+
+        if (!bill) return { success: false, error: "Bill not found" };
+
+        const currentPending = bill.pendingAmount.toNumber();
+        if (amount > currentPending) {
+            return { success: false, error: `Payment amount (${amount}) exceeds pending amount (${currentPending})` };
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // 1. Create Transaction (DEBIT for Expense)
+            await tx.transaction.create({
+                data: {
+                    createdById: session?.user?.id,
+                    updatedById: session?.user?.id,
+                    billId: billId,
+                    type: "DEBIT",
+                    amount: amount,
+                    date: date,
+                    description: notes || "Bill Payment",
+                    category: "Procurement"
+                }
+            });
+
+            // 2. Update Bill
+            const newPending = currentPending - amount;
+            let newStatus = bill.status;
+
+            // Logic: If fully paid -> PAID. Else if made a payment -> APPROVED (Partial)
+            if (newPending <= 0) {
+                newStatus = 'PAID';
+            } else {
+                newStatus = 'APPROVED';
+            }
+
+            await tx.bill.update({
+                where: { id: billId },
+                data: {
+                    pendingAmount: newPending,
+                    status: newStatus
+                }
+            });
+        });
+
+        revalidatePath(`/purchase-orders/${bill.purchaseOrderId}`);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Failed to record payment:", error);
+        return { success: false, error: "Failed to record payment" };
     }
 }
 
@@ -811,11 +914,11 @@ export async function createBill(data: {
                 purchaseOrderId: data.purchaseOrderId,
                 vendorId: data.vendorId,
                 totalAmount: data.totalAmount,
+                pendingAmount: data.totalAmount, // Initially full amount pending
                 invoiceNumber: invoiceNumber,
-                createdAt: data.date,
-                status: 'DRAFT',
-                pendingAmount: data.totalAmount, // Initialize pending amount
-                notes: data.notes
+                dueDate: data.date,
+                notes: data.notes,
+                status: 'DRAFT'
             }
         });
 
@@ -824,7 +927,7 @@ export async function createBill(data: {
             entityType: "Bill",
             entityId: bill.id,
             entityTitle: `Bill #${invoiceNumber}`,
-            details: `Created bill for PO #${data.purchaseOrderId.slice(0, 8).toUpperCase()} - ₹${data.totalAmount.toLocaleString()}`
+            details: `Created bill for PO #${data.purchaseOrderId.slice(0, 8).toUpperCase()} - ${data.totalAmount}` // removed currency symbol to keep simple
         });
 
         revalidatePath(`/purchase-orders/${data.purchaseOrderId}`);

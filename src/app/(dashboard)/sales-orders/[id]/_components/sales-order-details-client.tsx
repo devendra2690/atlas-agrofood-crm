@@ -17,6 +17,12 @@ import { useState, useEffect } from "react";
 import { Link as LinkIcon, ExternalLink, Loader2, FilePlus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Added Dialog import
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SalesOrderFinancials } from "./sales-order-financials";
+import { generateInvoiceFromSalesOrder } from "@/app/actions/finance";
+import { RecordPaymentDialog } from "./record-payment-dialog";
 
 interface SalesOrderDetailsClientProps {
     order: any;
@@ -24,43 +30,84 @@ interface SalesOrderDetailsClientProps {
     transactions: any[];
 }
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SalesOrderFinancials } from "./sales-order-financials";
-import { generateInvoiceFromSalesOrder } from "@/app/actions/finance";
-import { RecordPaymentDialog } from "./record-payment-dialog";
-
-const statusOptions = [
-    { value: "PENDING", label: "Pending" },
-    { value: "IN_PROGRESS", label: "In Progress" },
-    { value: "CONFIRMED", label: "Confirmed" },
-    { value: "SHIPPED", label: "Shipped" },
-    { value: "DELIVERED", label: "Delivered" },
-    { value: "COMPLETED", label: "Done" },
-    { value: "CANCELLED", label: "Closed Lost" },
+const statusOptions: { value: SalesOrderStatus; label: string; color: string }[] = [
+    { value: 'PENDING', label: 'Pending', color: 'bg-slate-100 text-slate-800' },
+    { value: 'CONFIRMED', label: 'Confirmed', color: 'bg-blue-100 text-blue-800' },
+    { value: 'IN_PROGRESS', label: 'In Progress', color: 'bg-purple-100 text-purple-800' },
+    { value: 'SHIPPED', label: 'Shipped', color: 'bg-orange-100 text-orange-800' },
+    { value: 'DELIVERED', label: 'Delivered', color: 'bg-green-100 text-green-800' },
+    { value: 'COMPLETED', label: 'Completed', color: 'bg-teal-100 text-teal-800' },
+    { value: 'CANCELLED', label: 'Cancelled', color: 'bg-red-100 text-red-800' },
 ];
 
 export function SalesOrderDetailsClient({ order, financials, transactions }: SalesOrderDetailsClientProps) {
     const [status, setStatus] = useState<SalesOrderStatus>(order.status);
     const [updating, setUpdating] = useState(false);
 
-    async function handleStatusChange(value: SalesOrderStatus) {
+    // Strict Validation State
+    const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+    const [validationNotes, setValidationNotes] = useState("");
+    const [pendingStatus, setPendingStatus] = useState<SalesOrderStatus | null>(null);
+
+    async function updateStatus(value: SalesOrderStatus, notes?: string) {
         setUpdating(true);
-        setStatus(value); // Optimistic update
+        // setStatus(value); // Optimistic - actually lets wait for server for strict actions
         try {
-            const result = await updateSalesOrderStatus(order.id, value);
+            const result = await updateSalesOrderStatus(order.id, value, notes);
             if (result.success) {
                 toast.success("Order status updated");
+                setStatus(value);
+                setValidationDialogOpen(false);
+                setValidationNotes("");
             } else {
                 toast.error(result.error || "Failed to update status");
-                setStatus(order.status); // Revert
+                // setStatus(order.status); // Revert
             }
         } catch (e) {
             toast.error("Failed to update status");
-            setStatus(order.status);
+            // setStatus(order.status);
         } finally {
             setUpdating(false);
         }
     }
+
+    async function handleStatusChange(value: SalesOrderStatus) {
+        // STRICT CHECK Logic
+        if (value === 'DELIVERED' || value === 'COMPLETED') {
+            const totalPaid = order.invoices.reduce((sum: number, inv: any) => sum + (inv.totalAmount - inv.pendingAmount), 0);
+            const totalShipped = order.shipments.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0);
+
+            const isFullPaid = Math.abs(totalPaid - order.totalAmount) < 1.0;
+            const isFullQty = Math.abs(totalShipped - order.opportunity.quantity) < 0.01;
+
+            if (!isFullPaid || !isFullQty) {
+                setPendingStatus(value);
+                setValidationDialogOpen(true);
+                return; // Stop here, wait for dialog
+            }
+        }
+
+        // CANCELLATION CHECK Logic
+        if (value === 'CANCELLED') {
+            const totalPaid = order.invoices.reduce((sum: number, inv: any) => sum + (inv.totalAmount - inv.pendingAmount), 0);
+            const totalShipped = order.shipments.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0);
+
+            if (totalPaid > 0 || totalShipped > 0) {
+                setPendingStatus(value);
+                setValidationDialogOpen(true); // Re-use the same dialog for remarks
+                return;
+            }
+        }
+
+        // If checks pass (or not Delivered status), proceed normally
+        updateStatus(value);
+    }
+
+    const confirmStatusChange = () => {
+        if (pendingStatus) {
+            updateStatus(pendingStatus, validationNotes);
+        }
+    };
 
     const [mounted, setMounted] = useState(false);
 
@@ -137,6 +184,66 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                 </Select>
                                 {updating && <div className="text-xs text-muted-foreground flex items-center"><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Updating...</div>}
                             </div>
+
+                            {/* Fulfillment Notes Display */}
+                            {order.fulfillmentNotes && (
+                                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm">
+                                    <p className="font-semibold text-amber-800 mb-1">Fulfillment / Closure Notes:</p>
+                                    <p className="text-amber-700">{order.fulfillmentNotes}</p>
+                                </div>
+                            )}
+
+                            {/* Validation Dialog */}
+                            <Dialog open={validationDialogOpen} onOpenChange={setValidationDialogOpen}>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Incomplete Fulfillment Detected</DialogTitle>
+                                        <DialogDescription>
+                                            This order is not fully paid or fully shipped. To mark it as {pendingStatus}, you must provide closure remarks.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="py-2 space-y-2">
+                                        <div className="text-sm border p-2 rounded bg-slate-50">
+                                            <div className="flex justify-between">
+                                                <span>Total Amount:</span>
+                                                <span className="font-mono">₹{order.totalAmount.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between text-yellow-600">
+                                                <span>Paid Received:</span>
+                                                <span className="font-mono">
+                                                    ₹{order.invoices.reduce((sum: number, inv: any) => sum + (inv.totalAmount - inv.pendingAmount), 0).toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <div className="border-t my-1"></div>
+                                            <div className="flex justify-between">
+                                                <span>Order Quantity:</span>
+                                                <span>{order.opportunity.quantity} MT</span>
+                                            </div>
+                                            <div className="flex justify-between text-yellow-600">
+                                                <span>Total Shipped:</span>
+                                                <span>
+                                                    {order.shipments.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0)} MT
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="text-sm font-medium">Closure Remarks / Notes <span className="text-red-500">*</span></label>
+                                            <textarea
+                                                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                value={validationNotes}
+                                                onChange={(e) => setValidationNotes(e.target.value)}
+                                                placeholder="Explain why this order is being closed with outstanding items..."
+                                            />
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button variant="outline" onClick={() => setValidationDialogOpen(false)}>Cancel</Button>
+                                        <Button onClick={confirmStatusChange} disabled={!validationNotes}>Confirm & Update</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+
                         </CardContent>
                     </Card>
 

@@ -304,6 +304,12 @@ export async function getShipments(filters?: {
                             project: true,
                             vendor: true
                         }
+                    },
+                    salesOrder: {
+                        include: {
+                            client: true,
+                            opportunity: true
+                        }
                     }
                 }
             }),
@@ -313,11 +319,22 @@ export async function getShipments(filters?: {
         // Sanitize decimals
         const safeShipments = shipments.map(s => ({
             ...s,
-            purchaseOrder: {
+            quantity: s.quantity?.toNumber(),
+            purchaseOrder: s.purchaseOrder ? {
                 ...s.purchaseOrder,
                 quantity: s.purchaseOrder.quantity?.toNumber(),
                 totalAmount: s.purchaseOrder.totalAmount.toNumber()
-            }
+            } : null,
+            salesOrder: s.salesOrder ? {
+                ...s.salesOrder,
+                totalAmount: s.salesOrder.totalAmount.toNumber(),
+                opportunity: {
+                    ...s.salesOrder.opportunity,
+                    quantity: s.salesOrder.opportunity.quantity?.toNumber(),
+                    targetPrice: s.salesOrder.opportunity.targetPrice?.toNumber(),
+                    procurementQuantity: s.salesOrder.opportunity.procurementQuantity?.toNumber()
+                }
+            } : null
         }));
 
         return {

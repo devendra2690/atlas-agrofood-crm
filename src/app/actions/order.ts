@@ -288,7 +288,7 @@ export async function getSalesOrder(id: string) {
     }
 }
 
-export async function updateSalesOrderStatus(id: string, status: SalesOrderStatus) {
+export async function updateSalesOrderStatus(id: string, status: SalesOrderStatus, notes?: string) {
     try {
         const session = await auth();
 
@@ -319,10 +319,64 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
             }
         }
 
+        // VALIDATION: CANCELLED (Safeguard Logic)
+        if (status === 'CANCELLED') {
+            const checkOrder = await prisma.salesOrder.findUnique({
+                where: { id },
+                include: { invoices: true, shipments: true }
+            });
+
+            if (!checkOrder) return { success: false, error: "Order not found" };
+
+            const totalShipped = checkOrder.shipments.reduce((sum, s) => sum + (s.quantity?.toNumber() || 0), 0);
+            const totalPaid = checkOrder.invoices.reduce((sum, inv) => {
+                return sum + (inv.totalAmount.toNumber() - inv.pendingAmount.toNumber());
+            }, 0);
+
+            // If active processing happened (money taken or goods sent), require explanation
+            if ((totalShipped > 0 || totalPaid > 0) && !notes) {
+                return {
+                    success: false,
+                    error: `Strict Validation Failed: Order has partial fulfillment (Shipped: ${totalShipped}, Paid: ${totalPaid}). Please provide cancel remarks/reason.`
+                };
+            }
+        }
+
+        // VALIDATION: DELIVERED or COMPLETED (Strict Check)
+        if (status === 'DELIVERED' || status === 'COMPLETED') {
+            const checkOrder = await prisma.salesOrder.findUnique({
+                where: { id },
+                include: { invoices: true, shipments: true, opportunity: true }
+            });
+
+            if (!checkOrder) return { success: false, error: "Order not found" };
+
+            // 1. Quantity Check
+            const totalShipped = checkOrder.shipments.reduce((sum, s) => sum + (s.quantity?.toNumber() || 0), 0);
+            const orderQty = checkOrder.opportunity.quantity?.toNumber() || 0;
+            const isFullQty = Math.abs(totalShipped - orderQty) < 0.01;
+
+            // 2. Payment Check
+            const totalPaid = checkOrder.invoices.reduce((sum, inv) => {
+                return sum + (inv.totalAmount.toNumber() - inv.pendingAmount.toNumber());
+            }, 0);
+            const totalAmount = checkOrder.totalAmount.toNumber();
+            const isFullPaid = Math.abs(totalPaid - totalAmount) < 1.00; // 1 rupee tolerance
+
+            // If mismatch AND no notes -> Reject
+            if ((!isFullQty || !isFullPaid) && !notes) {
+                return {
+                    success: false,
+                    error: `Strict Validation Failed: ${!isFullQty ? `Qty Pending (${totalShipped}/${orderQty})` : ''} ${!isFullPaid ? `Payment Pending (${totalPaid}/${totalAmount})` : ''}. Please provide closure notes to proceed.`
+                };
+            }
+        }
+
         const order = await prisma.salesOrder.update({
             where: { id },
             data: {
                 status,
+                fulfillmentNotes: notes, // Save notes if provided
                 updatedById: session?.user?.id
             },
             include: {
