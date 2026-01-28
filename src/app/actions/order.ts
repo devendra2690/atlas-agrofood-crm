@@ -190,6 +190,9 @@ export async function getSalesOrder(id: string) {
             include: {
                 client: true,
                 invoices: true,
+                shipments: {
+                    orderBy: { createdAt: 'desc' }
+                },
                 opportunity: {
                     include: {
                         procurementProject: {
@@ -271,6 +274,10 @@ export async function getSalesOrder(id: string) {
                 ...inv,
                 totalAmount: inv.totalAmount.toNumber(),
                 pendingAmount: inv.pendingAmount.toNumber()
+            })),
+            shipments: order.shipments.map(s => ({
+                ...s,
+                quantity: s.quantity ? s.quantity.toNumber() : null
             }))
         };
 
@@ -284,6 +291,34 @@ export async function getSalesOrder(id: string) {
 export async function updateSalesOrderStatus(id: string, status: SalesOrderStatus) {
     try {
         const session = await auth();
+
+        // VALIDATION: Prevent manual move to SHIPPED without prerequisites
+        if (status === 'SHIPPED') {
+            const checkOrder = await prisma.salesOrder.findUnique({
+                where: { id },
+                include: { invoices: true, shipments: true }
+            });
+
+            if (!checkOrder) return { success: false, error: "Order not found" };
+
+            if (checkOrder.invoices.length === 0) {
+                return { success: false, error: "Cannot Mark Shipped: No Invoice generated." };
+            }
+
+            if (checkOrder.shipments.length === 0) {
+                return { success: false, error: "Cannot Mark Shipped: No Shipment details added." };
+            }
+
+            // CHECK PAYMENT
+            const totalPaid = checkOrder.invoices.reduce((sum, inv) => {
+                return sum + (inv.totalAmount.toNumber() - inv.pendingAmount.toNumber());
+            }, 0);
+
+            if (totalPaid <= 0) {
+                return { success: false, error: "Cannot Mark Shipped: No Payment recorded. At least partial payment is required." };
+            }
+        }
+
         const order = await prisma.salesOrder.update({
             where: { id },
             data: {
@@ -357,30 +392,7 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
                         processedVendorIds.add(sample.vendorId);
                     }
 
-                    // Create Draft PO
-                    // Note: We create a PO for each approved sample. 
-                    // Quantity is initialized to the full opportunity quantity for convenience, 
-                    // but user should adjust if splitting orders.
-                    const buyPrice = sample.priceQuoted?.toNumber() || 0;
-                    let buyTotal = buyPrice * qty;
-
-                    if (sample.priceUnit === 'PER_KG') {
-                        buyTotal = buyPrice * (qty * 1000);
-                    }
-
-                    await prisma.purchaseOrder.create({
-                        data: {
-                            projectId: project.id,
-                            vendorId: sample.vendorId,
-                            sampleId: sample.id,
-                            quantity: qty, // Initialize with full quantity
-                            quantityUnit: 'MT', // Default to MT
-                            totalAmount: buyTotal,
-                            status: 'DRAFT',
-                            createdById: session?.user?.id,
-                            updatedById: session?.user?.id
-                        }
-                    });
+                    // PO Creation is now manual as per user request
                 }
             }
         }

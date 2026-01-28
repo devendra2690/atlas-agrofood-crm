@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { updateSalesOrderStatus } from "@/app/actions/order";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link as LinkIcon, ExternalLink, Loader2, FilePlus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,7 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
             if (result.success) {
                 toast.success("Order status updated");
             } else {
-                toast.error("Failed to update status");
+                toast.error(result.error || "Failed to update status");
                 setStatus(order.status); // Revert
             }
         } catch (e) {
@@ -60,6 +60,16 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
         } finally {
             setUpdating(false);
         }
+    }
+
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) {
+        return <div className="p-4 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>;
     }
 
     return (

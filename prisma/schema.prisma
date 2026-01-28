@@ -439,6 +439,7 @@ model SalesOrder {
   client      Company          @relation(fields: [clientId], references: [id])
   invoices    Invoice[]
   transactions Transaction[]
+  shipments   Shipment[]
 
   createdById String?
   updatedById String?
@@ -539,18 +540,21 @@ model Transaction {
 
 model Shipment {
   id              String   @id @default(uuid())
-  purchaseOrderId String   @unique // One active shipment per PO usually, or 1:N? Let's assume 1:1 for now or 1:N? PO can be split? Plan said 1:N implied but let's keep simple.
+  purchaseOrderId String?   // Removed @unique to allow multiple, made optional for Polymorphism
+  salesOrderId    String?
+
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  salesOrder      SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+
   carrier         String?
   trackingNumber  String?
+  quantity        Decimal?
   eta             DateTime?
-  status          String   @default("IN_TRANSIT") // IN_TRANSIT, DELIVERED
+  status          String   @default("IN_TRANSIT")
   actualDeliveryDate DateTime?
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-
-
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
 
   createdById String?
   updatedById String?

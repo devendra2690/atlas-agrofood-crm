@@ -10,6 +10,7 @@ import { getSalesOrderFinancials, getSalesOrderTransactions } from "@/app/action
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { SalesShipmentManager } from "./_components/sales-shipment-manager";
 
 interface PageProps {
     params: Promise<{ id: string }>;
@@ -47,7 +48,22 @@ export default async function SalesOrderDetailsPage({ params }: PageProps) {
                     </div>
                 </div>
             </div>
+
+
             <Separator className="my-4" />
+
+            <Suspense fallback={<div>Loading shipments...</div>}>
+                <SalesShipmentManager
+                    orderId={order.id}
+                    orderStatus={order.status}
+                    shipments={(order.shipments || []).map(s => ({
+                        ...s,
+                        quantity: s.quantity ? Number(s.quantity) : null
+                    }))}
+                    invoiceCount={order.invoices.length}
+                />
+            </Suspense>
+
             <Suspense fallback={<div>Loading details...</div>}>
                 <SalesOrderDetailsClient
                     order={order}
@@ -55,6 +71,6 @@ export default async function SalesOrderDetailsPage({ params }: PageProps) {
                     transactions={transactions}
                 />
             </Suspense>
-        </div>
+        </div >
     );
 }

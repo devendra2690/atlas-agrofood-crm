@@ -7,9 +7,11 @@ import { logActivity } from "./audit";
 
 // --- Types ---
 export type ShipmentData = {
-    purchaseOrderId: string;
+    purchaseOrderId?: string;
+    salesOrderId?: string;
     carrier?: string;
     trackingNumber?: string;
+    quantity?: number;
     eta?: Date;
     notes?: string;
 };
@@ -25,43 +27,123 @@ export type GRNData = {
     qualityCheckStatus: 'PASSED' | 'FAILED' | 'PENDING';
 };
 
-// --- Shipment Actions ---
+// ... existing code ...
 
 export async function createShipment(data: ShipmentData) {
     try {
         const session = await auth();
-        const shipment = await prisma.shipment.create({
-            data: {
-                createdById: session?.user?.id,
-                updatedById: session?.user?.id,
-                purchaseOrderId: data.purchaseOrderId,
-                carrier: data.carrier,
-                trackingNumber: data.trackingNumber,
-                eta: data.eta,
-                notes: data.notes,
-                status: 'IN_TRANSIT'
+
+        if (data.salesOrderId) {
+            // SALES ORDER LOGIC
+            const salesOrder = await prisma.salesOrder.findUnique({
+                where: { id: data.salesOrderId },
+                include: {
+                    invoices: true,
+                    shipments: true,
+                    opportunity: true
+                }
+            });
+
+            if (!salesOrder) return { success: false, error: "Sales Order not found" };
+
+            // Strict Check: Must have at least one invoice
+            if (salesOrder.invoices.length === 0) {
+                return { success: false, error: "Cannot ship order. Please generate an Invoice first." };
             }
-        });
 
-        // Auto-update PO status to IN_TRANSIT if valid
-        await prisma.purchaseOrder.update({
-            where: { id: data.purchaseOrderId },
-            data: { status: 'IN_TRANSIT' }
-        });
+            if (!data.carrier) return { success: false, error: "Carrier / Logistics Provider is required." };
+            if (!data.quantity) return { success: false, error: "Shipment Quantity is required." };
 
-        await logActivity({
-            action: "CREATE",
-            entityType: "Shipment",
-            entityId: shipment.id,
-            entityTitle: `Shipment for PO #${data.purchaseOrderId.slice(0, 8).toUpperCase()}`,
-            details: `Created shipment via ${data.carrier || "Unknown"}`
-        });
+            // QUANTITY VALIDATION
+            // QUANTITY VALIDATION
+            if (data.quantity) {
+                const totalQuantity = salesOrder.opportunity?.quantity?.toNumber() || 0;
 
-        revalidatePath(`/purchase-orders/${data.purchaseOrderId}`);
-        return { success: true, data: shipment };
-    } catch (error) {
+                const currentShipped = salesOrder.shipments.reduce((sum, s) => sum + (s.quantity?.toNumber() || 0), 0);
+                const newTotal = currentShipped + data.quantity;
+
+                // Tolerance for floating point?
+                const isMismatch = Math.abs(newTotal - totalQuantity) > 0.001;
+
+                if (isMismatch && !data.notes) {
+                    return {
+                        success: false,
+                        error: `Quantity Mismatch: Shipping ${newTotal.toFixed(2)} MT total (Order: ${totalQuantity} MT). You MUST provide notes explaining the difference.`
+                    };
+                }
+            }
+
+            // 2. Create Shipment
+            const shipment = await prisma.shipment.create({
+                data: {
+                    createdById: session?.user?.id,
+                    updatedById: session?.user?.id,
+                    salesOrderId: data.salesOrderId,
+                    carrier: data.carrier,
+                    trackingNumber: data.trackingNumber,
+                    quantity: data.quantity,
+                    eta: data.eta,
+                    notes: data.notes,
+                    status: 'IN_TRANSIT'
+                }
+            });
+
+            // 3. Auto-update SO status to SHIPPED (if not already further along)
+            if (['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(salesOrder.status)) {
+                await prisma.salesOrder.update({
+                    where: { id: data.salesOrderId },
+                    data: { status: 'SHIPPED' } // We allow this even if partial, as long as notes explained it.
+                });
+            }
+
+            await logActivity({
+                action: "CREATE",
+                entityType: "Shipment",
+                entityId: shipment.id,
+                entityTitle: `Shipment for SO #${salesOrder.id.slice(0, 8).toUpperCase()}`,
+                details: `Created outbound shipment via ${data.carrier || "Unknown"}`
+            });
+
+            revalidatePath(`/sales-orders/${data.salesOrderId}`);
+            return { success: true, data: shipment };
+
+        } else if (data.purchaseOrderId) {
+            // PURCHASE ORDER LOGIC
+            const shipment = await prisma.shipment.create({
+                data: {
+                    createdById: session?.user?.id,
+                    updatedById: session?.user?.id,
+                    purchaseOrderId: data.purchaseOrderId,
+                    carrier: data.carrier,
+                    trackingNumber: data.trackingNumber,
+                    eta: data.eta,
+                    notes: data.notes,
+                    status: 'IN_TRANSIT'
+                }
+            });
+
+            await prisma.purchaseOrder.update({
+                where: { id: data.purchaseOrderId },
+                data: { status: 'IN_TRANSIT' }
+            });
+
+            await logActivity({
+                action: "CREATE",
+                entityType: "Shipment",
+                entityId: shipment.id,
+                entityTitle: `Shipment for PO #${data.purchaseOrderId.slice(0, 8).toUpperCase()}`,
+                details: `Created shipment via ${data.carrier || "Unknown"}`
+            });
+
+            revalidatePath(`/purchase-orders/${data.purchaseOrderId}`);
+            return { success: true, data: shipment };
+        } else {
+            return { success: false, error: "Target order ID missing" };
+        }
+
+    } catch (error: any) {
         console.error("Failed to create shipment:", error);
-        return { success: false, error: "Failed to create shipment" };
+        return { success: false, error: "Error: " + (error.message || "Unknown server error") };
     }
 }
 
