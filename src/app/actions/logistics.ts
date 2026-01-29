@@ -191,6 +191,11 @@ export async function createGRN(data: GRNData) {
         // Note: Sometimes GRN creates the shipment logic implicitly in some systems, but strict req requested.
         if (checkPO.shipments.length === 0) return { success: false, error: "Cannot receive goods: Please add a Shipment first." };
 
+        // New Check: Must have a Bill
+        if (checkPO.bills.length === 0) {
+            return { success: false, error: "Cannot receive goods: Please add a Bill first." };
+        }
+
         // New Check: Shipment must be DELIVERED
         if (checkPO.shipments.some(s => s.status !== 'DELIVERED')) {
             return { success: false, error: "Cannot receive goods: Shipment is not in DELIVERED status." };

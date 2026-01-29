@@ -119,7 +119,6 @@ export function SalesOrderBoard({ orders: initialOrders }: SalesOrderBoardProps)
                     toast.success(`Moved to ${newStatus.replace('_', ' ')}`, { id: toastId });
                     router.refresh();
                 } else {
-                    console.error("Server Action Failed:", result.error);
                     toast.error(`Failed: ${result.error}`, { id: toastId });
                     // Revert
                     setOrders((items) =>

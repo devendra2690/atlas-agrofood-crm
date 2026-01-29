@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { SampleSelector } from "./_components/sample-selector";
+
 import { POStatusSelector } from "./_components/po-status-selector";
 import { BillManager } from "./_components/bill-manager";
 import { POPrintAction } from "./_components/po-print-action";
@@ -106,15 +106,7 @@ export default async function PurchaseOrderDetailsPage({ params }: PageProps) {
                 />
             </div>
 
-            <Separator className="my-6" />
 
-            <SampleSelector
-                poId={order.id}
-                activeSampleId={order.sample?.id}
-                candidateSamples={((order as any).candidateSamples || []).filter((s: any) =>
-                    order.vendorId ? s.vendor?.id === order.vendorId || s.vendorId === order.vendorId : true
-                )}
-            />
         </div>
     );
 }

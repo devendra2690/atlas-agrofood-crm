@@ -120,9 +120,9 @@ export async function updateSampleStatus(id: string, status: SampleStatus) {
                 priceQuoted: sample.priceQuoted?.toNumber()
             }
         };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to update sample status:", error);
-        return { success: false, error: "Failed to update status" };
+        return { success: false, error: error.message || "Failed to update status" };
     }
 }
 
@@ -134,6 +134,7 @@ export async function getAllSamples(filters?: {
     trustLevel?: string; // TrustLevel enum as string
     page?: number;
     limit?: number;
+    excludeCompleted?: boolean;
 }) {
     try {
         const where: any = {};
@@ -153,7 +154,12 @@ export async function getAllSamples(filters?: {
 
         if (filters?.commodityId && filters.commodityId !== 'all') {
             where.project = {
-                commodityId: filters.commodityId
+                commodityId: filters.commodityId,
+                ...(filters.excludeCompleted ? { status: 'SOURCING' } : {})
+            };
+        } else if (filters?.excludeCompleted) {
+            where.project = {
+                status: 'SOURCING'
             };
         }
 

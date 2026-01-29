@@ -68,7 +68,13 @@ export function SampleBoard({ initialSamples, projectId, projectVendors }: Sampl
         }
 
         const sampleId = active.id;
-        const newStatus = over.id as SampleStatus;
+        let newStatus = over.id as SampleStatus;
+
+        // CHECK: If dropped on a card (SortableItem), resolve the column from the card's status
+        const overInfo = samples.find(s => s.id === over.id);
+        if (overInfo) {
+            newStatus = overInfo.status;
+        }
         const currentSample = samples.find((s) => s.id === sampleId);
 
         if (currentSample && currentSample.status !== newStatus) {
@@ -92,8 +98,8 @@ export function SampleBoard({ initialSamples, projectId, projectVendors }: Sampl
                     throw new Error(result.error);
                 }
                 toast.success(`Sample moved to ${newStatus.replace("_", " ")}`);
-            } catch (error) {
-                toast.error("Failed to update status");
+            } catch (error: any) {
+                toast.error(error.message || "Failed to update status");
                 // Revert
                 setSamples((prev) =>
                     prev.map((s) =>

@@ -791,7 +791,12 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
                 return { success: false, error: "Cannot mark as Received: All shipments must be in DELIVERED status." };
             }
 
-            // 3. Payment Validation
+            // 3. Bill Validation
+            if (FullOrder.bills.length === 0) {
+                return { success: false, error: "Cannot mark as Received: No Bill/Invoice recorded." };
+            }
+
+            // 4. Payment Validation
             const totalBillAmount = FullOrder.bills.reduce((sum, b) => sum + b.totalAmount.toNumber(), 0);
             const totalPaid = FullOrder.bills.reduce((sum, b) =>
                 sum + b.transactions.reduce((tSum, t) => tSum + t.amount.toNumber(), 0), 0

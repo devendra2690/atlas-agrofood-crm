@@ -42,9 +42,12 @@ export function AttachSampleDialog({ open, onOpenChange, opportunity }: AttachSa
 
     async function loadSamples() {
         setLoading(true);
-        // Ideally filter by commodity, but for now fetch all (limit 50 recent)
-        // const commodityId = opportunity?.commodityId;
-        const result = await getAllSamples({ limit: 50 });
+        // Filter by commodity to show only relevant samples
+        const commodityId = opportunity?.commodityId;
+        const result = await getAllSamples({
+            limit: 50,
+            commodityId: commodityId
+        });
         if (result.success && result.data) {
             setSamples(result.data);
         }

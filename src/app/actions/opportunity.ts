@@ -393,6 +393,33 @@ export async function updateOpportunityStatus(id: string, status: OpportunitySta
             }
         }
 
+        // Fetch current opportunity data to check validations
+        const currentOpp = await prisma.salesOpportunity.findUnique({
+            where: { id },
+            include: {
+                sampleSubmissions: true
+            }
+        });
+
+        if (!currentOpp) {
+            return { success: false, error: "Opportunity not found" };
+        }
+
+        // VALIDATION: Negotiation requires at least one attached sample
+        if (status === 'NEGOTIATION') {
+            if (!currentOpp.sampleSubmissions || currentOpp.sampleSubmissions.length === 0) {
+                return { success: false, error: "Cannot move to Negotiation: At least one sample must be attached." };
+            }
+        }
+
+        // VALIDATION: Closed Won requires at least one Client Approved sample
+        if (status === 'CLOSED_WON') {
+            const hasApprovedSample = currentOpp.sampleSubmissions.some(s => s.status === 'CLIENT_APPROVED');
+            if (!hasApprovedSample) {
+                return { success: false, error: "Cannot Close Won: Must have at least one Client Approved sample." };
+            }
+        }
+
         const opportunity = await prisma.salesOpportunity.update({
             where: { id },
             data: {

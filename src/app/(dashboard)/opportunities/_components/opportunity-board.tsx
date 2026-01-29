@@ -113,8 +113,22 @@ export function OpportunityBoard({ opportunities: initialOpportunities, companie
                 if (!activeOpp.quantity || activeOpp.quantity <= 0) missingFields.push("Quantity");
                 if (!activeOpp.targetPrice || activeOpp.targetPrice <= 0) missingFields.push("Target Price");
 
+                // Check for Approved Sample
+                const hasApprovedSample = activeOpp.sampleSubmissions?.some((s: any) => s.status === 'CLIENT_APPROVED');
+                if (!hasApprovedSample) missingFields.push("Approved Sample");
+
                 if (missingFields.length > 0) {
                     toast.error(`Cannot Close Won: Missing ${missingFields.join(", ")}`);
+                    setActiveId(null);
+                    return;
+                }
+            }
+
+            // VALIDATION: Negotiation requires Sample
+            if (activeOpp && newStatus === 'NEGOTIATION') {
+                const hasSample = activeOpp.sampleSubmissions && activeOpp.sampleSubmissions.length > 0;
+                if (!hasSample) {
+                    toast.error("Cannot move to Negotiation: Attach a sample first.");
                     setActiveId(null);
                     return;
                 }
