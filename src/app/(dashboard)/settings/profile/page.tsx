@@ -20,9 +20,9 @@ export default async function SettingsProfilePage() {
             </div>
             <Separator />
             <ProfileForm user={{
-                name: user.name,
-                email: user.email,
-                role: user.role
+                name: user.name || null,
+                email: user.email || null,
+                role: user.role || 'USER'
             }} />
         </div>
     );
