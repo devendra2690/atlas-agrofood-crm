@@ -34,6 +34,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
     // Let's just pass them.
 
     const isFulfillment = project.name.startsWith("Fulfillment");
+    const isSampleProject = project.type === 'SAMPLE';
 
     return (
         <div className="space-y-6">
@@ -51,6 +52,11 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                             <Badge variant={project.status === 'SOURCING' ? 'default' : 'secondary'} className="mt-1">
                                 {project.status}
                             </Badge>
+                            {isSampleProject && (
+                                <Badge variant="outline" className="mt-1 bg-purple-100 text-purple-800 border-purple-200">
+                                    Sample Only
+                                </Badge>
+                            )}
                         </h1>
                         <p className="text-muted-foreground mt-1 flex items-center gap-2">
                             Created on {format(new Date(project.createdAt), "PPP")}
@@ -62,150 +68,195 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Left Col: Stats placeholder or project info */}
                 <div className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Sourcing Requirement</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {(() => {
-                                const totalDemand = project.salesOpportunities
-                                    .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
-                                    .reduce((sum: number, opp: any) => sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0), 0);
+                    {!isSampleProject && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Sourcing Requirement</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {(() => {
+                                    const totalDemand = project.salesOpportunities
+                                        .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
+                                        .reduce((sum: number, opp: any) => sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0), 0);
 
-                                const totalProcured = (project.purchaseOrders || [])
-                                    .filter((po: any) => po.status !== 'CANCELLED')
-                                    .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0);
+                                    const totalProcured = (project.purchaseOrders || [])
+                                        .filter((po: any) => po.status !== 'CANCELLED')
+                                        .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0);
 
-                                const balance = totalDemand - totalProcured;
+                                    const balance = totalDemand - totalProcured;
 
-                                if (Math.abs(balance) < 0.01) {
+                                    if (Math.abs(balance) < 0.01) {
+                                        return (
+                                            <>
+                                                <div className="text-2xl font-bold flex items-center gap-2 text-green-600">
+                                                    Fully Sourced
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">Demand matched by Supply</p>
+                                            </>
+                                        );
+                                    }
+
+                                    if (balance > 0) {
+                                        return (
+                                            <>
+                                                <div className="text-2xl font-bold flex items-center gap-2 text-amber-600">
+                                                    {balance.toFixed(2)} MT
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">Remaining to Procure</p>
+                                            </>
+                                        );
+                                    }
+
                                     return (
                                         <>
-                                            <div className="text-2xl font-bold flex items-center gap-2 text-green-600">
-                                                Fully Sourced
+                                            <div className="text-2xl font-bold flex items-center gap-2 text-blue-600">
+                                                {Math.abs(balance).toFixed(2)} MT
                                             </div>
-                                            <p className="text-xs text-muted-foreground">Demand matched by Supply</p>
+                                            <p className="text-xs text-muted-foreground">Surplus (Excess Procured)</p>
                                         </>
                                     );
-                                }
+                                })()}
 
-                                if (balance > 0) {
-                                    return (
-                                        <>
-                                            <div className="text-2xl font-bold flex items-center gap-2 text-amber-600">
-                                                {balance.toFixed(2)} MT
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">Remaining to Procure</p>
-                                        </>
-                                    );
-                                }
-
-                                return (
-                                    <>
-                                        <div className="text-2xl font-bold flex items-center gap-2 text-blue-600">
-                                            {Math.abs(balance).toFixed(2)} MT
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">Surplus (Excess Procured)</p>
-                                    </>
-                                );
-                            })()}
-
-                            <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                                <div>
-                                    <div className="text-lg font-semibold text-green-600">
-                                        {(project.purchaseOrders || [])
-                                            .filter((po: any) => po.status !== 'CANCELLED')
-                                            .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0)
-                                            .toFixed(2)} MT
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">Procured (Ordered)</p>
-                                </div>
-                                <div>
-                                    <div className="text-lg font-semibold text-blue-600">
-                                        {project.salesOpportunities
-                                            .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
-                                            .reduce((sum: number, opp: any) => sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0), 0).toFixed(2)} MT
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">Total Demand</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Right Col: Tabs */}
-                <div className="md:col-span-2">
-                    <Tabs defaultValue={isFulfillment ? "purchase-orders" : "opportunities"} className="w-full">
-                        <TabsList className="grid w-full grid-cols-4">
-                            <TabsTrigger value="opportunities">Demand</TabsTrigger>
-                            <TabsTrigger value="purchase-orders">Purchase Orders</TabsTrigger>
-                            <TabsTrigger value="vendors">Vendors</TabsTrigger>
-                            {!isFulfillment && <TabsTrigger value="samples">Samples</TabsTrigger>}
-                        </TabsList>
-
-                        <TabsContent value="opportunities" className="mt-4">
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between">
+                                <div className="grid grid-cols-2 gap-4 pt-2 border-t">
                                     <div>
-                                        <CardTitle>Linked Opportunities</CardTitle>
-                                        <CardDescription>Sales demand driving this project.</CardDescription>
-                                    </div>
-                                    <LinkOpportunityDialog projectId={project.id} />
-                                </CardHeader>
-                                <CardContent>
-                                    {project.salesOpportunities.length === 0 ? (
-                                        <div className="text-center py-8 text-muted-foreground">
-                                            No opportunities linked yet.
+                                        <div className="text-lg font-semibold text-green-600">
+                                            {(project.purchaseOrders || [])
+                                                .filter((po: any) => po.status !== 'CANCELLED')
+                                                .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0)
+                                                .toFixed(2)} MT
                                         </div>
+                                        <p className="text-xs text-muted-foreground">Procured (Ordered)</p>
+                                    </div>
+                                    <div>
+                                        <div className="text-lg font-semibold text-blue-600">
+                                            {project.salesOpportunities
+                                                .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
+                                                .reduce((sum: number, opp: any) => sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0), 0).toFixed(2)} MT
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">Total Demand</p>
+                                    </div>
+                                </div>
+                                <div className="pt-4 border-t space-y-3">
+                                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                        Linked Demand Source
+                                    </div>
+                                    {project.salesOpportunities.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">No linked opportunities.</p>
                                     ) : (
-                                        <ul className="space-y-4">
-                                            {project.salesOpportunities.map(opp => (
-                                                <li key={opp.id} className="border p-4 rounded-lg flex justify-between items-center bg-white">
-                                                    <div>
-                                                        <div className="font-medium text-base">{opp.productName}</div>
-                                                        <div className="text-sm text-muted-foreground">
-                                                            Client: {opp.company.name}
-                                                        </div>
-                                                        <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                                                            {opp.deadline && (
-                                                                <span className="flex items-center text-xs bg-slate-100 px-2 py-1 rounded">
-                                                                    Delivery: {format(new Date(opp.deadline), "MMM d, yyyy")}
-                                                                </span>
-                                                            )}
-                                                        </div>
+                                        <ul className="space-y-3">
+                                            {project.salesOpportunities.map((opp: any) => (
+                                                <li key={opp.id} className="text-sm bg-slate-50 p-2 rounded border border-slate-100">
+                                                    <div className="font-medium text-slate-800 flex items-center gap-2">
+                                                        <User className="h-3 w-3 text-muted-foreground" />
+                                                        {opp.company?.name || "Unknown Client"}
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className="flex flex-col items-end gap-1">
-                                                            <div className="font-bold flex items-center gap-2">
-                                                                {opp.quantity ? `${opp.quantity} MT` : '-'}
-                                                                {opp.procurementQuantity && (
-                                                                    <Badge variant="secondary" className="text-amber-700 bg-amber-50 border-amber-200 ml-2">
-                                                                        Raw: {opp.procurementQuantity} MT
-                                                                    </Badge>
-                                                                )}
-                                                            </div>
-                                                            <Badge variant="outline" className="w-fit">{opp.status}</Badge>
-                                                        </div>
+                                                    <div className="text-muted-foreground text-xs mt-1 ml-5">
+                                                        {opp.productName} • <span className="font-medium text-slate-700">{opp.procurementQuantity || opp.quantity} MT</span>
                                                     </div>
                                                 </li>
                                             ))}
                                         </ul>
                                     )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                    {isSampleProject && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Sample Project</CardTitle>
+                                <CardDescription>Internal testing and validation.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">
+                                    This project is for managing samples only. There is no sales demand or purchase orders associated.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
 
-                        <TabsContent value="purchase-orders" className="mt-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Purchase Orders</CardTitle>
-                                    <CardDescription>Orders placed for this project.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <ProjectPOList purchaseOrders={(project.purchaseOrders || [])} />
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
+                {/* Right Col: Tabs */}
+                <div className="md:col-span-2">
+                    <Tabs defaultValue={isSampleProject ? "samples" : (isFulfillment ? "purchase-orders" : "opportunities")} className="w-full">
+                        <TabsList className="grid w-full grid-cols-4">
+                            {!isSampleProject && <TabsTrigger value="opportunities">Demand</TabsTrigger>}
+                            {!isSampleProject && <TabsTrigger value="purchase-orders">Purchase Orders</TabsTrigger>}
+                            <TabsTrigger value="vendors">Vendors</TabsTrigger>
+                            {isSampleProject && <TabsTrigger value="samples">Samples</TabsTrigger>}
+                        </TabsList>
+
+                        {!isSampleProject && (
+                            <TabsContent value="opportunities" className="mt-4">
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between">
+                                        <div>
+                                            <CardTitle>Linked Opportunities</CardTitle>
+                                            <CardDescription>Sales demand driving this project.</CardDescription>
+                                        </div>
+                                        <LinkOpportunityDialog
+                                            projectId={project.id}
+                                            projectType={project.type}
+                                            currentLinksCount={project.salesOpportunities.length}
+                                        />
+                                    </CardHeader>
+                                    <CardContent>
+                                        {project.salesOpportunities.length === 0 ? (
+                                            <div className="text-center py-8 text-muted-foreground">
+                                                No opportunities linked yet.
+                                            </div>
+                                        ) : (
+                                            <ul className="space-y-4">
+                                                {project.salesOpportunities.map(opp => (
+                                                    <li key={opp.id} className="border p-4 rounded-lg flex justify-between items-center bg-white">
+                                                        <div>
+                                                            <div className="font-medium text-base">{opp.productName}</div>
+                                                            <div className="text-sm text-muted-foreground">
+                                                                Client: {opp.company.name}
+                                                            </div>
+                                                            <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                                                                {opp.deadline && (
+                                                                    <span className="flex items-center text-xs bg-slate-100 px-2 py-1 rounded">
+                                                                        Delivery: {format(new Date(opp.deadline), "MMM d, yyyy")}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="flex flex-col items-end gap-1">
+                                                                <div className="font-bold flex items-center gap-2">
+                                                                    {opp.quantity ? `${opp.quantity} MT` : '-'}
+                                                                    {opp.procurementQuantity && (
+                                                                        <Badge variant="secondary" className="text-amber-700 bg-amber-50 border-amber-200 ml-2">
+                                                                            Raw: {opp.procurementQuantity} MT
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                                <Badge variant="outline" className="w-fit">{opp.status}</Badge>
+                                                            </div>
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        )}
+
+                        {!isSampleProject && (
+                            <TabsContent value="purchase-orders" className="mt-4">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Purchase Orders</CardTitle>
+                                        <CardDescription>Orders placed for this project.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ProjectPOList purchaseOrders={(project.purchaseOrders || [])} />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        )}
 
                         <TabsContent value="vendors" className="mt-4">
                             <Card>
@@ -222,7 +273,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                             </Card>
                         </TabsContent>
 
-                        {!isFulfillment && (
+                        {isSampleProject && (
                             <TabsContent value="samples" className="mt-4">
                                 <Card>
                                     <CardHeader>

@@ -49,6 +49,7 @@ export function SalesOrderKanbanCard({ order }: SalesOrderKanbanCardProps) {
             {...listeners}
             className="touch-none"
             onClick={() => router.push(`/sales-orders/${order.id}`)}
+            suppressHydrationWarning
         >
             <Card className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group relative">
                 <CardHeader className="p-3 pb-0 space-y-0">

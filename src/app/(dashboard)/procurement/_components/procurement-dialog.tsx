@@ -42,6 +42,7 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [selectedCommodityId, setSelectedCommodityId] = useState<string>("");
+    const [type, setType] = useState<string>("PROJECT");
     const [projectName, setProjectName] = useState("");
 
     useEffect(() => {
@@ -49,20 +50,38 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
         if (project) {
             setProjectName(project.name);
             setSelectedCommodityId(project.commodityId || "");
+            setType(project.type || "PROJECT");
         } else if (open) {
             setProjectName("");
             setSelectedCommodityId("");
+            setType("PROJECT");
         }
     }, [project, open]);
 
     // Auto-fill project name logic
+    const updateProjectName = (currentType: string, commodityId: string) => {
+        // Only auto-fill if creating new project (preserves manual edits on existing)
+        if (project) return;
+
+        const comm = commodities.find(c => c.id === commodityId);
+        if (!comm) return;
+
+        if (currentType === "PROJECT") {
+            setProjectName(`Project (SOURCING) - ${comm.name} Sourcing`);
+        } else if (currentType === "SAMPLE") {
+            // Fallback or simple default for sample
+            setProjectName(`${comm.name} Sample Request`);
+        }
+    };
+
     const handleCommodityChange = (val: string) => {
         setSelectedCommodityId(val);
-        const comm = commodities.find(c => c.id === val);
-        if (comm && !projectName && !project) {
-            const suggestedName = `${comm.name} Sourcing`;
-            setProjectName(suggestedName);
-        }
+        updateProjectName(type, val);
+    };
+
+    const handleTypeChange = (val: string) => {
+        setType(val);
+        updateProjectName(val, selectedCommodityId);
     };
 
     async function handleSubmit(formData: FormData) {
@@ -70,10 +89,23 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
         try {
             const name = formData.get("name") as string;
             const status = formData.get("status") as ProjectStatus;
+            const type = formData.get("type") as any; // Cast as needed or import Enum
             const id = formData.get("id") as string;
 
             if (!name) {
                 toast.error("Project name is required");
+                setLoading(false);
+                return;
+            }
+
+            if (!selectedCommodityId) {
+                toast.error("Commodity is required");
+                setLoading(false);
+                return;
+            }
+
+            if (!status) {
+                toast.error("Status is required");
                 setLoading(false);
                 return;
             }
@@ -83,13 +115,15 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                 result = await updateProcurementProject(id, {
                     name,
                     status,
-                    commodityId: selectedCommodityId || undefined
+                    type,
+                    commodityId: selectedCommodityId
                 });
             } else {
                 result = await createProcurementProject({
                     name,
-                    status: status || "SOURCING",
-                    commodityId: selectedCommodityId || undefined
+                    status: status,
+                    type: type,
+                    commodityId: selectedCommodityId
                 });
             }
 
@@ -132,17 +166,17 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                     <input type="hidden" name="id" value={project?.id || ""} />
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="commodity">Commodity</Label>
+                            <Label htmlFor="commodity">Commodity <span className="text-red-500">*</span></Label>
                             <Combobox
                                 options={commodities.map(c => ({ label: c.name, value: c.id }))}
                                 value={selectedCommodityId}
                                 onChange={handleCommodityChange}
-                                placeholder="Select commodity (Optional)"
+                                placeholder="Select commodity"
                                 searchPlaceholder="Search commodity..."
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="name">Project Name</Label>
+                            <Label htmlFor="name">Project Name <span className="text-red-500">*</span></Label>
                             <Input
                                 id="name"
                                 name="name"
@@ -153,8 +187,20 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="status">Status</Label>
-                            <Select name="status" defaultValue={project?.status || "SOURCING"}>
+                            <Label htmlFor="type">Type <span className="text-red-500">*</span></Label>
+                            <Select name="type" value={type} onValueChange={handleTypeChange} required>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="PROJECT">Project (Sourcing)</SelectItem>
+                                    <SelectItem value="SAMPLE">Sample Only</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="status">Status <span className="text-red-500">*</span></Label>
+                            <Select name="status" defaultValue={project?.status || "SOURCING"} required>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select status" />
                                 </SelectTrigger>
@@ -163,6 +209,11 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                                     <SelectItem value="COMPLETED">Completed</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                        {/* Warnings/Help based on type */}
+                        <div className="text-[10px] text-muted-foreground bg-slate-50 p-2 rounded">
+                            <p><strong>Project:</strong> Tracks sourcing for a Sales Opportunity (1 Opp).</p>
+                            <p><strong>Sample Only:</strong> Internal sample testing without linked opportunity.</p>
                         </div>
                     </div>
                     <DialogFooter>

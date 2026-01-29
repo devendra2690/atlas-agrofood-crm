@@ -32,9 +32,10 @@ interface UpdateSampleDialogProps {
     trigger?: React.ReactNode;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    onUpdate?: (updatedSample: any) => void; // Add this
 }
 
-export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOpenChange: setControlledOpen }: UpdateSampleDialogProps) {
+export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOpenChange: setControlledOpen, onUpdate }: UpdateSampleDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
     const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
     const setOpen = setControlledOpen || setInternalOpen;
@@ -56,6 +57,7 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
             const result = await updateSampleDetails(sample.id, formData);
             if (result.success) {
                 toast.success("Sample details updated");
+                onUpdate?.(result.data); // Call callback
                 setOpen(false);
             } else {
                 toast.error(result.error || "Failed to update");
@@ -184,29 +186,7 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
                                                 {sub.status.replace(/_/g, " ")}
                                             </div>
 
-                                            {/* Actions */}
-                                            {sub.status !== "CLIENT_APPROVED" && sub.status !== "CLIENT_REJECTED" && (
-                                                <div className="flex gap-1 ml-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                        onClick={() => handleSubmissionStatus(sub.id, "CLIENT_APPROVED")}
-                                                        title="Approve for Client"
-                                                    >
-                                                        <Check className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                        onClick={() => handleSubmissionStatus(sub.id, "CLIENT_REJECTED")}
-                                                        title="Reject for Client"
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </Button>
-                                                </div>
-                                            )}
+                                            {/* Actions Removed - Decisions happen in Sales/Opportunity Flow */}
                                         </div>
                                     </div>
                                 ))}
@@ -302,6 +282,7 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
                                 <SelectItem value="REQUESTED">Requested</SelectItem>
                                 <SelectItem value="SENT">Sent</SelectItem>
                                 <SelectItem value="RECEIVED">Received</SelectItem>
+                                <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
                                 <SelectItem value="Result_APPROVED_INTERNAL">Approved (Internal)</SelectItem>
                                 <SelectItem value="Result_REJECTED">Rejected</SelectItem>
                             </SelectContent>

@@ -68,7 +68,7 @@ export function CreatePurchaseOrderDialog({
     }, [open]);
 
     async function loadProjects() {
-        const result = await getProcurementProjects();
+        const result = await getProcurementProjects({ type: "PROJECT" });
         if (result.success && result.data) {
             setProjects(result.data);
         }

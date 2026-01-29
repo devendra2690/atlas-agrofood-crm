@@ -355,9 +355,15 @@ model SalesOpportunity {
   updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
 }
 
+enum ProcurementType {
+  PROJECT
+  SAMPLE
+}
+
 model ProcurementProject {
   id        String        @id @default(uuid())
   name      String        // e.g. "Banana Powder Sourcing"
+  type      ProcurementType @default(PROJECT)
   status    ProjectStatus @default(SOURCING)
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt

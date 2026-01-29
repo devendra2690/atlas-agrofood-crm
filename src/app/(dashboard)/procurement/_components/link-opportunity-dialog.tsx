@@ -25,9 +25,17 @@ import { Label } from "@/components/ui/label";
 
 interface LinkOpportunityDialogProps {
     projectId: string;
+    projectType?: string;
+    currentLinksCount?: number;
 }
 
-export function LinkOpportunityDialog({ projectId }: LinkOpportunityDialogProps) {
+export function LinkOpportunityDialog({ projectId, projectType, currentLinksCount = 0 }: LinkOpportunityDialogProps) {
+    // 1. Hide if Sample Project
+    if (projectType === 'SAMPLE') return null;
+
+    // 2. Hide if Project and already has 1 link
+    if (projectType === 'PROJECT' && currentLinksCount >= 1) return null;
+
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [opportunities, setOpportunities] = useState<any[]>([]);

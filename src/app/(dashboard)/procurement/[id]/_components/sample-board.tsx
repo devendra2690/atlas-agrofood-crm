@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     DndContext,
     DragOverlay,
@@ -25,8 +25,6 @@ const COLUMNS = [
     { id: "RECEIVED", title: "Received" },
     { id: "UNDER_REVIEW", title: "Under Review" },
     { id: "Result_APPROVED_INTERNAL", title: "Internal Approved" },
-    { id: "CLIENT_APPROVED", title: "Client Approved" },
-    { id: "CLIENT_REJECTED", title: "Client Rejected" },
     { id: "Result_REJECTED", title: "Rejected (Internal)" },
 ];
 
@@ -40,6 +38,16 @@ export function SampleBoard({ initialSamples, projectId, projectVendors }: Sampl
     const [samples, setSamples] = useState(initialSamples);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [selectedSample, setSelectedSample] = useState<any>(null); // For Dialog
+
+    // Sync with server revalidation
+    useEffect(() => {
+        setSamples(initialSamples);
+    }, [initialSamples]);
+
+    const handleSampleUpdate = (updatedSample: any) => {
+        setSamples(prev => prev.map(s => s.id === updatedSample.id ? updatedSample : s));
+        setSelectedSample((prev: any) => prev?.id === updatedSample.id ? updatedSample : prev);
+    };
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -102,7 +110,9 @@ export function SampleBoard({ initialSamples, projectId, projectVendors }: Sampl
             // For now, let's group SENT_TO_CLIENT with Internal Approved as it's the next step.
             return samples.filter(s =>
                 s.status === "Result_APPROVED_INTERNAL" ||
-                s.status === "SENT_TO_CLIENT"
+                s.status === "SENT_TO_CLIENT" ||
+                s.status === "CLIENT_APPROVED" ||
+                s.status === "CLIENT_REJECTED"
             );
         }
         return samples.filter((s) => s.status === colId);
@@ -155,6 +165,7 @@ export function SampleBoard({ initialSamples, projectId, projectVendors }: Sampl
                     sample={selectedSample}
                     open={!!selectedSample}
                     onOpenChange={(open: boolean) => !open && setSelectedSample(null)}
+                    onUpdate={handleSampleUpdate}
                 />
             )}
         </DndContext>

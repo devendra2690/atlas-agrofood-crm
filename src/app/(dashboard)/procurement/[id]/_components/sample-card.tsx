@@ -37,6 +37,7 @@ export function SampleCard({ sample, onClick }: SampleCardProps) {
             {...listeners}
             className="touch-none"
             onClick={onClick}
+            suppressHydrationWarning
         >
             <Card className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group relative">
                 <CardHeader className="p-3 pb-0 space-y-0">

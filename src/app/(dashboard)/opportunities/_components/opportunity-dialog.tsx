@@ -86,9 +86,13 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
     }, [initialData, open]);
 
     // Filter available commodities
-    // const selectedCompany = companies.find(c => c.id === companyId);
-    // const availableCommodities = selectedCompany?.commodities || [];
-    const availableCommodities = commodities || [];
+    const selectedCompany = companies.find(c => c.id === companyId);
+
+    // If company is selected, show ONLY their commodities. 
+    // If no company selected, show ALL commodities (or empty? Let's show all for flexibility until company picked)
+    const availableCommodities = selectedCompany
+        ? (selectedCompany.commodities || [])
+        : (commodities || []);
 
     // Auto-calculate procurement quantity
     useEffect(() => {

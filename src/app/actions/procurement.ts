@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from "@/lib/prisma";
-import { ProjectStatus, PurchaseOrderStatus } from "@prisma/client";
+import { ProjectStatus, PurchaseOrderStatus, ProcurementType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { logActivity } from "./audit";
@@ -9,7 +9,8 @@ import { logActivity } from "./audit";
 export type ProcurementProjectFormData = {
     name: string;
     status?: ProjectStatus;
-    commodityId?: string; // NEW
+    type?: ProcurementType; // NEW
+    commodityId?: string;
 };
 
 export async function getProcurementProjects(filters?: {
@@ -20,6 +21,7 @@ export async function getProcurementProjects(filters?: {
     limit?: number;
     query?: string;
     status?: string;
+    type?: string; // NEW
 }) {
     try {
         const where: any = {};
@@ -34,6 +36,11 @@ export async function getProcurementProjects(filters?: {
 
         if (filters?.status && filters.status !== 'all') {
             where.status = filters.status;
+        }
+
+        // NEW: Filter by Project Type
+        if (filters?.type && filters.type !== 'all') {
+            where.type = filters.type as any;
         }
 
         if (filters?.commodityId && filters.commodityId !== 'all') {
@@ -171,15 +178,16 @@ export async function createProcurementProject(data: ProcurementProjectFormData)
                 updatedById: session?.user?.id,
                 name: data.name,
                 status: data.status || "SOURCING",
+                type: data.type || "PROJECT",
                 commodityId: data.commodityId // NEW
             }
         });
 
         revalidatePath("/procurement");
         return { success: true, data: project };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to create procurement project:", error);
-        return { success: false, error: "Failed to create procurement project" };
+        return { success: false, error: error.message || "Failed to create procurement project" };
     }
 }
 
@@ -192,6 +200,7 @@ export async function updateProcurementProject(id: string, data: ProcurementProj
                 updatedById: session?.user?.id,
                 name: data.name,
                 status: data.status,
+                type: data.type,
                 commodityId: data.commodityId
             }
         });
@@ -213,6 +222,7 @@ export async function deleteProcurementProject(id: string) {
             where: { id },
             include: {
                 purchaseOrders: true,
+                salesOpportunities: true, // Needed for validation
                 samples: {
                     select: { id: true }
                 }
@@ -226,6 +236,22 @@ export async function deleteProcurementProject(id: string) {
             return {
                 success: false,
                 error: `Cannot delete project with ${project.purchaseOrders.length} existing Purchase Order(s). Please delete them first.`
+            };
+        }
+
+        // 2. Block if Linked Opportunities exist (User Request)
+        if (project.salesOpportunities && project.salesOpportunities.length > 0) {
+            return {
+                success: false,
+                error: `Cannot delete project linked to ${project.salesOpportunities.length} Sales Opportunity(ies). Please unlink them first.`
+            };
+        }
+
+        // 3. Block if Status is COMPLETED (User Request)
+        if (project.status === 'COMPLETED') {
+            return {
+                success: false,
+                error: "Cannot delete a COMPLETED project."
             };
         }
 
@@ -427,6 +453,21 @@ export async function getUnassignedOpportunities() {
 
 export async function linkOpportunityToProject(projectId: string, opportunityId: string) {
     try {
+        const project = await prisma.procurementProject.findUnique({
+            where: { id: projectId },
+            include: { salesOpportunities: true }
+        });
+
+        if (!project) return { success: false, error: "Project not found" };
+
+        if (project.type === 'SAMPLE') {
+            return { success: false, error: "Sample projects cannot be linked to sales opportunities." };
+        }
+
+        if (project.type === 'PROJECT' && project.salesOpportunities.length >= 1) {
+            return { success: false, error: "This project is already linked to an opportunity. Only one link is allowed." };
+        }
+
         await prisma.salesOpportunity.update({
             where: { id: opportunityId },
             data: { procurementProjectId: projectId }

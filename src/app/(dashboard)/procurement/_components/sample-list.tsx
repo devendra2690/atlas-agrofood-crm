@@ -110,11 +110,11 @@ export function SampleList({ samples }: SampleListProps) {
                     </div>
                     <div className="flex items-center gap-3">
                         <Badge variant={
-                            ['Result_APPROVED_INTERNAL', 'SENT_TO_CLIENT', 'CLIENT_APPROVED'].includes(sample.status) ? 'default' :
+                            ['Result_APPROVED_INTERNAL', 'SENT_TO_CLIENT', 'CLIENT_APPROVED', 'CLIENT_REJECTED'].includes(sample.status) ? 'default' :
                                 sample.status.includes('REJECTED') ? 'destructive' :
                                     sample.status === 'RECEIVED' ? 'secondary' : 'outline'
-                        } className={['Result_APPROVED_INTERNAL', 'SENT_TO_CLIENT', 'CLIENT_APPROVED'].includes(sample.status) ? "bg-green-600 hover:bg-green-700" : ""}>
-                            {['Result_APPROVED_INTERNAL', 'SENT_TO_CLIENT', 'CLIENT_APPROVED'].includes(sample.status)
+                        } className={['Result_APPROVED_INTERNAL', 'SENT_TO_CLIENT', 'CLIENT_APPROVED', 'CLIENT_REJECTED'].includes(sample.status) ? "bg-green-600 hover:bg-green-700" : ""}>
+                            {['Result_APPROVED_INTERNAL', 'SENT_TO_CLIENT', 'CLIENT_APPROVED', 'CLIENT_REJECTED'].includes(sample.status)
                                 ? "APPROVED"
                                 : sample.status.replace("Result_", "").replace(/_/g, " ")}
                         </Badge>

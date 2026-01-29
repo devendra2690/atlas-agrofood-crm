@@ -30,132 +30,184 @@ interface ProcurementListProps {
     commodities?: any[]; // Add commodities prop
 }
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useState } from "react";
+
 export function ProcurementList({ projects, commodities = [] }: ProcurementListProps) {
     const router = useRouter();
+    const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
 
-    const handleDelete = async (id: string, e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent row click
-        if (confirm("Are you sure you want to delete this project?")) {
-            const result = await deleteProcurementProject(id);
+    const handleDelete = async () => {
+        if (!projectToDelete) return;
+
+        console.log("User confirmed deletion via Dialog, calling server action...");
+        try {
+            const result = await deleteProcurementProject(projectToDelete);
+            console.log("Server action result:", result);
             if (result.success) {
                 toast.success("Project deleted");
             } else {
-                toast.error("Failed to delete project");
+                toast.error(result.error || "Failed to delete project");
             }
+        } catch (error) {
+            console.error("Error in handleDelete:", error);
+            toast.error("An unexpected error occurred");
+        } finally {
+            setProjectToDelete(null);
         }
     };
 
     return (
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Project Name</TableHead>
-                    <TableHead>Commodity</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Linked Opportunities</TableHead>
-                    <TableHead>Vendors</TableHead>
-                    <TableHead>Created By</TableHead>
-                    <TableHead>Updated By</TableHead>
-                    <TableHead></TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {projects.length === 0 ? (
+        <>
+            <Table>
+                <TableHeader>
                     <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                            No active sourcing projects. Create one to get started.
-                        </TableCell>
+                        <TableHead>Project Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Commodity</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Linked Opportunities</TableHead>
+                        <TableHead>Vendors</TableHead>
+                        <TableHead>Created By</TableHead>
+                        <TableHead>Updated By</TableHead>
+                        <TableHead></TableHead>
                     </TableRow>
-                ) : (
-                    projects.map((project) => (
-                        <TableRow
-                            key={project.id}
-                            className="group cursor-pointer hover:bg-muted/50"
-                            onClick={() => router.push(`/procurement/${project.id}`)}
-                        >
-                            <TableCell className="font-medium">
-                                <div className="flex items-center gap-2">
-                                    <Package className="h-4 w-4 text-slate-500" />
-                                    {project.name}
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                                {project.commodity ? (
-                                    <Badge variant="outline" className="font-normal">
-                                        {project.commodity.name}
-                                    </Badge>
-                                ) : project.salesOpportunities?.[0]?.commodity ? (
-                                    <Badge variant="outline" className="font-normal text-muted-foreground border-dashed">
-                                        {project.salesOpportunities[0].commodity.name}
-                                    </Badge>
-                                ) : project.salesOpportunities?.[0]?.productName ? (
-                                    <Badge variant="outline" className="font-normal text-muted-foreground border-dashed bg-slate-50">
-                                        {project.salesOpportunities[0].productName} (Product)
-                                    </Badge>
-                                ) : (
-                                    <span className="text-muted-foreground text-sm">-</span>
-                                )}
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant={project.status === 'SOURCING' ? 'default' : 'secondary'}>
-                                    {project.status}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                    <ShoppingCart className="h-3 w-3" />
-                                    {project._count.salesOpportunities}
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                    <Users className="h-3 w-3" />
-                                    {project._count.projectVendors}
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                                {project.createdBy?.name || "-"}
-                                <br />
-                                {format(new Date(project.createdAt), "MMM d, HH:mm")}
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                                {project.updatedBy?.name || "-"}
-                                <br />
-                                {format(new Date(project.updatedAt), "MMM d, HH:mm")}
-                            </TableCell>
-                            <TableCell className="text-right">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                                            <span className="sr-only">Open menu</span>
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <div onClick={(e) => e.stopPropagation()}>
-                                            <ProcurementDialog
-                                                commodities={commodities}
-                                                project={project}
-                                                trigger={
-                                                    <div className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50">
-                                                        <Pencil className="mr-2 h-4 w-4" />
-                                                        Edit
-                                                    </div>
-                                                }
-                                            />
-                                        </div>
-                                        <DropdownMenuItem onClick={(e) => handleDelete(project.id, e)} className="text-destructive focus:text-destructive">
-                                            <Trash2 className="mr-2 h-4 w-4" />
-                                            Delete
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                </TableHeader>
+                <TableBody>
+                    {projects.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                                No active sourcing projects. Create one to get started.
                             </TableCell>
                         </TableRow>
-                    ))
-                )}
-            </TableBody>
-        </Table>
+                    ) : (
+                        projects.map((project) => (
+                            <TableRow
+                                key={project.id}
+                                className="group cursor-pointer hover:bg-muted/50"
+                                onClick={() => router.push(`/procurement/${project.id}`)}
+                            >
+                                <TableCell className="font-medium">
+                                    <div className="flex items-center gap-2">
+                                        <Package className="h-4 w-4 text-slate-500" />
+                                        {project.name}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant={project.type === 'PROJECT' ? 'outline' : 'secondary'} className={project.type === 'SAMPLE' ? 'bg-purple-100 text-purple-800 hover:bg-purple-100' : ''}>
+                                        {project.type === 'PROJECT' ? 'Sourcing' : 'Sample'}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    {project.commodity ? (
+                                        <Badge variant="outline" className="font-normal">
+                                            {project.commodity.name}
+                                        </Badge>
+                                    ) : project.salesOpportunities?.[0]?.commodity ? (
+                                        <Badge variant="outline" className="font-normal text-muted-foreground border-dashed">
+                                            {project.salesOpportunities[0].commodity.name}
+                                        </Badge>
+                                    ) : project.salesOpportunities?.[0]?.productName ? (
+                                        <Badge variant="outline" className="font-normal text-muted-foreground border-dashed bg-slate-50">
+                                            {project.salesOpportunities[0].productName} (Product)
+                                        </Badge>
+                                    ) : (
+                                        <span className="text-muted-foreground text-sm">-</span>
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant={project.status === 'SOURCING' ? 'default' : 'secondary'}>
+                                        {project.status}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                        <ShoppingCart className="h-3 w-3" />
+                                        {project._count.salesOpportunities}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                        <Users className="h-3 w-3" />
+                                        {project._count.projectVendors}
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">
+                                    {project.createdBy?.name || "-"}
+                                    <br />
+                                    {format(new Date(project.createdAt), "MMM d, HH:mm")}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">
+                                    {project.updatedBy?.name || "-"}
+                                    <br />
+                                    {format(new Date(project.updatedAt), "MMM d, HH:mm")}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                                                <span className="sr-only">Open menu</span>
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <div onClick={(e) => e.stopPropagation()}>
+                                                <ProcurementDialog
+                                                    commodities={commodities}
+                                                    project={project}
+                                                    trigger={
+                                                        <div className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50">
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit
+                                                        </div>
+                                                    }
+                                                />
+                                            </div>
+                                            <DropdownMenuItem
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setProjectToDelete(project.id);
+                                                }}
+                                                className="text-destructive focus:text-destructive"
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    )}
+                </TableBody>
+            </Table>
+
+            <AlertDialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the procurement project and its associated data.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
