@@ -15,6 +15,7 @@ import { VendorList } from "../_components/vendor-list";
 import { SampleList } from "../_components/sample-list";
 import { ProjectPOList } from "./_components/project-po-list";
 import { SampleBoard } from "./_components/sample-board";
+import { ProjectStatusSelector } from "./_components/project-status-selector";
 
 export default async function ProcurementProjectPage({ params }: { params: { id: string } }) {
     const { id } = await params;
@@ -49,9 +50,11 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
                             {project.name}
-                            <Badge variant={project.status === 'SOURCING' ? 'default' : 'secondary'} className="mt-1">
-                                {project.status}
-                            </Badge>
+                            <ProjectStatusSelector
+                                projectId={project.id}
+                                currentStatus={project.status}
+                                projectName={project.name}
+                            />
                             {isSampleProject && (
                                 <Badge variant="outline" className="mt-1 bg-purple-100 text-purple-800 border-purple-200">
                                     Sample Only

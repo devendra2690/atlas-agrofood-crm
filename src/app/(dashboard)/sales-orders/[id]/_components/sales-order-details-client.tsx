@@ -148,6 +148,10 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                     <p className="text-lg">{order.opportunity.quantity} MT</p>
                                 </div>
                                 <div>
+                                    <p className="text-sm font-medium text-slate-500">Target Selling Price</p>
+                                    <p className="text-lg font-mono">₹{order.opportunity.targetPrice?.toLocaleString() ?? '-'}</p>
+                                </div>
+                                <div>
                                     <p className="text-sm font-medium text-slate-500">Potential Opportunity Value</p>
                                     <p className="text-lg font-mono font-bold">₹{order.totalAmount.toLocaleString()}</p>
                                 </div>
@@ -251,7 +255,7 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                     <Card className="col-span-3">
                         <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle>Invoices</CardTitle>
-                            {(!order.invoices || order.invoices.length === 0) && ["CONFIRMED", "SHIPPED", "DELIVERED", "COMPLETED"].includes(order.status) && (
+                            {(!order.invoices || order.invoices.length === 0) && ["CONFIRMED", "IN_PROGRESS", "SHIPPED", "DELIVERED", "COMPLETED"].includes(order.status) && (
                                 <GenerateInvoiceAction orderId={order.id} />
                             )}
                         </CardHeader>

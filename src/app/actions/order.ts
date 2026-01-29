@@ -31,6 +31,11 @@ export async function createSalesOrder(opportunityId: string) {
             return { success: false, error: "Opportunity not found" };
         }
 
+        // 1.5 Validate Status
+        if (opportunity.status !== 'CLOSED_WON') {
+            return { success: false, error: "Opportunity must be 'Closed Won' before creating an Order." };
+        }
+
         // 2. Validate Pre-requisites
         const approvedSubmission = opportunity.sampleSubmissions[0];
         if (!approvedSubmission) {
@@ -62,11 +67,11 @@ export async function createSalesOrder(opportunityId: string) {
             }
         });
 
-        // 5. Close Opportunity
-        await prisma.salesOpportunity.update({
-            where: { id: opportunity.id },
-            data: { status: 'CLOSED_WON' }
-        });
+        // 5. Close Opportunity (Already Closed Won)
+        // await prisma.salesOpportunity.update({
+        //     where: { id: opportunity.id },
+        //     data: { status: 'CLOSED_WON' }
+        // });
 
         // Log Activity
         await logActivity({
@@ -351,6 +356,12 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
 
             if (!checkOrder) return { success: false, error: "Order not found" };
 
+            // RULE: "User can not Jump from Inprogress to Delivered status directly skipping shipped Status"
+            // Allow COMPLETED from DELIVERED.
+            if (status === 'DELIVERED' && checkOrder.status !== 'SHIPPED') {
+                return { success: false, error: "Invalid Transition: Order must be in SHIPPED status before it can be marked as DELIVERED." };
+            }
+
             // 1. Quantity Check
             const totalShipped = checkOrder.shipments.reduce((sum, s) => sum + (s.quantity?.toNumber() || 0), 0);
             const orderQty = checkOrder.opportunity.quantity?.toNumber() || 0;
@@ -362,6 +373,12 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
             }, 0);
             const totalAmount = checkOrder.totalAmount.toNumber();
             const isFullPaid = Math.abs(totalPaid - totalAmount) < 1.00; // 1 rupee tolerance
+
+            // 3. Shipment Status Check (STRICT BLOCKING)
+            const hasUndeliveredShipments = checkOrder.shipments.some(s => s.status !== 'DELIVERED');
+            if (hasUndeliveredShipments) {
+                return { success: false, error: "Strict Validation Failed: All Shipments must be marked as DELIVERED before completing the Order." };
+            }
 
             // If mismatch AND no notes -> Reject
             if ((!isFullQty || !isFullPaid) && !notes) {

@@ -105,7 +105,13 @@ export async function createShipment(data: ShipmentData) {
             });
 
             revalidatePath(`/sales-orders/${data.salesOrderId}`);
-            return { success: true, data: shipment };
+            return {
+                success: true,
+                data: {
+                    ...shipment,
+                    quantity: shipment.quantity ? shipment.quantity.toNumber() : null
+                }
+            };
 
         } else if (data.purchaseOrderId) {
             // PURCHASE ORDER LOGIC
@@ -136,7 +142,13 @@ export async function createShipment(data: ShipmentData) {
             });
 
             revalidatePath(`/purchase-orders/${data.purchaseOrderId}`);
-            return { success: true, data: shipment };
+            return {
+                success: true,
+                data: {
+                    ...shipment,
+                    quantity: shipment.quantity ? shipment.quantity.toNumber() : null
+                }
+            };
         } else {
             return { success: false, error: "Target order ID missing" };
         }

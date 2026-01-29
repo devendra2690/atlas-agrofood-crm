@@ -119,7 +119,12 @@ export function SalesOrderBoard({ orders: initialOrders }: SalesOrderBoardProps)
                     toast.success(`Moved to ${newStatus.replace('_', ' ')}`, { id: toastId });
                     router.refresh();
                 } else {
-                    toast.error(`Failed: ${result.error}`, { id: toastId });
+                    // Show validation error
+                    toast.error(result.error || "Failed to update status", {
+                        id: toastId,
+                        duration: 5000 // Longer duration for reading validation errors
+                    });
+
                     // Revert
                     setOrders((items) =>
                         items.map((item) =>
