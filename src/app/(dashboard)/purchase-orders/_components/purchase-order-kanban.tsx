@@ -101,6 +101,20 @@ export function PurchaseOrderKanban({ orders: initialOrders }: PurchaseOrderKanb
 
         if (!newStatus || activeOrder.status === newStatus) return;
 
+        // VALIDATION: Business Rules for moving out of DRAFT
+        if (newStatus !== 'DRAFT' && newStatus !== 'CANCELLED') {
+            const missingFields = [];
+            if (!activeOrder.vendor) missingFields.push("Vendor");
+            if (!activeOrder.quantity || activeOrder.quantity <= 0) missingFields.push("Quantity");
+            if (!activeOrder.totalAmount || activeOrder.totalAmount <= 0) missingFields.push("Total Amount (Rate)");
+
+            if (missingFields.length > 0) {
+                toast.error(`Cannot move to ${newStatus}: Missing ${missingFields.join(", ")}`);
+                setActiveId(null);
+                return;
+            }
+        }
+
         // Optimistic update
         const oldOrders = [...orders];
         setOrders(orders.map(o =>

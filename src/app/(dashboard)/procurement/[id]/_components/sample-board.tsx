@@ -72,6 +72,13 @@ export function SampleBoard({ initialSamples, projectId, projectVendors }: Sampl
         const currentSample = samples.find((s) => s.id === sampleId);
 
         if (currentSample && currentSample.status !== newStatus) {
+            // VALIDATION: Price Quote is required to move from REQUESTED
+            if (currentSample.status === 'REQUESTED' && !currentSample.priceQuoted) {
+                toast.error("Price Quote is required to move from Requested.");
+                setActiveId(null);
+                return;
+            }
+
             // Optimistic Update
             setSamples((prev) =>
                 prev.map((s) =>

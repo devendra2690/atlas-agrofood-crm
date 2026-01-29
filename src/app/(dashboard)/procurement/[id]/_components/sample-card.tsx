@@ -42,12 +42,12 @@ export function SampleCard({ sample, onClick }: SampleCardProps) {
             <Card className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group relative">
                 <CardHeader className="p-3 pb-0 space-y-0">
                     <CardTitle className="text-sm font-medium leading-none flex justify-between">
-                        <span className="truncate pr-2">{sample.vendor.name}</span>
+                        <span className="truncate pr-2">{sample.vendor?.name || "Unknown Vendor"}</span>
                         {/* Status Badge can be redundant with column, but nice for context if list search */}
                     </CardTitle>
                     <div className="text-xs text-muted-foreground pt-1 flex items-center">
                         <User className="h-3 w-3 mr-1" />
-                        {sample.vendor.email || "No contact info"}
+                        {sample.vendor?.email || "No contact info"}
                     </div>
                 </CardHeader>
                 <CardContent className="p-3 pt-2">

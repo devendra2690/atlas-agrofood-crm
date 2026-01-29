@@ -52,6 +52,12 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
     });
 
     async function handleUpdate() {
+        // VALIDATION: Price Quote is required to move beyond REQUESTED
+        if (formData.status !== 'REQUESTED' && !formData.priceQuoted) {
+            toast.error("Price Quote is required to change status.");
+            return;
+        }
+
         setLoading(true);
         try {
             const result = await updateSampleDetails(sample.id, formData);
@@ -196,7 +202,7 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
 
 
                     <div className="grid gap-2">
-                        <Label>Price Quote</Label>
+                        <Label>Price Quote <span className="text-red-500">*</span></Label>
                         <div className="flex gap-2">
                             <div className="flex-1">
                                 <Input

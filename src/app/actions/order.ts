@@ -418,7 +418,9 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
                     data: {
                         name: `Fulfillment: ${order.opportunity.productName} - ${order.opportunity.company.name}`,
                         status: 'SOURCING',
-                        commodityId: order.opportunity.commodityId
+                        commodityId: order.opportunity.commodityId,
+                        createdById: session?.user?.id,
+                        updatedById: session?.user?.id
                     }
                 });
 

@@ -106,6 +106,20 @@ export function OpportunityBoard({ opportunities: initialOpportunities, companie
             // Optimistic update
             const oldStatus = opportunities.find(o => o.id === activeId)?.status;
 
+            // VALIDATION: Business Rules for Closing
+            const activeOpp = opportunities.find(o => o.id === activeId);
+            if (activeOpp && newStatus === 'CLOSED_WON') {
+                const missingFields = [];
+                if (!activeOpp.quantity || activeOpp.quantity <= 0) missingFields.push("Quantity");
+                if (!activeOpp.targetPrice || activeOpp.targetPrice <= 0) missingFields.push("Target Price");
+
+                if (missingFields.length > 0) {
+                    toast.error(`Cannot Close Won: Missing ${missingFields.join(", ")}`);
+                    setActiveId(null);
+                    return;
+                }
+            }
+
             if (oldStatus !== newStatus) {
                 setOpportunities((items) =>
                     items.map((item) =>

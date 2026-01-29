@@ -90,6 +90,16 @@ export function SalesOrderBoard({ orders: initialOrders }: SalesOrderBoardProps)
         }
 
         if (newStatus) {
+            // VALIDATION: Business Rules for Confirming Orders
+            const activeOrder = orders.find(o => o.id === activeId);
+            if (activeOrder && (newStatus === 'CONFIRMED' || newStatus === 'IN_PROGRESS')) {
+                if (!activeOrder.totalAmount || activeOrder.totalAmount <= 0) {
+                    toast.error(`Cannot Confirm Order: Invalid Total Amount`);
+                    setActiveId(null);
+                    return;
+                }
+            }
+
             const oldStatus = orders.find(o => o.id === activeId)?.status;
 
             if (oldStatus !== newStatus) {
