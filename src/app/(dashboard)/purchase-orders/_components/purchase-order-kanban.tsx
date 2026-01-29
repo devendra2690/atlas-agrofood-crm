@@ -134,11 +134,11 @@ export function PurchaseOrderKanban({ orders: initialOrders }: PurchaseOrderKanb
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >
-            <div className="flex h-[calc(100vh-200px)] gap-4 overflow-x-auto pb-4">
+            <div className="flex h-[calc(100vh-200px)] w-full gap-4 overflow-x-auto pb-4 px-2">
                 {columns.map(col => (
                     <div
                         key={col.id}
-                        className="flex h-full min-w-[300px] w-[300px] flex-col rounded-lg bg-slate-100 p-3"
+                        className="flex-shrink-0 flex h-full min-w-[300px] w-[300px] flex-col rounded-lg bg-slate-100 p-3"
                     // This div acts as a droppable zone if we used useDroppable, 
                     // but dnd-kit core strategy is often simpler by just checking `over.id`.
                     // For empty columns to be droppable, we need to register them as droppable zones.

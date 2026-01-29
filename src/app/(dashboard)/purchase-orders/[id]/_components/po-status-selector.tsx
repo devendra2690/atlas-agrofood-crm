@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PurchaseOrderStatus } from "@prisma/client";
 import {
     Select,
@@ -17,19 +17,29 @@ interface POStatusSelectorProps {
     currentStatus: PurchaseOrderStatus;
 }
 
-export function POStatusSelector({ poId, currentStatus }: POStatusSelectorProps) {
+export function POStatusSelector({ poId, currentStatus: initialStatus }: POStatusSelectorProps) {
+    const [status, setStatus] = useState<PurchaseOrderStatus>(initialStatus);
     const [loading, setLoading] = useState(false);
+
+    // Sync prop changes (e.g. from server revalidation)
+    useEffect(() => {
+        setStatus(initialStatus);
+    }, [initialStatus]);
 
     const handleStatusChange = async (value: string) => {
         const newStatus = value as PurchaseOrderStatus;
-        if (newStatus === currentStatus) return;
+        if (newStatus === status) return;
 
         setLoading(true);
         try {
+            // Optimistically update? No, user wants fallback on error.
+            // So we wait for server response.
             const result = await updatePurchaseOrderStatus(poId, newStatus);
             if (result.success) {
+                setStatus(newStatus); // Update local state only on success
                 toast.success(`Order status updated to ${newStatus}`);
             } else {
+                // Do NOT update local state, so UI reverts/stays at old value
                 toast.error(result.error || "Failed to update status");
             }
         } catch (error) {
@@ -41,7 +51,7 @@ export function POStatusSelector({ poId, currentStatus }: POStatusSelectorProps)
 
     return (
         <Select
-            defaultValue={currentStatus}
+            value={status}
             onValueChange={handleStatusChange}
             disabled={loading}
         >

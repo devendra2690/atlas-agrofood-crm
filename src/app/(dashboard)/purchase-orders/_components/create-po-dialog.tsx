@@ -75,7 +75,7 @@ export function CreatePurchaseOrderDialog({
     }
 
     async function handleCreate() {
-        if (!projectId || !vendorId || !amount || !quantity) return;
+        if (!projectId || !vendorId || !amount || !quantity || !rate) return;
         setLoading(true);
         try {
             const result = await createManualPurchaseOrder({
@@ -125,7 +125,7 @@ export function CreatePurchaseOrderDialog({
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label>Project</Label>
+                        <Label>Project <span className="text-red-500">*</span></Label>
                         <Combobox
                             options={projects.map(p => ({ label: p.name, value: p.id }))}
                             value={projectId}
@@ -140,7 +140,7 @@ export function CreatePurchaseOrderDialog({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>Vendor</Label>
+                        <Label>Vendor <span className="text-red-500">*</span></Label>
                         <Combobox
                             options={vendors.map((v: any) => ({ label: v.name, value: v.id }))}
                             value={vendorId}
@@ -190,7 +190,7 @@ export function CreatePurchaseOrderDialog({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>Quantity (MT)</Label>
+                        <Label>Quantity (MT) <span className="text-red-500">*</span></Label>
                         <Input
                             type="number"
                             placeholder="0.00"
@@ -206,7 +206,7 @@ export function CreatePurchaseOrderDialog({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>Rate (per kg)</Label>
+                        <Label>Rate (per kg) <span className="text-red-500">*</span></Label>
                         <Input
                             type="number"
                             placeholder="0.00"
@@ -222,7 +222,7 @@ export function CreatePurchaseOrderDialog({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>Total Amount</Label>
+                        <Label>Total Amount <span className="text-red-500">*</span></Label>
                         <Input
                             type="number"
                             placeholder="0.00"
@@ -233,7 +233,7 @@ export function CreatePurchaseOrderDialog({
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button onClick={handleCreate} disabled={loading || !projectId || !vendorId || !quantity || !amount}>
+                    <Button onClick={handleCreate} disabled={loading || !projectId || !vendorId || !quantity || !amount || !rate}>
                         {loading ? "Creating..." : "Create Order"}
                     </Button>
                 </DialogFooter>
