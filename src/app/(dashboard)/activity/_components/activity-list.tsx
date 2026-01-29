@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Activity, FileText, ShoppingCart, Truck, CreditCard } from "lucide-react";
+import { Activity, FileText, ShoppingCart, Truck, CreditCard, ShoppingBag } from "lucide-react";
 
 interface ActivityListProps {
     activities: any[];
