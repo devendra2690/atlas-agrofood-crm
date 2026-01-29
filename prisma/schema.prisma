@@ -142,6 +142,7 @@ model User {
   
   activities  ActivityLog[]
   todos       Todo[]
+  sourcingRequests SourcingRequest[]
 }
 
 model ActivityLog {
@@ -238,6 +239,7 @@ model Company {
   bills             Bill[]             // As Vendor
   sampleRecords     SampleRecord[]     // Samples provided
   commodities       Commodity[]
+  vendorVarieties   VendorVariety[]
 
   createdById String?
   updatedById String?
@@ -259,6 +261,7 @@ model State {
   country   Country  @relation(fields: [countryId], references: [id])
   cities    City[]
   companies Company[]
+  vendorVarieties VendorVariety[]
 
   @@unique([name, countryId])
 }
@@ -274,13 +277,72 @@ model City {
 }
 
 model Commodity {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  yieldPercentage Float @default(100.0) // Percentage yield (e.g. 25.0 for 25%)
-  companies         Company[]
-  salesOpportunities SalesOpportunity[]
-  procurementProjects ProcurementProject[]
-}
+   id        String    @id @default(uuid())
+   name      String    @unique
+   yieldPercentage Float @default(100.0) // Percentage yield (e.g. 25.0 for 25%)
+   companies         Company[]
+   salesOpportunities SalesOpportunity[]
+   procurementProjects ProcurementProject[]
+   varieties         CommodityVariety[] // NEW
+ }
+ 
+ model CommodityVariety {
+   id          String    @id @default(uuid())
+   name        String
+   commodityId String
+   description String?
+   
+   commodity   Commodity @relation(fields: [commodityId], references: [id])
+   vendorMappings VendorVariety[]
+   
+   @@unique([name, commodityId])
+ }
+ 
+ model VendorVariety {
+   id            String    @id @default(uuid())
+   vendorId      String
+   varietyId     String
+   originStateId String?
+   
+   leadTime      String?   // e.g. "3 days"
+   supplyCapacity String?  // e.g. "50 MT/week"
+   qualityGrade  String?   // e.g. "A", "Premium"
+   isBlacklisted Boolean   @default(false)
+   
+   vendor        Company          @relation(fields: [vendorId], references: [id])
+   variety       CommodityVariety @relation(fields: [varietyId], references: [id])
+   originState   State?           @relation(fields: [originStateId], references: [id])
+   
+   @@unique([vendorId, varietyId])
+ }
+ 
+ enum SourcingRequestStatus {
+   OPEN
+   RESEARCH
+   SAMPLING
+   ONBOARDED
+   UNAVAILABLE
+ }
+ 
+ enum Sourcingpriority {
+   NORMAL
+   URGENT
+ }
+ 
+ model SourcingRequest {
+   id            String    @id @default(uuid())
+   requestedItem String    // Name of commodity/variety
+   volume        String?
+   salesUserId   String
+   status        SourcingRequestStatus @default(OPEN)
+   priority      Sourcingpriority      @default(NORMAL)
+   
+   notes         String?
+   createdAt     DateTime  @default(now())
+   updatedAt     DateTime  @updatedAt
+   
+   salesUser     User      @relation(fields: [salesUserId], references: [id])
+ }
 
 model Product {
   id   String @id @default(uuid())

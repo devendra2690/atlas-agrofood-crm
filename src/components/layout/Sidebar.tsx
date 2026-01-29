@@ -20,7 +20,8 @@ import {
     LogOut,
     Activity,
     ClipboardList,
-    Menu
+    Menu,
+    Database
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -53,6 +54,7 @@ const sidebarItems = [
             { name: "Samples", href: "/samples", icon: FlaskConical },
             { name: "Purchase Orders", href: "/purchase-orders", icon: FileText },
             { name: "Logistics", href: "/logistics", icon: Truck },
+            { name: "Vendor Matrix", href: "/matrix", icon: Database },
         ]
     },
     {

@@ -40,3 +40,43 @@ export async function deleteCommodity(id: string) {
         return { success: false, error: "Failed to delete commodity" };
     }
 }
+
+export async function getCommodityVarieties(commodityId: string) {
+    try {
+        const varieties = await prisma.commodityVariety.findMany({
+            where: { commodityId },
+            orderBy: { name: 'asc' }
+        });
+        return { success: true, data: varieties };
+    } catch (error) {
+        console.error("Failed to get varieties:", error);
+        return { success: false, error: "Failed to fetch varieties" };
+    }
+}
+
+export async function createCommodityVariety(commodityId: string, name: string) {
+    try {
+        const variety = await prisma.commodityVariety.create({
+            data: {
+                name,
+                commodityId
+            }
+        });
+        return { success: true, data: variety };
+    } catch (error) {
+        console.error("Failed to create variety:", error);
+        return { success: false, error: "Failed to create variety" };
+    }
+}
+
+export async function deleteCommodityVariety(id: string) {
+    try {
+        await prisma.commodityVariety.delete({
+            where: { id }
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to delete variety:", error);
+        return { success: false, error: "Failed to delete variety" };
+    }
+}

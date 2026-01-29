@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Trash2, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ManageVarietiesDialog } from './_components/manage-varieties-dialog';
 
 type Commodity = {
     id: string;
@@ -124,15 +125,23 @@ export default function CommoditiesPage() {
                             ) : (
                                 commodities.map((commodity: any) => (
                                     <div key={commodity.id} className="flex items-center justify-between p-3 border rounded-md bg-white hover:bg-slate-50">
-                                        <div className="flex items-center gap-4">
-                                            <span className="font-medium">{commodity.name}</span>
-                                            <span className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">
-                                                Yield: {commodity.yieldPercentage}%
-                                            </span>
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-4">
+                                                <span className="font-medium">{commodity.name}</span>
+                                                <span className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">
+                                                    Yield: {commodity.yieldPercentage}%
+                                                </span>
+                                            </div>
                                         </div>
-                                        <Button variant="ghost" size="sm" onClick={() => handleDelete(commodity.id)}>
-                                            <Trash2 className="h-4 w-4 text-red-500" />
-                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                            <ManageVarietiesDialog
+                                                commodityId={commodity.id}
+                                                commodityName={commodity.name}
+                                            />
+                                            <Button variant="ghost" size="sm" onClick={() => handleDelete(commodity.id)}>
+                                                <Trash2 className="h-4 w-4 text-red-500" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 ))
                             )}
