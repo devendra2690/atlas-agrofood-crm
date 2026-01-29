@@ -268,7 +268,7 @@ function ShipmentCard({ shipment, isOverlay }: { shipment: ShipmentWithRelations
     const secondaryLabel = isPO ? "Project:" : "Opp:";
     const secondaryValue = isPO
         ? (shipment.purchaseOrder?.project?.name)
-        : (shipment.salesOrder?.opportunity?.title || "Sales Deal");
+        : (shipment.salesOrder?.opportunity?.productName || "Sales Deal");
 
     return (
         <Card className={`shadow-sm ${isOverlay ? 'shadow-xl bg-white scale-105' : ''}`}>
