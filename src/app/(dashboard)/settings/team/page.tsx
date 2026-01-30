@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { InviteUserDialog } from "./_components/invite-user-dialog";
+import { DeleteUserButton } from "./_components/delete-user-button";
 import { redirect } from "next/navigation";
 
 export default async function TeamSettingsPage() {
@@ -62,9 +63,18 @@ export default async function TeamSettingsPage() {
                                         </TableCell>
                                         <TableCell>{format(new Date(user.createdAt), "MMM d, yyyy")}</TableCell>
                                         <TableCell className="text-right">
-                                            <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                                                Active
-                                            </Badge>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                                    Active
+                                                </Badge>
+                                                <DeleteUserButton
+                                                    userId={user.id}
+                                                    userName={user.name || "User"}
+                                                    // @ts-ignore
+                                                    currentUserEmail={session?.user?.email || ""}
+                                                    targetUserEmail={user.email}
+                                                />
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
