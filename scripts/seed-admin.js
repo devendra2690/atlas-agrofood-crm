@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
     const email = 'admin@atlas.com';
-    const password = 'password123';
+    const password = 'Vat69@Atlas';
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.upsert({
