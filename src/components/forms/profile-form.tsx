@@ -155,7 +155,7 @@ export function ProfileForm({ user }: { user: { name: string | null; email: stri
                         </div>
                     </div>
 
-                    <Button type="submit" className="bg-black text-white hover:bg-neutral-800" disabled={isPasswordPending}>
+                    <Button type="submit" disabled={isPasswordPending}>
                         {isPasswordPending ? "Updating Password..." : "Change Password"}
                     </Button>
                 </form>
