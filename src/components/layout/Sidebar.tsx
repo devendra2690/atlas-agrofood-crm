@@ -92,7 +92,7 @@ function SidebarContent({ user, pathname, onNavigate }: { user?: any, pathname: 
         });
 
         // 2. Filter entire group (e.g. Finance)
-        if (group.title === "Finance" && user?.role !== "ADMIN") return null;
+        // if (group.title === "Finance" && user?.role !== "ADMIN") return null;
 
         if (items.length === 0) return null;
 
