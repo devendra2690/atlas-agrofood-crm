@@ -5,6 +5,7 @@ import { Company, CompanyType, CompanyStatus, TrustLevel } from "@prisma/client"
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { sendClientWelcomeEmail } from "./email";
+import { logActivity } from "./audit";
 
 export type CompanyFormData = {
     name: string;
@@ -87,6 +88,14 @@ export async function createCompany(data: CompanyFormData) {
             sendClientWelcomeEmail(data.email, data.name).catch(e => console.error("Email failed:", e));
         }
 
+        await logActivity({
+            action: "CREATE",
+            entityType: "Company",
+            entityId: company.id,
+            entityTitle: company.name,
+            details: `Created company: ${company.name}`
+        });
+
         revalidatePath("/companies");
         return { success: true, data: company };
     } catch (error: any) {
@@ -143,6 +152,13 @@ export async function updateCompany(id: string, data: CompanyFormData) {
         const company = await prisma.company.update({
             where: { id },
             data: updateData,
+        });
+
+        await logActivity({
+            action: "UPDATE",
+            entityType: "Company",
+            entityId: id,
+            details: `Updated company: ${data.name}`
         });
 
         revalidatePath("/companies");
@@ -204,6 +220,13 @@ export async function deleteCompany(id: string) {
             where: { id }
         });
 
+        await logActivity({
+            action: "DELETE",
+            entityType: "Company",
+            entityId: id,
+            details: "Deleted company"
+        });
+
         revalidatePath("/companies");
         return { success: true };
     } catch (error: any) {
@@ -221,6 +244,13 @@ export async function updateCompanyTrustLevel(id: string, trustLevel: TrustLevel
                 updatedById: session?.user?.id,
                 trustLevel
             }
+        });
+
+        await logActivity({
+            action: "STATUS_CHANGE",
+            entityType: "Company",
+            entityId: id,
+            details: `Updated trust level to ${trustLevel}`
         });
 
         revalidatePath(`/vendors/${id}`);

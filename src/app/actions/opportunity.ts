@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { OpportunityStatus, TrustLevel } from "@prisma/client";
 import { auth } from "@/auth";
+import { logActivity } from "./audit";
 
 export type OpportunityFormData = {
     companyId: string;
@@ -91,6 +92,14 @@ export async function createOpportunity(data: OpportunityFormData) {
             procurementQuantity: opportunity.procurementQuantity?.toNumber(),
         };
 
+        await logActivity({
+            action: "CREATE",
+            entityType: "Opportunity",
+            entityId: opportunity.id,
+            entityTitle: opportunity.productName,
+            details: `Created opportunity for ${data.productName} - ${data.quantity} units`
+        });
+
         revalidatePath(`/companies/${data.companyId}`);
         revalidatePath("/opportunities");
         return { success: true, data: safeOpportunity };
@@ -151,6 +160,13 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
             procurementQuantity: opportunity.procurementQuantity?.toNumber(),
         };
 
+        await logActivity({
+            action: "UPDATE",
+            entityType: "Opportunity",
+            entityId: id,
+            details: `Updated opportunity: ${data.productName}`
+        });
+
         revalidatePath("/opportunities");
         revalidatePath(`/companies/${data.companyId}`);
         return { success: true, data: safeOpportunity };
@@ -164,6 +180,13 @@ export async function deleteOpportunity(id: string) {
     try {
         await prisma.salesOpportunity.delete({
             where: { id },
+        });
+
+        await logActivity({
+            action: "DELETE",
+            entityType: "Opportunity",
+            entityId: id,
+            details: "Deleted opportunity"
         });
 
         revalidatePath("/opportunities");
@@ -429,14 +452,11 @@ export async function updateOpportunityStatus(id: string, status: OpportunitySta
         });
 
         // Create activity log
-        await prisma.activityLog.create({
-            data: {
-                userId: userId as string,
-                action: 'STATUS_CHANGE',
-                entityType: 'OPPORTUNITY',
-                entityId: opportunity.id,
-                details: `Updated opportunity ${opportunity.productName} status to ${status}`,
-            }
+        await logActivity({
+            action: "STATUS_CHANGE",
+            entityType: "Opportunity",
+            entityId: opportunity.id,
+            details: `Updated opportunity ${opportunity.productName} status to ${status}`
         });
 
         revalidatePath("/opportunities");

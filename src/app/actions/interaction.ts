@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
+import { logActivity } from "./audit";
 
 export type InteractionFormData = {
     companyId: string;
@@ -40,6 +42,13 @@ export async function logInteraction(data: InteractionFormData) {
                 nextFollowUp: data.nextFollowUp,
                 status: data.status || "FOLLOW_UP_SCHEDULED"
             }
+        });
+
+        await logActivity({
+            action: "CREATE",
+            entityType: "Interaction",
+            entityId: interaction.id,
+            details: `Logged interaction with company`
         });
 
         revalidatePath(`/companies/${data.companyId}`);

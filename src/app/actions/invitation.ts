@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { signIn, auth } from "@/auth";
 import { sendWelcomeEmail } from "./email";
+import { logActivity } from "./audit";
 
 /**
  * Creates an invitation token for a new user
@@ -39,6 +40,13 @@ export async function createInvitation(email: string, role: 'SALES' | 'PROCUREME
         // Assuming localhost or deployment URL from env?
         // We will just return the full path relative to origin for now or constructing full URL if strict.
         // Let's just return the token and the path.
+
+        await logActivity({
+            action: "CREATE",
+            entityType: "Invitation",
+            entityId: email,
+            details: `Invited user ${email} as ${role}`
+        });
 
         return { success: true, token, path: `/register?token=${token}` };
     } catch (error) {
@@ -85,6 +93,13 @@ export async function registerWithToken(token: string, password: string, name: s
         await prisma.invitation.update({
             where: { id: invitation.id },
             data: { status: "ACCEPTED" }
+        });
+
+        await logActivity({
+            action: "CREATE",
+            entityType: "User",
+            entityId: user.id,
+            details: `User registered: ${name}`
         });
 
         return { success: true };

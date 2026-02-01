@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { SampleStatus, OpportunityPriceType, TrustLevel } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { logActivity } from "./audit";
 
 // ... (keep createSampleRequest and getProjectSamples as is or update if needed but they might not need changes yet)
 
@@ -38,6 +39,13 @@ export async function updateSampleDetails(id: string, data: UpdateSampleData) {
 
         revalidatePath("/procurement");
 
+        await logActivity({
+            action: "UPDATE",
+            entityType: "Sample",
+            entityId: id,
+            details: "Updated sample details"
+        });
+
         return {
             success: true,
             data: {
@@ -64,6 +72,13 @@ export async function createSampleRequest(projectId: string, vendorId: string, n
                 status: "REQUESTED",
                 // receivedDate is nullable now, so we don't set it yet
             }
+        });
+
+        await logActivity({
+            action: "CREATE",
+            entityType: "Sample",
+            entityId: sample.id,
+            details: `Created sample request for project ${projectId}`
         });
 
         revalidatePath(`/procurement/${projectId}`);
@@ -109,6 +124,13 @@ export async function updateSampleStatus(id: string, status: SampleStatus) {
                 ...data,
                 updatedById: session?.user?.id
             }
+        });
+
+        await logActivity({
+            action: "STATUS_CHANGE",
+            entityType: "Sample",
+            entityId: id,
+            details: `Updated sample status to ${status}`
         });
 
         revalidatePath("/procurement");
@@ -222,6 +244,14 @@ export async function linkSampleToOpportunity(sampleId: string, opportunityId: s
                 status: "SENT_TO_CLIENT"
             }
         });
+
+        await logActivity({
+            action: "UPDATE",
+            entityType: "SampleSubmission",
+            entityId: submission.id,
+            details: `Linked sample ${sampleId} to opportunity ${opportunityId}`
+        });
+
         revalidatePath("/opportunities");
         revalidatePath("/procurement");
         return { success: true, data: submission };
@@ -240,6 +270,14 @@ export async function updateSubmissionStatus(id: string, status: SampleStatus) {
             where: { id },
             data: { status }
         });
+
+        await logActivity({
+            action: "STATUS_CHANGE",
+            entityType: "SampleSubmission",
+            entityId: id,
+            details: `Updated submission status to ${status}`
+        });
+
         revalidatePath("/opportunities");
         revalidatePath("/procurement");
         return { success: true, data: submission };

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { TodoPriority, TodoStatus, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { logActivity } from "./audit";
+
 
 // --- Types ---
 export type CreateTodoData = {
@@ -74,6 +76,14 @@ export async function createTodo(data: CreateTodoData) {
             return newTodo;
         });
 
+        await logActivity({
+            action: "CREATE",
+            entityType: "Note",
+            entityId: todo.id,
+            entityTitle: todo.content.substring(0, 30) + (todo.content.length > 30 ? "..." : ""),
+            details: `Created new note`
+        });
+
         revalidatePath("/notes");
         return { success: true, data: todo };
     } catch (error) {
@@ -94,6 +104,13 @@ export async function updateTodo(id: string, data: UpdateTodoData) {
             }
         });
 
+        await logActivity({
+            action: "UPDATE",
+            entityType: "Note",
+            entityId: id,
+            details: `Updated note`
+        });
+
         revalidatePath("/notes");
         return { success: true };
     } catch (error) {
@@ -106,6 +123,13 @@ export async function deleteTodo(id: string) {
     try {
         await prisma.todo.delete({
             where: { id }
+        });
+
+        await logActivity({
+            action: "DELETE",
+            entityType: "Note",
+            entityId: id,
+            details: "Deleted note"
         });
 
         revalidatePath("/notes");
@@ -169,6 +193,13 @@ export async function createReply(noteId: string, content: string, taggedUserIds
             }
 
             return newReply;
+        });
+
+        await logActivity({
+            action: "REPLY",
+            entityType: "Note",
+            entityId: noteId,
+            details: `Replied: ${content.substring(0, 30)}...`
         });
 
         revalidatePath("/notes");

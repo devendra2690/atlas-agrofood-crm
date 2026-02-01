@@ -441,6 +441,13 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
                     }
                 });
 
+                await logActivity({
+                    action: "CREATE",
+                    entityType: "ProcurementProject",
+                    entityId: project.id,
+                    details: `Auto-created fulfillment project for Order #${order.id.slice(0, 8)}`
+                });
+
                 // Link Project to Opportunity
                 await prisma.salesOpportunity.update({
                     where: { id: order.opportunityId },

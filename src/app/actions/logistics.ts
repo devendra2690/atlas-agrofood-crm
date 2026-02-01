@@ -273,6 +273,13 @@ export async function createGRN(data: GRNData) {
             }
         }
 
+        await logActivity({
+            action: "CREATE",
+            entityType: "GRN",
+            entityId: grn.id,
+            details: `Created GRN for PO #${po.id.slice(0, 8).toUpperCase()} - Received: ${data.totalReceivedQuantity}, Accepted: ${data.acceptedQuantity}`
+        });
+
         revalidatePath(`/purchase-orders/${data.purchaseOrderId}`);
         revalidatePath('/logistics');
 

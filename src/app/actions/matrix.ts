@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { SourcingRequestStatus, Sourcingpriority } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { logActivity } from "./audit";
 
 export type VendorVarietyFormData = {
     vendorId: string;
@@ -61,7 +62,7 @@ export async function createSourcingRequest(data: { item: string; volume?: strin
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-        await prisma.sourcingRequest.create({
+        const request = await prisma.sourcingRequest.create({
             data: {
                 requestedItem: data.item,
                 volume: data.volume,
@@ -69,6 +70,13 @@ export async function createSourcingRequest(data: { item: string; volume?: strin
                 salesUserId: session.user.id,
                 status: "OPEN"
             }
+        });
+
+        await logActivity({
+            action: "CREATE",
+            entityType: "SourcingRequest",
+            entityId: request.id,
+            details: `Created sourcing request for ${data.item}`
         });
 
         revalidatePath("/matrix");
@@ -123,6 +131,14 @@ export async function updateSourcingRequestStatus(id: string, status: SourcingRe
             where: { id },
             data: { status }
         });
+
+        await logActivity({
+            action: "STATUS_CHANGE",
+            entityType: "SourcingRequest",
+            entityId: id,
+            details: `Updated sourcing request status to ${status}`
+        });
+
         revalidatePath("/matrix");
         return { success: true };
     } catch (error) {
@@ -137,7 +153,7 @@ export async function manageVendorVariety(
 ) {
     try {
         if (action === "CREATE") {
-            await prisma.vendorVariety.create({
+            const result = await prisma.vendorVariety.create({
                 data: {
                     vendorId: data.vendorId,
                     varietyId: data.varietyId,
@@ -147,6 +163,12 @@ export async function manageVendorVariety(
                     qualityGrade: data.qualityGrade,
                     isBlacklisted: data.isBlacklisted || false
                 }
+            });
+            await logActivity({
+                action: "CREATE",
+                entityType: "VendorMatrix",
+                entityId: result.id,
+                details: "Added variety to vendor matrix"
             });
         } else if (action === "UPDATE" && data.id) {
             await prisma.vendorVariety.update({
@@ -159,9 +181,21 @@ export async function manageVendorVariety(
                     isBlacklisted: data.isBlacklisted
                 }
             });
+            await logActivity({
+                action: "UPDATE",
+                entityType: "VendorMatrix",
+                entityId: data.id,
+                details: "Updated vendor matrix entry"
+            });
         } else if (action === "DELETE" && data.id) {
             await prisma.vendorVariety.delete({
                 where: { id: data.id }
+            });
+            await logActivity({
+                action: "DELETE",
+                entityType: "VendorMatrix",
+                entityId: data.id,
+                details: "Removed from vendor matrix"
             });
         }
 

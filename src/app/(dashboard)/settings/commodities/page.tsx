@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Trash2, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ManageVarietiesDialog } from './_components/manage-varieties-dialog';
+import { EditCommodityDialog } from './_components/edit-commodity-dialog';
 
 type Commodity = {
     id: string;
@@ -137,6 +138,10 @@ export default function CommoditiesPage() {
                                             <ManageVarietiesDialog
                                                 commodityId={commodity.id}
                                                 commodityName={commodity.name}
+                                            />
+                                            <EditCommodityDialog
+                                                commodity={commodity}
+                                                onSuccess={loadCommodities}
                                             />
                                             <Button variant="ghost" size="sm" onClick={() => handleDelete(commodity.id)}>
                                                 <Trash2 className="h-4 w-4 text-red-500" />

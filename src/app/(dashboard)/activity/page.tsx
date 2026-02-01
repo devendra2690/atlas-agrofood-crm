@@ -20,6 +20,7 @@ export default async function ActivityPage({
     const params = await searchParams;
     const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
     const entityType = typeof params.entityType === 'string' ? params.entityType : undefined;
+    const userId = typeof params.userId === 'string' ? params.userId : undefined;
     const query = typeof params.query === 'string' ? params.query : undefined;
     const limit = 20;
 
@@ -27,6 +28,7 @@ export default async function ActivityPage({
         page,
         limit,
         entityType,
+        userId,
         query
     });
 

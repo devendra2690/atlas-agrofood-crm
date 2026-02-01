@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { logActivity } from "./audit";
 
 export async function deleteUser(userId: string) {
     try {
@@ -30,6 +31,13 @@ export async function deleteUser(userId: string) {
             where: { id: userId }
         });
 
+        await logActivity({
+            action: "DELETE",
+            entityType: "User",
+            entityId: userId,
+            details: `Deleted user ${user.name || user.email}`
+        });
+
         revalidatePath("/settings/team");
         return { success: true };
     } catch (error) {
@@ -39,5 +47,18 @@ export async function deleteUser(userId: string) {
             return { success: false, error: "Cannot delete user because they have associated records (e.g. Orders, Companies). Please reassign or delete those records first." };
         }
         return { success: false, error: "Failed to delete user" };
+    }
+}
+
+export async function getUsers() {
+    try {
+        const users = await prisma.user.findMany({
+            orderBy: { name: 'asc' },
+            select: { id: true, name: true, email: true }
+        });
+        return { success: true, data: users };
+    } catch (error) {
+        console.error("Failed to fetch users:", error);
+        return { success: false, error: "Failed to fetch users" };
     }
 }

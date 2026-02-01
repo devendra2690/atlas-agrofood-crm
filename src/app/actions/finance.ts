@@ -411,7 +411,7 @@ export async function createTransaction(data: {
 }) {
     try {
         const session = await auth();
-        await prisma.transaction.create({
+        const transaction = await prisma.transaction.create({
             data: {
                 createdById: session?.user?.id,
                 updatedById: session?.user?.id,
@@ -423,6 +423,13 @@ export async function createTransaction(data: {
                 salesOrderId: data.salesOrderId,
                 receipts: data.receipts || []
             }
+        });
+
+        await logActivity({
+            action: "CREATE",
+            entityType: "Transaction",
+            entityId: transaction.id,
+            details: `Created manual transaction: ${data.description} (${data.type}) - ₹${data.amount.toLocaleString()}`
         });
 
         revalidatePath('/finance');
@@ -777,6 +784,13 @@ export async function deleteInvoice(id: string) {
             where: { id }
         });
 
+        await logActivity({
+            action: "DELETE",
+            entityType: "Invoice",
+            entityId: id,
+            details: "Deleted invoice"
+        });
+
         revalidatePath('/invoices');
         return { success: true };
     } catch (error) {
@@ -796,6 +810,13 @@ export async function deleteBill(id: string) {
             where: { id }
         });
 
+        await logActivity({
+            action: "DELETE",
+            entityType: "Bill",
+            entityId: id,
+            details: "Deleted bill"
+        });
+
         revalidatePath('/bills');
         return { success: true };
     } catch (error) {
@@ -813,6 +834,13 @@ export async function deleteTransaction(id: string) {
 
         await prisma.transaction.delete({
             where: { id }
+        });
+
+        await logActivity({
+            action: "DELETE",
+            entityType: "Transaction",
+            entityId: id,
+            details: "Deleted transaction"
         });
 
         revalidatePath('/finance');

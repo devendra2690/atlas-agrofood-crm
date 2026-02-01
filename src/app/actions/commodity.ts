@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "./audit";
 
 export async function getCommodities() {
     try {
@@ -22,6 +23,12 @@ export async function createCommodity(name: string, yieldPercentage: number = 10
                 yieldPercentage
             }
         });
+        await logActivity({
+            action: "CREATE",
+            entityType: "Commodity",
+            entityId: commodity.id,
+            details: `Created commodity: ${name}`
+        });
         return { success: true, data: commodity };
     } catch (error) {
         console.error("Failed to create commodity:", error);
@@ -29,10 +36,38 @@ export async function createCommodity(name: string, yieldPercentage: number = 10
     }
 }
 
+export async function updateCommodity(id: string, name: string, yieldPercentage: number) {
+    try {
+        const commodity = await prisma.commodity.update({
+            where: { id },
+            data: {
+                name,
+                yieldPercentage
+            }
+        });
+        await logActivity({
+            action: "UPDATE",
+            entityType: "Commodity",
+            entityId: commodity.id,
+            details: `Updated commodity: ${name}`
+        });
+        return { success: true, data: commodity };
+    } catch (error) {
+        console.error("Failed to update commodity:", error);
+        return { success: false, error: "Failed to update commodity" };
+    }
+}
+
 export async function deleteCommodity(id: string) {
     try {
         await prisma.commodity.delete({
             where: { id }
+        });
+        await logActivity({
+            action: "DELETE",
+            entityType: "Commodity",
+            entityId: id,
+            details: "Deleted commodity"
         });
         return { success: true };
     } catch (error) {
@@ -62,6 +97,12 @@ export async function createCommodityVariety(commodityId: string, name: string) 
                 commodityId
             }
         });
+        await logActivity({
+            action: "CREATE",
+            entityType: "CommodityVariety",
+            entityId: variety.id,
+            details: `Created variety: ${name}`
+        });
         return { success: true, data: variety };
     } catch (error) {
         console.error("Failed to create variety:", error);
@@ -73,6 +114,12 @@ export async function deleteCommodityVariety(id: string) {
     try {
         await prisma.commodityVariety.delete({
             where: { id }
+        });
+        await logActivity({
+            action: "DELETE",
+            entityType: "CommodityVariety",
+            entityId: id,
+            details: "Deleted variety"
         });
         return { success: true };
     } catch (error) {

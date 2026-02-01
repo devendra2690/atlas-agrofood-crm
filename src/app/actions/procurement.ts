@@ -183,6 +183,15 @@ export async function createProcurementProject(data: ProcurementProjectFormData)
             }
         });
 
+
+
+        await logActivity({
+            action: "CREATE",
+            entityType: "ProcurementProject",
+            entityId: project.id,
+            details: `Created project: ${data.name}`
+        });
+
         revalidatePath("/procurement");
         return { success: true, data: project };
     } catch (error: any) {
@@ -203,6 +212,13 @@ export async function updateProcurementProject(id: string, data: ProcurementProj
                 type: data.type,
                 commodityId: data.commodityId
             }
+        });
+
+        await logActivity({
+            action: "UPDATE",
+            entityType: "ProcurementProject",
+            entityId: id,
+            details: `Updated project: ${data.name}`
         });
 
         revalidatePath("/procurement");
@@ -292,6 +308,13 @@ export async function deleteProcurementProject(id: string) {
             await tx.procurementProject.delete({
                 where: { id }
             });
+        });
+
+        await logActivity({
+            action: "DELETE",
+            entityType: "ProcurementProject",
+            entityId: id,
+            details: "Deleted procurement project"
         });
 
         revalidatePath("/procurement");
@@ -1072,6 +1095,14 @@ export async function deletePurchaseOrder(id: string) {
         await prisma.purchaseOrder.delete({
             where: { id }
         });
+
+        await logActivity({
+            action: "DELETE",
+            entityType: "PurchaseOrder",
+            entityId: id,
+            details: "Deleted purchase order"
+        });
+
         revalidatePath("/purchase-orders");
         return { success: true };
     } catch (error) {
@@ -1116,6 +1147,13 @@ export async function updatePurchaseOrder(id: string, data: {
             });
             revalidatePath("/logistics");
         }
+
+        await logActivity({
+            action: "UPDATE",
+            entityType: "PurchaseOrder",
+            entityId: id,
+            details: `Updated PO - Status: ${data.status || 'Unchanged'}, Amount: ${data.totalAmount}`
+        });
 
         return { success: true, data: order };
     } catch (error) {

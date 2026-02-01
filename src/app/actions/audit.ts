@@ -62,6 +62,10 @@ export async function getActivities(filters?: {
             where.entityType = filters.entityType;
         }
 
+        if (filters?.userId && filters.userId !== 'all') {
+            where.userId = filters.userId;
+        }
+
         if (filters?.query) {
             const search = filters.query.trim();
             where.OR = [

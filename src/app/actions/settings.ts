@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { logActivity } from "./audit";
 
 export async function updateProfile(formData: { name: string }) {
     const session = await auth();
@@ -15,6 +16,13 @@ export async function updateProfile(formData: { name: string }) {
         await prisma.user.update({
             where: { id: session.user.id },
             data: { name: formData.name }
+        });
+
+        await logActivity({
+            action: "UPDATE",
+            entityType: "User",
+            entityId: session.user.id,
+            details: "Updated profile information"
         });
 
         revalidatePath("/settings/profile");
@@ -60,6 +68,13 @@ export async function changePassword(formData: { oldPassword: string; newPasswor
         });
 
         console.log("Password updated successfully in DB");
+
+        await logActivity({
+            action: "UPDATE",
+            entityType: "User",
+            entityId: session.user.id,
+            details: "Changed password"
+        });
 
         revalidatePath("/settings/profile");
         return { success: true };
