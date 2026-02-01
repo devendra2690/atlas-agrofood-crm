@@ -24,7 +24,6 @@ export default async function NotesPage({
         limit,
         status,
         priority,
-        priority,
         search,
         type: "NOTE" // NEW
     });
