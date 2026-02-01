@@ -144,6 +144,20 @@ model User {
   activities  ActivityLog[]
   todos       Todo[]
   sourcingRequests SourcingRequest[]
+  notifications Notification[]
+  noteReplies NoteReply[]
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   // Recipient
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model ActivityLog {
@@ -671,6 +685,19 @@ model Todo {
 
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+  replies   NoteReply[]
+}
+
+model NoteReply {
+  id        String   @id @default(uuid())
+  content   String
+  todoId    String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  todo      Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 enum TodoStatus {

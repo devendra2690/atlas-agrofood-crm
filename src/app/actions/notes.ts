@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { TodoPriority, TodoStatus } from "@prisma/client";
+import { TodoPriority, TodoStatus, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 // --- Types ---
@@ -10,6 +10,7 @@ export type CreateTodoData = {
     content: string;
     priority?: TodoPriority;
     dueDate?: Date;
+    taggedUserIds?: string[];
 };
 
 export type UpdateTodoData = {
@@ -18,8 +19,6 @@ export type UpdateTodoData = {
     priority?: TodoPriority;
     dueDate?: Date | null;
 };
-
-// --- Actions ---
 
 export async function createTodo(data: CreateTodoData) {
     try {
@@ -41,14 +40,38 @@ export async function createTodo(data: CreateTodoData) {
             return { success: false, error: "No valid user found to create note" };
         }
 
-        const todo = await prisma.todo.create({
-            data: {
-                content: data.content,
-                priority: data.priority || "MEDIUM",
-                status: "PENDING",
-                dueDate: data.dueDate,
-                userId: userId
+        const todo = await prisma.$transaction(async (tx: any) => {
+            // Create Note
+            const newTodo = await tx.todo.create({
+                data: {
+                    content: data.content,
+                    priority: data.priority || "MEDIUM",
+                    status: "PENDING",
+                    dueDate: data.dueDate,
+                    userId: userId!
+                }
+            });
+
+            // Create Notifications for tagged users
+            if (data.taggedUserIds && data.taggedUserIds.length > 0) {
+                // Determine creator name
+                const creator = await tx.user.findUnique({
+                    where: { id: userId },
+                    select: { name: true }
+                });
+                const creatorName = creator?.name || "Someone";
+
+                await tx.notification.createMany({
+                    data: data.taggedUserIds.map(taggedId => ({
+                        userId: taggedId,
+                        title: "You were tagged in a note",
+                        message: `${creatorName} tagged you: "${data.content.substring(0, 50)}${data.content.length > 50 ? '...' : ''}"`,
+                        link: "/notes"
+                    }))
+                });
             }
+
+            return newTodo;
         });
 
         revalidatePath("/notes");
@@ -93,6 +116,70 @@ export async function deleteTodo(id: string) {
     }
 }
 
+export async function createReply(noteId: string, content: string, taggedUserIds: string[] = []) {
+    try {
+        const session = await auth();
+        let userId = session?.user?.id;
+
+        if (userId) {
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+            if (!user) userId = undefined;
+        }
+
+        if (!userId) {
+            const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+            if (admin) userId = admin.id;
+        }
+
+        if (!userId) {
+            return { success: false, error: "No valid user found to reply" };
+        }
+
+        const reply = await prisma.$transaction(async (tx: any) => {
+            const newReply = await tx.noteReply.create({
+                data: {
+                    content,
+                    todoId: noteId,
+                    userId: userId!
+                },
+                include: {
+                    user: {
+                        select: { name: true, image: true }
+                    }
+                }
+            });
+
+            // Create Notifications for tagged users
+            if (taggedUserIds && taggedUserIds.length > 0) {
+                // Determine creator name
+                const creator = await tx.user.findUnique({
+                    where: { id: userId },
+                    select: { name: true }
+                });
+                const creatorName = creator?.name || "Someone";
+
+                await tx.notification.createMany({
+                    data: taggedUserIds.map(taggedId => ({
+                        userId: taggedId,
+                        title: "New reply to a note",
+                        message: `${creatorName} replied and tagged you: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+                        link: "/notes"
+                    }))
+                });
+            }
+
+            return newReply;
+        });
+
+        revalidatePath("/notes");
+        return { success: true, data: reply };
+
+    } catch (error) {
+        console.error("Failed to create reply:", error);
+        return { success: false, error: "Failed to create reply" };
+    }
+}
+
 export async function getTodos(filters?: {
     page?: number;
     limit?: number;
@@ -128,8 +215,16 @@ export async function getTodos(filters?: {
                 include: {
                     user: {
                         select: { name: true, image: true }
+                    },
+                    replies: {
+                        include: {
+                            user: {
+                                select: { name: true, image: true }
+                            }
+                        },
+                        orderBy: { createdAt: 'asc' }
                     }
-                }
+                } as any
             }),
             prisma.todo.count({ where })
         ]);
