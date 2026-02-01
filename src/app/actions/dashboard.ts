@@ -208,9 +208,10 @@ export async function getPendingTasks() {
 
     const tasks = await prisma.todo.findMany({
         where: {
-            // userId: session.user.id, // Ideally filter by user, but schema might not link Todo to User properly? checked earlier it does.
-            // Wait, schema check: Todo has userId? Yes (Todo_userId_fkey).
-            userId: session.user.id,
+            OR: [
+                { userId: session.user.id },
+                { assignedToId: session.user.id }
+            ],
             status: { not: 'COMPLETED' }
         },
         take: 5,

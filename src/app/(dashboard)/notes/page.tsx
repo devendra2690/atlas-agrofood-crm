@@ -24,15 +24,17 @@ export default async function NotesPage({
         limit,
         status,
         priority,
-        search
+        priority,
+        search,
+        type: "NOTE" // NEW
     });
 
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">
             <div className="flex items-center justify-between space-y-2">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Shared Notes</h2>
-                    <p className="text-muted-foreground">Collaborative todo list for the team.</p>
+                    <h2 className="text-3xl font-bold tracking-tight">Discussions</h2>
+                    <p className="text-muted-foreground">Team collaboration and notes.</p>
                 </div>
                 <CreateNoteDialog />
             </div>

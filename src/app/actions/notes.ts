@@ -13,6 +13,8 @@ export type CreateTodoData = {
     priority?: TodoPriority;
     dueDate?: Date;
     taggedUserIds?: string[];
+    assignedToId?: string;
+    type?: "NOTE" | "TASK"; // NEW
 };
 
 export type UpdateTodoData = {
@@ -26,6 +28,9 @@ export async function createTodo(data: CreateTodoData) {
     try {
         const session = await auth();
         let userId = session?.user?.id;
+
+        console.log("createTodo Request Data:", JSON.stringify(data, null, 2)); // DEBUG
+        console.log("createTodo UserID:", userId); // DEBUG
 
         // Verify user exists or fallback
         if (userId) {
@@ -42,39 +47,58 @@ export async function createTodo(data: CreateTodoData) {
             return { success: false, error: "No valid user found to create note" };
         }
 
-        const todo = await prisma.$transaction(async (tx: any) => {
-            // Create Note
-            const newTodo = await tx.todo.create({
+        // Create Note
+        const newTodo = await prisma.todo.create({
+            data: {
+                content: data.content,
+                priority: data.priority || "MEDIUM",
+                status: "PENDING",
+                dueDate: data.dueDate,
+                userId: userId!,
+                assignedToId: data.assignedToId,
+                type: data.type || "NOTE" // NEW
+            }
+        });
+
+        // Create Notification if assigned to someone else
+        if (data.assignedToId && data.assignedToId !== userId) {
+            // Determine creator name
+            const creator = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { name: true }
+            });
+            const creatorName = creator?.name || "Someone";
+
+            await prisma.notification.create({
                 data: {
-                    content: data.content,
-                    priority: data.priority || "MEDIUM",
-                    status: "PENDING",
-                    dueDate: data.dueDate,
-                    userId: userId!
+                    userId: data.assignedToId,
+                    title: "New Task Assigned",
+                    message: `${creatorName} assigned you a task: "${data.content.substring(0, 50)}..."`,
+                    link: "/tasks"
                 }
             });
+        }
 
-            // Create Notifications for tagged users
-            if (data.taggedUserIds && data.taggedUserIds.length > 0) {
-                // Determine creator name
-                const creator = await tx.user.findUnique({
-                    where: { id: userId },
-                    select: { name: true }
-                });
-                const creatorName = creator?.name || "Someone";
+        // Create Notifications for tagged users
+        if (data.taggedUserIds && data.taggedUserIds.length > 0) {
+            // Determine creator name
+            const creator = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { name: true }
+            });
+            const creatorName = creator?.name || "Someone";
 
-                await tx.notification.createMany({
-                    data: data.taggedUserIds.map(taggedId => ({
-                        userId: taggedId,
-                        title: "You were tagged in a note",
-                        message: `${creatorName} tagged you: "${data.content.substring(0, 50)}${data.content.length > 50 ? '...' : ''}"`,
-                        link: "/notes"
-                    }))
-                });
-            }
+            await prisma.notification.createMany({
+                data: data.taggedUserIds.map(taggedId => ({
+                    userId: taggedId,
+                    title: "You were tagged in a note",
+                    message: `${creatorName} tagged you: "${data.content.substring(0, 50)}${data.content.length > 50 ? '...' : ''}"`,
+                    link: "/notes"
+                }))
+            });
+        }
 
-            return newTodo;
-        });
+        const todo = newTodo;
 
         await logActivity({
             action: "CREATE",
@@ -87,7 +111,10 @@ export async function createTodo(data: CreateTodoData) {
         revalidatePath("/notes");
         return { success: true, data: todo };
     } catch (error) {
-        console.error("Failed to create todo:", error);
+        console.error("Failed to create todo CRITICAL ERROR:", error);
+        if (error instanceof Error) {
+            console.error("Error stack:", error.stack);
+        }
         return { success: false, error: "Failed to create note" };
     }
 }
@@ -217,6 +244,8 @@ export async function getTodos(filters?: {
     search?: string;
     status?: string;
     priority?: string;
+    assignedToId?: string;
+    type?: "NOTE" | "TASK"; // NEW
 }) {
     try {
         const page = filters?.page || 1;
@@ -237,6 +266,14 @@ export async function getTodos(filters?: {
             where.priority = filters.priority;
         }
 
+        if (filters?.assignedToId) {
+            where.assignedToId = filters.assignedToId;
+        }
+
+        if (filters?.type) { // NEW
+            where.type = filters.type;
+        }
+
         const [todos, total] = await prisma.$transaction([
             prisma.todo.findMany({
                 where,
@@ -245,6 +282,9 @@ export async function getTodos(filters?: {
                 orderBy: { createdAt: "desc" },
                 include: {
                     user: {
+                        select: { name: true, image: true }
+                    },
+                    assignedTo: { // NEW
                         select: { name: true, image: true }
                     },
                     replies: {

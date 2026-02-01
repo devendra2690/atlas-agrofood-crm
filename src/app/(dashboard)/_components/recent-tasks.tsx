@@ -22,7 +22,7 @@ export function RecentTasks({ tasks }: RecentTasksProps) {
                     <CardDescription>Pending to-dos.</CardDescription>
                 </div>
                 <Button variant="ghost" size="sm" asChild>
-                    <Link href="/notes">View All</Link>
+                    <Link href="/tasks">View All</Link>
                 </Button>
             </CardHeader>
             <CardContent>
@@ -47,7 +47,7 @@ export function RecentTasks({ tasks }: RecentTasksProps) {
                                         )}
                                     </div>
                                 </div>
-                                <Link href={`/notes?highlight=${task.id}`} className="text-muted-foreground hover:text-primary">
+                                <Link href={`/tasks?highlight=${task.id}`} className="text-muted-foreground hover:text-primary">
                                     <CheckCircle2 className="h-4 w-4" />
                                 </Link>
                             </div>

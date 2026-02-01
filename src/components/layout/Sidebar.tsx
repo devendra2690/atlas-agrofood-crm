@@ -21,7 +21,8 @@ import {
     Activity,
     ClipboardList,
     Menu,
-    Database
+    Database,
+    MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -68,7 +69,8 @@ const sidebarItems = [
     {
         title: "Collaboration",
         items: [
-            { name: "Shared Notes", href: "/notes", icon: ClipboardList },
+            { name: "Tasks", href: "/tasks", icon: ClipboardList },
+            { name: "Discussions", href: "/notes", icon: MessageSquare },
         ]
     },
 ];

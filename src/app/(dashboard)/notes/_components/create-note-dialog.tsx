@@ -81,7 +81,8 @@ export function CreateNoteDialog() {
                 content,
                 priority,
                 dueDate: dueDate ? new Date(dueDate) : undefined,
-                taggedUserIds: selectedUsers
+                taggedUserIds: selectedUsers,
+                type: "NOTE" // NEW
             });
             console.log("Create note response:", res);
 
