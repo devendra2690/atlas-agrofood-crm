@@ -606,6 +606,7 @@ model Transaction {
   date        DateTime        @default(now())
   description String?
   category    String?
+  receipts    String[]
   
   // Polymorphic-like relations (one should be set)
   invoiceId   String?

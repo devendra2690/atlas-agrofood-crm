@@ -41,7 +41,18 @@ export async function getBills(filters?: {
                 include: {
                     vendor: true,
                     createdBy: { select: { name: true } },
-                    updatedBy: { select: { name: true } }
+                    updatedBy: { select: { name: true } },
+                    transactions: {
+                        select: {
+                            id: true,
+                            amount: true,
+                            date: true,
+                            receipts: true,
+                            type: true,
+                            description: true
+                        },
+                        orderBy: { date: 'desc' }
+                    }
                 }
             }),
             prisma.bill.count({ where })
@@ -50,7 +61,12 @@ export async function getBills(filters?: {
         const safeBills = bills.map(bill => ({
             ...bill,
             totalAmount: bill.totalAmount.toNumber(),
-            pendingAmount: bill.pendingAmount.toNumber()
+            pendingAmount: bill.pendingAmount.toNumber(),
+            transactions: bill.transactions.map((t: any) => ({
+                ...t,
+                amount: t.amount.toNumber(),
+                receipts: t.receipts || []
+            }))
         }));
 
         return {
@@ -98,6 +114,17 @@ export async function getInvoices(filters?: {
                             client: true,
                             opportunity: true
                         }
+                    },
+                    transactions: {
+                        select: {
+                            id: true,
+                            amount: true,
+                            date: true,
+                            receipts: true,
+                            type: true,
+                            description: true
+                        },
+                        orderBy: { date: 'desc' }
                     }
                 }
             }),
@@ -117,7 +144,12 @@ export async function getInvoices(filters?: {
                     targetPrice: inv.salesOrder.opportunity.targetPrice?.toNumber(),
                     quantity: inv.salesOrder.opportunity.quantity?.toNumber()
                 }
-            }
+            },
+            transactions: inv.transactions.map((t: any) => ({
+                ...t,
+                amount: t.amount.toNumber(),
+                receipts: t.receipts || []
+            }))
         }));
 
         return {
@@ -243,7 +275,7 @@ export async function generateInvoiceFromSalesOrder(salesOrderId: string) {
 
 // --- Transaction Actions ---
 
-export async function recordInvoicePayment(data: { invoiceId: string; amount: number; date: Date }) {
+export async function recordInvoicePayment(data: { invoiceId: string; amount: number; date: Date; receipts?: string[] }) {
     try {
         const invoice = await prisma.invoice.findUnique({
             where: { id: data.invoiceId }
@@ -278,7 +310,8 @@ export async function recordInvoicePayment(data: { invoiceId: string; amount: nu
                     type: 'CREDIT',
                     amount: paymentAmount,
                     date: data.date,
-                    invoiceId: data.invoiceId
+                    invoiceId: data.invoiceId,
+                    receipts: data.receipts || []
                 }
             })
         ]);
@@ -301,7 +334,7 @@ export async function recordInvoicePayment(data: { invoiceId: string; amount: nu
     }
 }
 
-export async function recordBillPayment(data: { billId: string; amount: number; date: Date }) {
+export async function recordBillPayment(data: { billId: string; amount: number; date: Date; receipts?: string[] }) {
     try {
         const bill = await prisma.bill.findUnique({
             where: { id: data.billId }
@@ -341,7 +374,8 @@ export async function recordBillPayment(data: { billId: string; amount: number; 
                     type: 'DEBIT', // Bills are money OUT
                     amount: paymentAmount,
                     date: data.date,
-                    billId: data.billId
+                    billId: data.billId,
+                    receipts: data.receipts || []
                 }
             })
         ]);
@@ -373,6 +407,7 @@ export async function createTransaction(data: {
     category: string;
     description: string;
     salesOrderId?: string;
+    receipts?: string[];
 }) {
     try {
         const session = await auth();
@@ -385,7 +420,8 @@ export async function createTransaction(data: {
                 date: data.date,
                 category: data.category,
                 description: data.description,
-                salesOrderId: data.salesOrderId
+                salesOrderId: data.salesOrderId,
+                receipts: data.receipts || []
             }
         });
 
@@ -537,7 +573,8 @@ export async function getRecentTransactions() {
                 amount: tx.amount.toNumber(),
                 date: tx.date,
                 description: description || (tx.type === 'CREDIT' ? 'Income' : 'Expense'),
-                reference: reference
+                reference: reference,
+                receipts: tx.receipts || []
             };
         });
     } catch (error) {
@@ -558,13 +595,15 @@ export async function getSalesOrderTransactions(salesOrderId: string) {
                 amount: true,
                 date: true,
                 category: true,
-                description: true
+                description: true,
+                receipts: true
             }
         });
 
         return transactions.map(tx => ({
             ...tx,
-            amount: tx.amount.toNumber()
+            amount: tx.amount.toNumber(),
+            receipts: tx.receipts || []
         }));
     } catch (error) {
         return [];
@@ -607,7 +646,8 @@ export async function getOtherIncomeTransactions() {
             date: tx.date,
             category: tx.category || "Uncategorized",
             description: tx.description || "Manual Income",
-            linkedTo: tx.salesOrder ? `Order: ${tx.salesOrder.client.name}` : null
+            linkedTo: tx.salesOrder ? `Order: ${tx.salesOrder.client.name}` : null,
+            receipts: tx.receipts || []
         }));
     } catch (error) {
         console.error("Failed to fetch other income:", error);
@@ -635,7 +675,8 @@ export async function getOtherExpenseTransactions() {
             date: tx.date,
             category: tx.category || "Uncategorized",
             description: tx.description || "Manual Expense",
-            linkedTo: tx.salesOrder ? `Order: ${tx.salesOrder.client.name}` : null
+            linkedTo: tx.salesOrder ? `Order: ${tx.salesOrder.client.name}` : null,
+            receipts: tx.receipts || []
         }));
     } catch (error) {
         console.error("Failed to fetch other expenses:", error);
@@ -722,5 +763,64 @@ export async function getProfitabilityAnalytics() {
     } catch (error) {
         console.error("Failed to fetch profitability analytics:", error);
         return { waterfall: [], byCustomer: [], byProduct: [] };
+    }
+}
+
+export async function deleteInvoice(id: string) {
+    try {
+        const session = await auth();
+        if (session?.user?.role !== 'ADMIN') {
+            return { success: false, error: "Unauthorized: Admin access required" };
+        }
+
+        await prisma.invoice.delete({
+            where: { id }
+        });
+
+        revalidatePath('/invoices');
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to delete invoice:", error);
+        return { success: false, error: "Failed to delete invoice" };
+    }
+}
+
+export async function deleteBill(id: string) {
+    try {
+        const session = await auth();
+        if (session?.user?.role !== 'ADMIN') {
+            return { success: false, error: "Unauthorized: Admin access required" };
+        }
+
+        await prisma.bill.delete({
+            where: { id }
+        });
+
+        revalidatePath('/bills');
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to delete bill:", error);
+        return { success: false, error: "Failed to delete bill" };
+    }
+}
+
+export async function deleteTransaction(id: string) {
+    try {
+        const session = await auth();
+        if (session?.user?.role !== 'ADMIN') {
+            return { success: false, error: "Unauthorized: Admin access required" };
+        }
+
+        await prisma.transaction.delete({
+            where: { id }
+        });
+
+        revalidatePath('/finance');
+        revalidatePath('/invoices');
+        revalidatePath('/bills');
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to delete transaction:", error);
+        return { success: false, error: "Failed to delete transaction" };
     }
 }

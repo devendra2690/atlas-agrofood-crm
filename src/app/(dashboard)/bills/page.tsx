@@ -1,17 +1,19 @@
-
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { BillList } from "./_components/bill-list";
 import { Separator } from "@/components/ui/separator";
-import { getBills, getOtherExpenseTransactions, getSalesOrdersForSelection } from "@/app/actions/finance";
+import { getBills, getOtherExpenseTransactions, getSalesOrdersForSelection, deleteTransaction } from "@/app/actions/finance";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddTransactionDialog } from "../finance/_components/add-transaction-dialog";
+import { TransactionDetailsDialog } from "../finance/_components/transaction-details-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { BillFilters } from "./_components/bill-filters";
+import { auth } from "@/auth";
+import { DeleteWithConfirmation } from "@/components/common/delete-with-confirmation";
 
 export default async function BillsPage({
     searchParams,
@@ -22,6 +24,9 @@ export default async function BillsPage({
     const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
     const limit = 10;
     const status = typeof params.status === 'string' ? params.status : undefined;
+
+    const session = await auth();
+    const isAdmin = session?.user?.role === 'ADMIN';
 
     const { data: bills, pagination } = await getBills({
         page,
@@ -48,7 +53,7 @@ export default async function BillsPage({
                 <TabsContent value="bills" className="space-y-4">
                     <BillFilters />
                     <Suspense fallback={<div>Loading bills...</div>}>
-                        <BillList bills={bills || []} />
+                        <BillList bills={bills || []} isAdmin={isAdmin} />
                     </Suspense>
                     {pagination && (
                         <PaginationControls
@@ -96,7 +101,19 @@ export default async function BillsPage({
                                             otherExpenses.map((tx: any) => (
                                                 <TableRow key={tx.id}>
                                                     <TableCell>{format(new Date(tx.date), "MMM d, yyyy")}</TableCell>
-                                                    <TableCell className="font-medium">{tx.description}</TableCell>
+                                                    <TableCell className="font-medium">
+                                                        <div className="flex items-center gap-2">
+                                                            {tx.description}
+                                                            <TransactionDetailsDialog transaction={tx as any} />
+                                                            {isAdmin && (
+                                                                <DeleteWithConfirmation
+                                                                    id={tx.id}
+                                                                    onDelete={deleteTransaction}
+                                                                    itemType="Transaction"
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
                                                     <TableCell><Badge variant="outline">{tx.category}</Badge></TableCell>
                                                     <TableCell className="text-sm text-muted-foreground">{tx.linkedTo || "-"}</TableCell>
                                                     <TableCell className="text-right font-medium text-rose-600">

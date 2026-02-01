@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ArrowDownLeft, ArrowUpRight, TrendingUp, IndianRupee, Wallet } from "lucide-react";
+import { TransactionDetailsDialog } from "./transaction-details-dialog";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { Separator } from "@/components/ui/separator";
 
@@ -111,8 +112,11 @@ export function FinanceDashboard({ stats, transactions }: FinanceDashboardProps)
                                                 <ArrowUpRight className="h-5 w-5 text-rose-600" />
                                             )}
                                         </div>
-                                        <div className="ml-4 space-y-1">
-                                            <p className="text-sm font-medium leading-none">{tx.description}</p>
+                                        <div className="ml-4 space-y-1 flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-medium leading-none">{tx.description}</p>
+                                                <TransactionDetailsDialog transaction={tx as any} />
+                                            </div>
                                             <p className="text-xs text-muted-foreground">{tx.reference} • {format(new Date(tx.date), "MMM d")}</p>
                                         </div>
                                         <div className={`ml-auto font-medium ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-rose-600'

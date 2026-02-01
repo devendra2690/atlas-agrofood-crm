@@ -5,14 +5,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { RecordBillPaymentDialog } from "./record-bill-payment-dialog";
+import { ViewPaymentsDialog } from "../../finance/_components/view-payments-dialog";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
+import { deleteBill } from "@/app/actions/finance";
+import { DeleteWithConfirmation } from "@/components/common/delete-with-confirmation";
 
 interface BillListProps {
     bills: any[];
+    isAdmin?: boolean;
 }
 
-export function BillList({ bills }: BillListProps) {
+export function BillList({ bills, isAdmin }: BillListProps) {
     if (bills.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center p-8 text-center border rounded-lg bg-slate-50 text-slate-500">
@@ -26,12 +30,23 @@ export function BillList({ bills }: BillListProps) {
             {bills.map((bill) => (
                 <Card key={bill.id}>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            {bill.invoiceNumber ? `Inv #${bill.invoiceNumber}` : "Bill"}
-                        </CardTitle>
-                        <Badge variant={bill.status === "PAID" ? "default" : "outline"}>
-                            {bill.status}
-                        </Badge>
+                        <div className="flex items-center justify-between w-full">
+                            <CardTitle className="text-sm font-medium">
+                                {bill.invoiceNumber ? `Inv #${bill.invoiceNumber}` : "Bill"}
+                            </CardTitle>
+                            <div className="flex items-center gap-2">
+                                <Badge variant={bill.status === "PAID" ? "default" : "outline"}>
+                                    {bill.status}
+                                </Badge>
+                                {isAdmin && (
+                                    <DeleteWithConfirmation
+                                        id={bill.id}
+                                        onDelete={deleteBill}
+                                        itemType="Bill"
+                                    />
+                                )}
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-3">
@@ -67,10 +82,21 @@ export function BillList({ bills }: BillListProps) {
                                     <span>{bill.updatedBy?.name || "-"}</span>
                                 </div>
                                 <div className="flex justify-between text-sm mb-3">
-                                    <span className="text-muted-foreground">PO Ref</span>
                                     <Link href={`/purchase-orders/${bill.purchaseOrderId}`} className="flex items-center hover:underline text-blue-600">
                                         {bill.purchaseOrderId.slice(0, 8)} <ExternalLink className="h-3 w-3 ml-1" />
                                     </Link>
+                                </div>
+                                <div className="flex justify-between items-center text-sm mb-3">
+                                    <span className="text-muted-foreground">Payments</span>
+                                    <ViewPaymentsDialog
+                                        transactions={bill.transactions}
+                                        title={`Payments for Bill #${bill.invoiceNumber}`}
+                                        trigger={
+                                            <Button variant="link" className="h-auto p-0 text-blue-600">
+                                                View ({bill.transactions?.length || 0})
+                                            </Button>
+                                        }
+                                    />
                                 </div>
 
                                 {bill.pendingAmount > 0 && (

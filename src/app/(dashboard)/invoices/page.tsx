@@ -7,11 +7,19 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddTransactionDialog } from "../finance/_components/add-transaction-dialog";
+import { TransactionDetailsDialog } from "../finance/_components/transaction-details-dialog";
 
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { InvoiceFilters } from "./_components/invoice-filters";
+import { RecordInvoicePaymentDialog } from "./_components/record-invoice-payment-dialog";
+import { ViewPaymentsDialog } from "../finance/_components/view-payments-dialog";
 import { DownloadPdfButton } from "@/components/common/download-pdf-button";
 import { InvoicePDF } from "@/components/pdf/invoice-pdf";
+import { Button } from "@/components/ui/button";
+import { Receipt } from "lucide-react";
+import { deleteInvoice, deleteTransaction } from "@/app/actions/finance";
+import { auth } from "@/auth";
+import { DeleteWithConfirmation } from "@/components/common/delete-with-confirmation";
 
 export default async function InvoicesPage({
     searchParams,
@@ -22,6 +30,9 @@ export default async function InvoicesPage({
     const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
     const limit = 10;
     const status = typeof params.status === 'string' ? params.status : undefined;
+
+    const session = await auth();
+    const isAdmin = session?.user?.role === 'ADMIN';
 
     const { data: invoices, success, pagination } = await getInvoices({
         page,
@@ -135,6 +146,18 @@ export default async function InvoicesPage({
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex items-center justify-end gap-2">
+                                                            {invoice.status !== 'PAID' && (
+                                                                <RecordInvoicePaymentDialog invoice={invoice} />
+                                                            )}
+                                                            <ViewPaymentsDialog
+                                                                transactions={invoice.transactions}
+                                                                title={`Payments for Inv #${invoice.id.slice(0, 8)}`}
+                                                                trigger={
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-600">
+                                                                        <Receipt className="h-4 w-4" />
+                                                                    </Button>
+                                                                }
+                                                            />
                                                             <DownloadPdfButton
                                                                 document={<InvoicePDF invoice={invoice} />}
                                                                 filename={`Invoice-${invoice.id.slice(0, 8)}.pdf`}
@@ -143,6 +166,13 @@ export default async function InvoicesPage({
                                                             <Link href={`/sales-orders/${invoice.salesOrderId}`} className="text-blue-600 hover:underline text-sm">
                                                                 View Order
                                                             </Link>
+                                                            {isAdmin && (
+                                                                <DeleteWithConfirmation
+                                                                    id={invoice.id}
+                                                                    onDelete={deleteInvoice}
+                                                                    itemType="Invoice"
+                                                                />
+                                                            )}
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
@@ -196,9 +226,21 @@ export default async function InvoicesPage({
                                         </TableRow>
                                     ) : (
                                         otherIncome.map((tx: any) => (
-                                            <TableRow key={tx.id}>
+                                            <TableRow key={tx.id} className="group">
                                                 <TableCell>{format(new Date(tx.date), "MMM d, yyyy")}</TableCell>
-                                                <TableCell className="font-medium">{tx.description}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    <div className="flex items-center gap-2">
+                                                        {tx.description}
+                                                        <TransactionDetailsDialog transaction={tx as any} />
+                                                        {isAdmin && (
+                                                            <DeleteWithConfirmation
+                                                                id={tx.id}
+                                                                onDelete={deleteTransaction}
+                                                                itemType="Transaction"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell><Badge variant="outline">{tx.category}</Badge></TableCell>
                                                 <TableCell className="text-sm text-muted-foreground">{tx.linkedTo || "-"}</TableCell>
                                                 <TableCell className="text-right font-medium text-emerald-600">

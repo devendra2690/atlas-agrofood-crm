@@ -13,23 +13,22 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, CreditCard } from "lucide-react";
-import { recordBillPayment } from "@/app/actions/finance";
+import { recordInvoicePayment } from "@/app/actions/finance";
 import { format } from "date-fns";
 
-interface RecordBillPaymentDialogProps {
-    bill: {
+interface RecordInvoicePaymentDialogProps {
+    invoice: {
         id: string;
         pendingAmount: number;
         totalAmount: number;
     };
 }
 
-export function RecordBillPaymentDialog({ bill }: RecordBillPaymentDialogProps) {
+export function RecordInvoicePaymentDialog({ invoice }: RecordInvoicePaymentDialogProps) {
     const [open, setOpen] = useState(false);
-    const [amount, setAmount] = useState(bill.pendingAmount.toString());
+    const [amount, setAmount] = useState(invoice.pendingAmount.toString());
     const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
     const [loading, setLoading] = useState(false);
-
     const [receipts, setReceipts] = useState<string[]>([]);
 
     // Compression Helper
@@ -39,7 +38,6 @@ export function RecordBillPaymentDialog({ bill }: RecordBillPaymentDialogProps) 
             img.src = URL.createObjectURL(file);
             img.onload = () => {
                 const canvas = document.createElement("canvas");
-                // Resize if needed
                 let width = img.width;
                 let height = img.height;
                 const MAX_WIDTH = 800;
@@ -81,8 +79,8 @@ export function RecordBillPaymentDialog({ bill }: RecordBillPaymentDialogProps) 
         setLoading(true);
 
         try {
-            const result = await recordBillPayment({
-                billId: bill.id,
+            const result = await recordInvoicePayment({
+                invoiceId: invoice.id,
                 amount: parseFloat(amount),
                 date: new Date(date),
                 receipts: receipts
@@ -105,28 +103,28 @@ export function RecordBillPaymentDialog({ bill }: RecordBillPaymentDialogProps) 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="w-full gap-1">
+                <Button variant="outline" size="sm" className="gap-1 text-green-600 border-green-200 hover:bg-green-50">
                     <CreditCard className="h-3.5 w-3.5" />
                     Record Payment
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Record Bill Payment</DialogTitle>
+                    <DialogTitle>Record Invoice Payment</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-4">
                     <div className="space-y-2">
-                        <Label>Payment Amount</Label>
+                        <Label>Payment Amount received</Label>
                         <Input
                             type="number"
                             step="0.01"
-                            max={bill.pendingAmount}
+                            max={invoice.pendingAmount}
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
                             required
                         />
                         <p className="text-xs text-muted-foreground">
-                            Pending: ₹{bill.pendingAmount.toLocaleString()}
+                            Pending: ₹{invoice.pendingAmount.toLocaleString()}
                         </p>
                     </div>
 
@@ -141,7 +139,7 @@ export function RecordBillPaymentDialog({ bill }: RecordBillPaymentDialogProps) 
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Upload Receipt (Optional)</Label>
+                        <Label>Upload Receipt/Proof (Optional)</Label>
                         <div className="grid grid-cols-3 gap-2">
                             {receipts.map((img, i) => (
                                 <div key={i} className="relative aspect-square border rounded overflow-hidden group">
