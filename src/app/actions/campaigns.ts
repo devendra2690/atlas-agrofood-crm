@@ -161,6 +161,7 @@ export async function sendCampaign(data: { recipientIds: string[]; subject: stri
                             provider: 'SES',
                             recipientEmail: recipient.email,
                             subject: data.subject,
+                            body: data.content, // Storing user content. Could store rendered HTML if preferred.
                             campaignId: 'manual-campaign'
                         }
                     });
@@ -186,6 +187,7 @@ export async function sendCampaign(data: { recipientIds: string[]; subject: stri
                                 provider: 'RESEND',
                                 recipientEmail: recipient.email,
                                 subject: data.subject,
+                                body: data.content,
                                 campaignId: 'manual-campaign'
                             }
                         });

@@ -180,6 +180,7 @@ model EmailLog {
   provider       String   // "RESEND" | "SES"
   recipientEmail String
   subject        String?
+  body           String?  @db.Text
   campaignId     String?  // Optional grouping
 }
 
