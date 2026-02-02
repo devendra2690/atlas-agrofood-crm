@@ -6,7 +6,7 @@ import { WelcomeEmail } from "@/components/email/welcome-email";
 import { ClientWelcomeEmail } from "@/components/email/client-welcome";
 import { prisma } from "@/lib/prisma"; // Assuming we might need DB access for complex data gathering later
 
-const FROM_EMAIL = "Atlas CRM <onboarding@resend.dev>"; // Default Resend testing domain
+const FROM_EMAIL = "Atlas Agro Food <sales@atlasagrofood.co.in>";
 
 export async function sendOrderConfirmationEmail(orderId: string) {
     try {

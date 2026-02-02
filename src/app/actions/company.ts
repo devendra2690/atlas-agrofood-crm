@@ -119,7 +119,17 @@ export async function updateCompany(id: string, data: CompanyFormData) {
         };
 
         if (session?.user?.id) {
-            updateData.updatedById = session.user.id;
+            // Verify user exists to satisfy FK constraint
+            const userExists = await prisma.user.findUnique({
+                where: { id: session.user.id },
+                select: { id: true }
+            });
+
+            if (userExists) {
+                updateData.updatedById = session.user.id;
+            } else {
+                console.warn(`[updateCompany] Session User ID ${session.user.id} not found in DB. Skipping updatedById.`);
+            }
         }
 
         updateData.phone = cleanString(data.phone);

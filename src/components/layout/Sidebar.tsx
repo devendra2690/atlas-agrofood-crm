@@ -22,7 +22,8 @@ import {
     ClipboardList,
     Menu,
     Database,
-    MessageSquare
+    MessageSquare,
+    Megaphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -71,6 +72,7 @@ const sidebarItems = [
         items: [
             { name: "Tasks", href: "/tasks", icon: ClipboardList },
             { name: "Discussions", href: "/notes", icon: MessageSquare },
+            { name: "Marketing", href: "/marketing", icon: Megaphone },
         ]
     },
 ];
