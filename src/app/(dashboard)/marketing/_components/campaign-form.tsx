@@ -13,26 +13,48 @@ import { toast } from "sonner";
 import { Loader2, Send, Users } from "lucide-react";
 import { getRecipients, sendCampaign } from "@/app/actions/campaigns";
 import { getCommodities } from "@/app/actions/commodity";
+import { getCountries, getStates } from "@/app/actions/location";
 
 export function CampaignForm() {
     const [loading, setLoading] = useState(false);
     const [calculating, setCalculating] = useState(false);
-    const [audienceType, setAudienceType] = useState<"ALL" | "COMMODITY">("ALL");
+    const [audienceType, setAudienceType] = useState<"ALL" | "COMMODITY" | "LOCATION">("ALL");
     const [selectedCommodity, setSelectedCommodity] = useState<string>("");
+    const [selectedCountry, setSelectedCountry] = useState<string>("");
+    const [selectedState, setSelectedState] = useState<string>("");
     const [subject, setSubject] = useState("");
     const [content, setContent] = useState("");
     const [sender, setSender] = useState<"DEFAULT" | "ME">("DEFAULT");
+    const [service, setService] = useState<"RESEND" | "SES" | "AUTO">("AUTO");
 
     // Data state
     const [commodities, setCommodities] = useState<{ id: string; name: string }[]>([]);
+    const [countries, setCountries] = useState<{ id: string; name: string }[]>([]);
+    const [states, setStates] = useState<{ id: string; name: string }[]>([]);
     const [recipients, setRecipients] = useState<{ id: string; name: string; email: string | null }[]>([]);
 
     useEffect(() => {
-        // Load Commodities on mount
+        // Load Commodities and Countries on mount
         getCommodities().then(res => {
             if (res.success && res.data) setCommodities(res.data);
         });
+        getCountries().then(res => {
+            if (res.success && res.data) setCountries(res.data);
+        });
     }, []);
+
+    // Load states when country changes
+    useEffect(() => {
+        if (selectedCountry) {
+            getStates(selectedCountry).then(res => {
+                if (res.success && res.data) setStates(res.data);
+                else setStates([]);
+            });
+        } else {
+            setStates([]);
+        }
+        setSelectedState(""); // Reset state when country changes
+    }, [selectedCountry]);
 
     // Calculate recipients when filters change
     useEffect(() => {
@@ -43,10 +65,19 @@ export function CampaignForm() {
                     setRecipients([]);
                     return;
                 }
+                if (audienceType === 'LOCATION' && !selectedCountry && !selectedState) {
+                    // Allow empty state (just country), but if neither, empty
+                    if (!selectedCountry) {
+                        setRecipients([]);
+                        return;
+                    }
+                }
 
                 const res = await getRecipients({
                     type: audienceType,
-                    commodityId: selectedCommodity || undefined
+                    commodityId: selectedCommodity || undefined,
+                    countryId: selectedCountry || undefined,
+                    stateId: selectedState || undefined
                 });
 
                 if (res.success && res.data) {
@@ -63,7 +94,7 @@ export function CampaignForm() {
 
         const debounce = setTimeout(fetchRecipients, 300);
         return () => clearTimeout(debounce);
-    }, [audienceType, selectedCommodity]);
+    }, [audienceType, selectedCommodity, selectedCountry, selectedState]);
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -78,7 +109,8 @@ export function CampaignForm() {
                 recipientIds: recipients.map(r => r.id),
                 subject,
                 content,
-                senderType: sender
+                senderType: sender,
+                service
             });
 
             if (res.success) {
@@ -88,6 +120,8 @@ export function CampaignForm() {
                 setContent("");
                 setAudienceType("ALL");
                 setSelectedCommodity("");
+                setSelectedCountry("");
+                setSelectedState("");
             } else {
                 toast.error(res.error || "Failed to send campaign");
             }
@@ -115,7 +149,7 @@ export function CampaignForm() {
                             defaultValue="ALL"
                             className="flex flex-col space-y-2"
                             value={audienceType}
-                            onValueChange={(val: "ALL" | "COMMODITY") => setAudienceType(val)}
+                            onValueChange={(val: "ALL" | "COMMODITY" | "LOCATION") => setAudienceType(val)}
                         >
                             <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="ALL" id="all" />
@@ -124,6 +158,11 @@ export function CampaignForm() {
                             <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="COMMODITY" id="commodity" />
                                 <Label htmlFor="commodity">Filter by Commodity</Label>
+                            </div>
+                            {/* Location Filter Option */}
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="LOCATION" id="location" />
+                                <Label htmlFor="location">Filter by Location</Label>
                             </div>
                         </RadioGroup>
 
@@ -136,6 +175,32 @@ export function CampaignForm() {
                                     <SelectContent>
                                         {commodities.map(c => (
                                             <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {audienceType === 'LOCATION' && (
+                            <div className="pl-6 pt-2 w-full md:w-1/2 space-y-3">
+                                <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Country..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {countries.map(c => (
+                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select value={selectedState} onValueChange={setSelectedState} disabled={!selectedCountry || states.length === 0}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select State (Optional)..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {states.map(s => (
+                                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -158,6 +223,29 @@ export function CampaignForm() {
                             <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="ME" id="sender-me" />
                                 <Label htmlFor="sender-me">Myself (as {process.env.NEXT_PUBLIC_APP_URL ? "Use Reply-To" : "Sender"})</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
+
+                    {/* Service Selection (Resend vs SES) */}
+                    <div className="space-y-4">
+                        <Label>Email Service</Label>
+                        <RadioGroup
+                            defaultValue="AUTO"
+                            className="flex flex-col space-y-2"
+                            onValueChange={(val: "RESEND" | "SES" | "AUTO") => setService(val)}
+                        >
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="AUTO" id="service-auto" />
+                                <Label htmlFor="service-auto" className="font-semibold text-green-700">Auto (Smart Cost Optimization)</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="RESEND" id="service-resend" />
+                                <Label htmlFor="service-resend">Resend Only</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="SES" id="service-ses" />
+                                <Label htmlFor="service-ses">AWS SES Only</Label>
                             </div>
                         </RadioGroup>
                     </div>
