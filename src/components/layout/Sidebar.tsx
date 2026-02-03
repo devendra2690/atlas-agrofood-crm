@@ -23,7 +23,8 @@ import {
     Menu,
     Database,
     MessageSquare,
-    Megaphone
+    Megaphone,
+    LineChart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -57,6 +58,7 @@ const sidebarItems = [
             { name: "Purchase Orders", href: "/purchase-orders", icon: FileText },
             { name: "Logistics", href: "/logistics", icon: Truck },
             { name: "Vendor Matrix", href: "/matrix", icon: Database },
+            { name: "Mandi Prices", href: "https://devendra2690.github.io/mandi-price-tracker/", icon: LineChart },
         ]
     },
     {
@@ -166,6 +168,8 @@ function SidebarItem({ item, pathname, onNavigate }: { item: any, pathname: stri
         ? pathname === "/"
         : pathname.startsWith(item.href);
 
+    const isExternal = item.href.startsWith("http");
+
     return (
         <Link
             href={item.href}
@@ -174,6 +178,8 @@ function SidebarItem({ item, pathname, onNavigate }: { item: any, pathname: stri
                 isActive ? "bg-blue-600 text-white hover:bg-blue-700" : "text-slate-300"
             )}
             onClick={onNavigate}
+            target={isExternal ? "_blank" : undefined}
+            rel={isExternal ? "noopener noreferrer" : undefined}
         >
             <item.icon className="mr-2 h-4 w-4" />
             {item.name}
