@@ -48,12 +48,12 @@ async function getSalesStats() {
     });
 
     // Let's use Sales Orders for Revenue
-    const salesOrders = await prisma.salesOrder.findMany({
+    // Use aggregate for revenue calculation
+    const revenueAgg = await prisma.salesOrder.aggregate({
         where: { status: { not: 'CANCELLED' } },
-        select: { totalAmount: true, status: true }
+        _sum: { totalAmount: true }
     });
-
-    const totalRevenue = salesOrders.reduce((sum, order) => sum + Number(order.totalAmount), 0);
+    const totalRevenue = Number(revenueAgg._sum.totalAmount || 0);
 
     // 2. Active Leads (Companies of type PROSPECT that are active)
     const activeLeads = await prisma.company.count({
@@ -90,12 +90,11 @@ async function getProcurementStats() {
     });
 
     // 3. Total Spend (Completed POs)
-    const completedPOs = await prisma.purchaseOrder.findMany({
-        where: { status: { in: ['RECEIVED', 'IN_TRANSIT'] } }, // Assuming these mean we are committed/paid? Or check Bills?
-        // Let's stick to PO amount for now as "Committed Spend"
-        select: { totalAmount: true }
+    const spendAgg = await prisma.purchaseOrder.aggregate({
+        where: { status: { in: ['RECEIVED', 'IN_TRANSIT'] } },
+        _sum: { totalAmount: true }
     });
-    const committedSpend = completedPOs.reduce((sum, po) => sum + Number(po.totalAmount), 0);
+    const committedSpend = Number(spendAgg._sum.totalAmount || 0);
 
     return {
         activeProjects,
@@ -129,18 +128,18 @@ async function getLogisticsStats() {
 
 async function getFinanceStats() {
     // 1. Pending Invoices (Receivables)
-    const pendingInvoices = await prisma.invoice.findMany({
+    const receivablesAgg = await prisma.invoice.aggregate({
         where: { status: { not: 'PAID' } },
-        select: { pendingAmount: true }
+        _sum: { pendingAmount: true }
     });
-    const totalReceivables = pendingInvoices.reduce((sum, inv) => sum + Number(inv.pendingAmount), 0);
+    const totalReceivables = Number(receivablesAgg._sum.pendingAmount || 0);
 
     // 2. Pending Bills (Payables)
-    const pendingBills = await prisma.bill.findMany({
+    const payablesAgg = await prisma.bill.aggregate({
         where: { status: { not: 'PAID' } },
-        select: { pendingAmount: true }
+        _sum: { pendingAmount: true }
     });
-    const totalPayables = pendingBills.reduce((sum, bill) => sum + Number(bill.pendingAmount), 0);
+    const totalPayables = Number(payablesAgg._sum.pendingAmount || 0);
 
     return {
         totalReceivables,
@@ -154,7 +153,9 @@ export async function getSalesChartData() {
     const startOfYear = new Date(currentYear, 0, 1);
     const endOfYear = new Date(currentYear, 11, 31);
 
-    const salesOrders = await prisma.salesOrder.findMany({
+    // Use groupBy to aggregate in DB instead of JS loop
+    const salesAggregates = await prisma.salesOrder.groupBy({
+        by: ['createdAt'],
         where: {
             status: { not: 'CANCELLED' },
             createdAt: {
@@ -162,21 +163,19 @@ export async function getSalesChartData() {
                 lte: endOfYear
             }
         },
-        select: {
-            createdAt: true,
+        _sum: {
             totalAmount: true
         }
     });
 
-    // Initialize months
     const monthlyData = Array.from({ length: 12 }, (_, i) => ({
         name: new Date(0, i).toLocaleString('default', { month: 'short' }),
         total: 0
     }));
 
-    salesOrders.forEach(order => {
-        const month = new Date(order.createdAt).getMonth();
-        monthlyData[month].total += Number(order.totalAmount);
+    salesAggregates.forEach(agg => {
+        const month = new Date(agg.createdAt).getMonth();
+        monthlyData[month].total += Number(agg._sum.totalAmount || 0);
     });
 
     return monthlyData;
