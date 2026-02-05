@@ -26,9 +26,11 @@ import {
 
 interface CompanyActionsProps {
     company: any;
+    initialCommodities: { id: string; name: string }[];
+    initialCountries: { id: string; name: string }[];
 }
 
-export function CompanyActions({ company }: CompanyActionsProps) {
+export function CompanyActions({ company, initialCommodities, initialCountries }: CompanyActionsProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -80,6 +82,8 @@ export function CompanyActions({ company }: CompanyActionsProps) {
                         <DropdownMenuSeparator />
                         <CompanyDialog
                             company={company}
+                            initialCommodities={initialCommodities}
+                            initialCountries={initialCountries}
                             trigger={
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                     <Pencil className="mr-2 h-4 w-4" /> Edit

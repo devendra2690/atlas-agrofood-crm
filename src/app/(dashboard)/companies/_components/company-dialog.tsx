@@ -40,9 +40,11 @@ interface CompanyDialogProps {
     company?: any; // Using any for now to avoid deep type import issues, ideally should be a partial Company type with commodities
     trigger?: React.ReactNode;
     defaultType?: CompanyType;
+    initialCommodities: { id: string; name: string }[];
+    initialCountries: { id: string; name: string }[];
 }
 
-export function CompanyDialog({ company, trigger, defaultType = "PROSPECT" }: CompanyDialogProps) {
+export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", initialCommodities, initialCountries }: CompanyDialogProps) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -62,23 +64,23 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT" }: Co
     const [cityId, setCityId] = useState<string>("");
 
     // Data State
-    const [countries, setCountries] = useState<{ id: string, name: string }[]>([]);
+    const [countries, setCountries] = useState<{ id: string, name: string }[]>(initialCountries);
     const [states, setStates] = useState<{ id: string, name: string }[]>([]);
     const [cities, setCities] = useState<{ id: string, name: string }[]>([]);
 
     // Commodity State
-    const [availableCommodities, setAvailableCommodities] = useState<{ id: string, name: string }[]>([]);
+    const [availableCommodities, setAvailableCommodities] = useState<{ id: string, name: string }[]>(initialCommodities);
     const [selectedCommodities, setSelectedCommodities] = useState<string[]>([]);
 
-    // Load Initial Data (Countries & Commodities)
-    useEffect(() => {
-        getCommodities().then(res => {
-            if (res.success && res.data) setAvailableCommodities(res.data);
-        });
-        getCountries().then(res => {
-            if (res.success && res.data) setCountries(res.data);
-        });
-    }, []);
+    // Load Initial Data (Countries & Commodities) - Removed in favor of props
+    // useEffect(() => {
+    //     getCommodities().then(res => {
+    //         if (res.success && res.data) setAvailableCommodities(res.data);
+    //     });
+    //     getCountries().then(res => {
+    //         if (res.success && res.data) setCountries(res.data);
+    //     });
+    // }, []);
 
     // Init Edit Data
     useEffect(() => {

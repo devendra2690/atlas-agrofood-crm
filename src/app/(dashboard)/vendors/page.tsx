@@ -8,6 +8,8 @@ import { CompanyDialog } from "../companies/_components/company-dialog";
 import { VendorFilters } from "./_components/vendor-filters";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 
+import { getCountries } from "@/app/actions/location";
+
 export default async function VendorsPage({
     searchParams,
 }: {
@@ -22,15 +24,16 @@ export default async function VendorsPage({
     const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
     const limit = 10;
 
-    const { data: vendors, pagination } = await getVendors({
-        location,
-        commodityId,
-        trustLevel,
-        page,
-        limit
-    });
+    const [vendorsRes, commoditiesRes, countriesRes] = await Promise.all([
+        getVendors({ location, commodityId, trustLevel, page, limit }),
+        getCommodities(),
+        getCountries()
+    ]);
 
-    const { data: commodities } = await getCommodities();
+    const vendors = vendorsRes.data;
+    const pagination = vendorsRes.pagination;
+    const commodities = commoditiesRes.data;
+    const countries = countriesRes.data;
 
     return (
         <div className="space-y-6">
@@ -43,6 +46,8 @@ export default async function VendorsPage({
                 </div>
                 <CompanyDialog
                     defaultType="VENDOR"
+                    initialCommodities={commodities || []}
+                    initialCountries={countries || []}
                     trigger={
                         <Button>
                             <Plus className="h-4 w-4 mr-2" />

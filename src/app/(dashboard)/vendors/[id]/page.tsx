@@ -11,9 +11,22 @@ import { TrustLevelSelector } from "../_components/trust-level-selector";
 import { DeleteCompanyDialog } from "../../companies/_components/delete-company-dialog";
 import { Trash2 } from "lucide-react";
 
+import { getCommodities } from "@/app/actions/commodity";
+import { getCountries } from "@/app/actions/location";
+
 export default async function VendorDetailsPage({ params }: { params: { id: string } }) {
     const { id } = await params;
-    const { data: company, success } = await getCompany(id);
+
+    // Fetch in parallel
+    const [companyRes, commoditiesRes, countriesRes] = await Promise.all([
+        getCompany(id),
+        getCommodities(),
+        getCountries()
+    ]);
+
+    const { data: company, success } = companyRes;
+    const { data: commodities } = commoditiesRes;
+    const { data: countries } = countriesRes;
 
     if (!success || !company) {
         notFound();
@@ -63,6 +76,8 @@ export default async function VendorDetailsPage({ params }: { params: { id: stri
                         <CompanyDialog
                             company={company}
                             defaultType="VENDOR"
+                            initialCommodities={commodities || []}
+                            initialCountries={countries || []}
                             trigger={<Button variant="outline">Edit Vendor</Button>}
                         />
                     </div>

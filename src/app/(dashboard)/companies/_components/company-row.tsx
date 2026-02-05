@@ -8,9 +8,11 @@ import { CompanyActions } from "./company-actions";
 
 interface CompanyRowProps {
     company: any; // Ideally use proper type
+    initialCommodities: { id: string; name: string }[];
+    initialCountries: { id: string; name: string }[];
 }
 
-export function CompanyRow({ company }: CompanyRowProps) {
+export function CompanyRow({ company, initialCommodities, initialCountries }: CompanyRowProps) {
     const router = useRouter();
 
     const handleRowClick = () => {
@@ -65,7 +67,11 @@ export function CompanyRow({ company }: CompanyRowProps) {
                 </div>
             </TableCell>
             <TableCell>
-                <CompanyActions company={company} />
+                <CompanyActions
+                    company={company}
+                    initialCommodities={initialCommodities}
+                    initialCountries={initialCountries}
+                />
             </TableCell>
         </TableRow>
     );

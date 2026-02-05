@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,13 @@ import { getRecipients, sendCampaign } from "@/app/actions/campaigns";
 import { getCommodities } from "@/app/actions/commodity";
 import { getCountries, getStates } from "@/app/actions/location";
 
-export function CampaignForm() {
+interface CampaignFormProps {
+    initialCommodities: { id: string; name: string }[];
+    initialCountries: { id: string; name: string }[];
+    initialRecipients: { id: string; name: string; email: string | null }[];
+}
+
+export function CampaignForm({ initialCommodities, initialCountries, initialRecipients }: CampaignFormProps) {
     const [loading, setLoading] = useState(false);
     const [calculating, setCalculating] = useState(false);
     const [audienceType, setAudienceType] = useState<"ALL" | "COMMODITY" | "LOCATION">("ALL");
@@ -28,20 +34,12 @@ export function CampaignForm() {
     const [service, setService] = useState<"RESEND" | "SES" | "AUTO">("AUTO");
 
     // Data state
-    const [commodities, setCommodities] = useState<{ id: string; name: string }[]>([]);
-    const [countries, setCountries] = useState<{ id: string; name: string }[]>([]);
+    const [commodities, setCommodities] = useState<{ id: string; name: string }[]>(initialCommodities);
+    const [countries, setCountries] = useState<{ id: string; name: string }[]>(initialCountries);
     const [states, setStates] = useState<{ id: string; name: string }[]>([]);
-    const [recipients, setRecipients] = useState<{ id: string; name: string; email: string | null }[]>([]);
+    const [recipients, setRecipients] = useState<{ id: string; name: string; email: string | null }[]>(initialRecipients);
 
-    useEffect(() => {
-        // Load Commodities and Countries on mount
-        getCommodities().then(res => {
-            if (res.success && res.data) setCommodities(res.data);
-        });
-        getCountries().then(res => {
-            if (res.success && res.data) setCountries(res.data);
-        });
-    }, []);
+    // Initial data loading removed - passed as props
 
     // Load states when country changes
     useEffect(() => {
@@ -58,6 +56,17 @@ export function CampaignForm() {
 
     // Calculate recipients when filters change
     useEffect(() => {
+        // Actually, if we just initialize state, this effect WILL run on mount.
+        // We need to prevent it from fetching if parameters match the initial load.
+        // Initial load params: ALL, no commodity, no country.
+
+        if (audienceType === 'ALL' && !selectedCommodity && !selectedCountry && !selectedState) {
+            if (recipients.length !== initialRecipients.length) {
+                setRecipients(initialRecipients);
+            }
+            return;
+        }
+
         const fetchRecipients = async () => {
             setCalculating(true);
             try {

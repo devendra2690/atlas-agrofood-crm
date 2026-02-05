@@ -12,10 +12,21 @@ import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { CompanyOpportunities } from "../_components/company-opportunities";
 
+import { getCountries } from "@/app/actions/location";
+
 export default async function CompanyDetailsPage({ params }: { params: { id: string } }) {
     const { id } = await params;
-    const { data: company, success } = await getCompany(id);
-    const { data: commodities } = await getCommodities();
+
+    // Fetch all required data in parallel
+    const [companyRes, commoditiesRes, countriesRes] = await Promise.all([
+        getCompany(id),
+        getCommodities(),
+        getCountries()
+    ]);
+
+    const { data: company, success } = companyRes;
+    const { data: commodities } = commoditiesRes;
+    const { data: countries } = countriesRes;
 
     if (!success || !company) {
         notFound();
@@ -49,6 +60,8 @@ export default async function CompanyDetailsPage({ params }: { params: { id: str
                     </div>
                     <CompanyDialog
                         company={company}
+                        initialCommodities={commodities || []}
+                        initialCountries={countries || []}
                         trigger={<Button variant="outline">Edit Company</Button>}
                     />
                 </div>

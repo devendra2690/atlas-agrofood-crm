@@ -15,6 +15,9 @@ import { CompanyDialog } from "./_components/company-dialog";
 import { CompanyRow } from "./_components/company-row";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 
+import { getCommodities } from "@/app/actions/commodity";
+import { getCountries } from "@/app/actions/location";
+
 export default async function CompaniesPage({
     searchParams,
 }: {
@@ -26,11 +29,16 @@ export default async function CompaniesPage({
 
     const query = typeof params.query === 'string' ? params.query : undefined;
 
-    const { data: companies, pagination } = await getCompanies({
-        page,
-        limit,
-        query
-    });
+    const [companiesRes, commoditiesRes, countriesRes] = await Promise.all([
+        getCompanies({ page, limit, query }),
+        getCommodities(),
+        getCountries()
+    ]);
+
+    const companies = companiesRes.data;
+    const pagination = companiesRes.pagination;
+    const initialCommodities = commoditiesRes.data || [];
+    const initialCountries = countriesRes.data || [];
 
     return (
         <div className="space-y-6">
@@ -41,7 +49,10 @@ export default async function CompaniesPage({
                         Manage your Clients, Prospects, and Vendors.
                     </p>
                 </div>
-                <CompanyDialog />
+                <CompanyDialog
+                    initialCommodities={initialCommodities}
+                    initialCountries={initialCountries}
+                />
             </div>
 
             <Card>
@@ -67,7 +78,12 @@ export default async function CompaniesPage({
                         </TableHeader>
                         <TableBody>
                             {companies?.map((company) => (
-                                <CompanyRow key={company.id} company={company} />
+                                <CompanyRow
+                                    key={company.id}
+                                    company={company}
+                                    initialCommodities={initialCommodities}
+                                    initialCountries={initialCountries}
+                                />
                             ))}
                             {(!companies || companies.length === 0) && (
                                 <TableRow>
