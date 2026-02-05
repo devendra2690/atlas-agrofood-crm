@@ -113,8 +113,8 @@ export async function getTeamMembers() {
     try {
         const session = await auth();
         // @ts-ignore
-        if (session?.user?.role !== 'ADMIN') {
-            return []; // Or throw error, but empty list is safer for UI
+        if (!session?.user) {
+            return [];
         }
 
         const users = await prisma.user.findMany({
