@@ -25,16 +25,22 @@ export default async function OpportunitiesPage({
 
     console.log(`DEBUG: Page ${page}, Highlight: ${highlight}`);
 
-    const { data: opportunities, pagination } = await getOpportunities({
-        page,
-        limit,
-        query,
-        status,
-        date,
-        priorityId: highlight
-    });
-    const { data: companies } = await getCompanies({ limit: 1000 });
-    const allCommoditiesResponse = await getCommodities();
+    const [
+        { data: opportunities, pagination },
+        { data: companies },
+        allCommoditiesResponse
+    ] = await Promise.all([
+        getOpportunities({
+            page,
+            limit,
+            query,
+            status,
+            date,
+            priorityId: highlight
+        }),
+        getCompanies({ limit: 1000 }),
+        getCommodities()
+    ]);
 
     // Flatten result to get array
     const allCommodities = allCommoditiesResponse.data;

@@ -345,10 +345,10 @@ export async function getCompanies(filters?: {
                             projectVendors: true
                         }
                     },
-                    commodities: true,
-                    country: true,
-                    state: true,
-                    city: true
+                    commodities: { select: { id: true, name: true } },
+                    country: { select: { name: true } },
+                    state: { select: { name: true } },
+                    city: { select: { name: true } }
                 }
             }),
             prisma.company.count({ where })
@@ -377,8 +377,9 @@ export async function getCompany(id: string) {
             include: {
                 interactions: {
                     orderBy: { date: 'desc' },
+                    take: 5, // Limit to recent 5 interactions
                     include: {
-                        user: true
+                        user: { select: { name: true } }
                     }
                 },
                 salesOpportunities: {
@@ -386,7 +387,7 @@ export async function getCompany(id: string) {
                 },
                 projectVendors: {
                     include: {
-                        project: true
+                        project: { select: { id: true, name: true, status: true } }
                     }
                 },
                 _count: {
@@ -471,10 +472,10 @@ export async function getVendors(filters?: {
                             sampleRecords: true
                         }
                     },
-                    commodities: true,
-                    city: true,
-                    state: true,
-                    country: true
+                    commodities: { select: { id: true, name: true } },
+                    city: { select: { name: true } },
+                    state: { select: { name: true } },
+                    country: { select: { name: true } }
                 }
             }),
             prisma.company.count({ where })
