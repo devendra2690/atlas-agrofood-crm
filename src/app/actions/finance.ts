@@ -119,10 +119,10 @@ export async function getInvoices(filters?: {
                         select: {
                             id: true,
                             amount: true,
-                            date: true,
-                            receipts: true,
-                            type: true,
-                            description: true
+                            // date: true, // Not needed for list view calculation usually? But if displayed...
+                            // receipts: true, // HEAVY FIELD (JSON/ArrayString?)
+                            // type: true,
+                            // description: true
                         },
                         orderBy: { date: 'desc' }
                     }
@@ -146,9 +146,9 @@ export async function getInvoices(filters?: {
                 }
             },
             transactions: inv.transactions.map((t: any) => ({
-                ...t,
+                id: t.id,
                 amount: t.amount.toNumber(),
-                receipts: t.receipts || []
+                receipts: [] // Don't send receipts list to list view, use null or empty array.
             }))
         }));
 

@@ -288,7 +288,11 @@ export async function getTodos(filters?: {
                         select: { name: true, image: true }
                     },
                     replies: {
-                        include: {
+                        take: 5, // Only show last 5 replies on card? Or just count?
+                        select: {
+                            id: true,
+                            content: true,
+                            createdAt: true,
                             user: {
                                 select: { name: true, image: true }
                             }

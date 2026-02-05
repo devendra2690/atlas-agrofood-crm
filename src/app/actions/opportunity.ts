@@ -302,11 +302,31 @@ export async function getOpportunities(filters?: {
                     createdBy: { select: { name: true } },
                     updatedBy: { select: { name: true } },
                     sampleSubmissions: {
-                        include: { sample: { include: { vendor: true } } },
+                        select: {
+                            id: true,
+                            status: true,
+                            sample: {
+                                select: {
+                                    id: true,
+                                    priceQuoted: true,
+                                    vendor: { select: { name: true } }
+                                }
+                            }
+                        },
                         orderBy: { createdAt: 'desc' }
                     },
                     procurementProject: {
-                        include: { samples: { include: { vendor: true }, orderBy: { receivedDate: 'desc' } } }
+                        select: {
+                            id: true,
+                            status: true,
+                            // Only fetch count or minimal info if possible, avoiding deep sample list
+                            samples: {
+                                select: {
+                                    id: true,
+                                    status: true
+                                }
+                            }
+                        }
                     }
                 },
             }),
@@ -379,7 +399,7 @@ function sanitizeOpportunity(opp: any) {
             ...sub,
             sample: {
                 ...sub.sample,
-                priceQuoted: sub.sample.priceQuoted && typeof sub.sample.priceQuoted.toNumber === 'function' ? sub.sample.priceQuoted.toNumber() : sub.sample.priceQuoted
+                priceQuoted: sub.sample?.priceQuoted && typeof sub.sample.priceQuoted.toNumber === 'function' ? sub.sample.priceQuoted.toNumber() : sub.sample?.priceQuoted
             }
         })),
         procurementProject: opp.procurementProject ? {
