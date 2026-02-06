@@ -269,7 +269,7 @@ export default function GenerateDocumentPage() {
                         </div>
 
                         {/* Footer */}
-                        <div className="mt-12 pt-4 border-t border-slate-300 text-xs text-slate-500 text-center">
+                        <div className="mt-12 pt-4 border-t border-slate-300 text-xs text-slate-500 text-center print:fixed print:bottom-0 print:left-0 print:w-full print:bg-white print:pb-4 print:pt-2 print:border-t-0">
                             <p>Atlas Agro Food Pvt. Ltd. | India</p>
                             <p>Email: {formData["FooterEmail"]} | Website: www.atlasagrofood.co.in</p>
                             <p className="mt-1 italic">This document is confidential and intended for business communication only.</p>
