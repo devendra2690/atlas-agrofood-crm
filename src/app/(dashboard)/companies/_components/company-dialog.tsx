@@ -56,6 +56,8 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
         type: defaultType,
         phone: "",
         email: "",
+        website: "",
+        contactName: "",
     });
 
     // Location State
@@ -90,6 +92,8 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                 type: company.type,
                 phone: company.phone || "",
                 email: company.email || "",
+                website: company.website || "",
+                contactName: company.contactName || "",
             });
             // Pre-select commodities
             if (company.commodities) {
@@ -169,6 +173,8 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                 type: formData.type as CompanyType,
                 phone: formData.phone || undefined,
                 email: formData.email || undefined,
+                website: formData.website || undefined,
+                contactName: formData.contactName || undefined,
                 countryId: countryId || undefined,
                 stateId: stateId || undefined,
                 cityId: cityId || undefined,
@@ -185,7 +191,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
             if (result.success) {
                 setOpen(false);
                 if (!isEditMode) {
-                    setFormData({ name: "", type: defaultType, phone: "", email: "" });
+                    setFormData({ name: "", type: defaultType, phone: "", email: "", website: "", contactName: "" });
                     setCountryId("");
                     setStateId("");
                     setCityId("");
@@ -235,7 +241,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
+                            <div className="grid grid-cols-[120px_1fr] items-center gap-4">
                                 <Label htmlFor="name" className="text-right">
                                     Name <span className="text-red-500">*</span>
                                 </Label>
@@ -243,31 +249,28 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                                     id="name"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className="col-span-3"
                                     required
                                 />
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
+                            <div className="grid grid-cols-[120px_1fr] items-center gap-4">
                                 <Label htmlFor="type" className="text-right">
                                     Type <span className="text-red-500">*</span>
                                 </Label>
-                                <div className="col-span-3">
-                                    <Select
-                                        value={formData.type}
-                                        onValueChange={(val) => setFormData({ ...formData, type: val as CompanyType })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="PROSPECT">Prospect</SelectItem>
-                                            <SelectItem value="CLIENT">Client</SelectItem>
-                                            <SelectItem value="VENDOR">Vendor</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <Select
+                                    value={formData.type}
+                                    onValueChange={(val) => setFormData({ ...formData, type: val as CompanyType })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="PROSPECT">Prospect</SelectItem>
+                                        <SelectItem value="CLIENT">Client</SelectItem>
+                                        <SelectItem value="VENDOR">Vendor</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
+                            <div className="grid grid-cols-[120px_1fr] items-center gap-4">
                                 <Label htmlFor="phone" className="text-right">
                                     Phone <span className="text-red-500">*</span>
                                 </Label>
@@ -275,10 +278,9 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                                     id="phone"
                                     value={formData.phone}
                                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                    className="col-span-3"
                                 />
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
+                            <div className="grid grid-cols-[120px_1fr] items-center gap-4">
                                 <Label htmlFor="email" className="text-right">
                                     Email
                                 </Label>
@@ -287,64 +289,78 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    className="col-span-3"
+                                />
+                            </div>
+                            <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                                <Label htmlFor="website" className="text-right">
+                                    Website
+                                </Label>
+                                <Input
+                                    id="website"
+                                    value={formData.website}
+                                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                                    placeholder="https://example.com"
+                                />
+                            </div>
+                            <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                                <Label htmlFor="contactName" className="text-right whitespace-nowrap">
+                                    Contact Person
+                                </Label>
+                                <Input
+                                    id="contactName"
+                                    value={formData.contactName}
+                                    onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
                                 />
                             </div>
 
                             {/* Location Fields */}
-                            <div className="grid grid-cols-4 items-center gap-4">
+                            <div className="grid grid-cols-[120px_1fr] items-center gap-4">
                                 <Label className="text-right">Country <span className="text-red-500">*</span></Label>
-                                <div className="col-span-3">
-                                    <Select value={countryId} onValueChange={handleCountryChange}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select Country" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {countries.map(c => (
-                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <Select value={countryId} onValueChange={handleCountryChange}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Country" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {countries.map(c => (
+                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
-                            <div className="grid grid-cols-4 items-center gap-4">
+                            <div className="grid grid-cols-[120px_1fr] items-center gap-4">
                                 <Label className="text-right">State <span className="text-red-500">*</span></Label>
-                                <div className="col-span-3">
-                                    <Select value={stateId} onValueChange={handleStateChange} disabled={!countryId}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select State" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {states.map(s => (
-                                                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <Select value={stateId} onValueChange={handleStateChange} disabled={!countryId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select State" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {states.map(s => (
+                                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
-                            <div className="grid grid-cols-4 items-center gap-4">
+                            <div className="grid grid-cols-[120px_1fr] items-center gap-4">
                                 <Label className="text-right">City <span className="text-red-500">*</span></Label>
-                                <div className="col-span-3">
-                                    <Select value={cityId} onValueChange={(val) => setCityId(val)} disabled={!stateId}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select City" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {cities.map(c => (
-                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <Select value={cityId} onValueChange={(val) => setCityId(val)} disabled={!stateId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select City" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {cities.map(c => (
+                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
-                            <div className="grid grid-cols-4 items-start gap-4">
+                            <div className="grid grid-cols-[120px_1fr] items-start gap-4">
                                 <Label className="text-right pt-2">
                                     Commodities <span className="text-red-500">*</span>
                                 </Label>
-                                <div className="col-span-3 border rounded-md p-3 h-32 overflow-y-auto space-y-2">
+                                <div className="border rounded-md p-3 h-32 overflow-y-auto space-y-2">
                                     {availableCommodities.length === 0 ? (
                                         <p className="text-sm text-muted-foreground">No commodities found. Add some in Settings.</p>
                                     ) : (

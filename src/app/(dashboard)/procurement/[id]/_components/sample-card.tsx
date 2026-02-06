@@ -47,7 +47,7 @@ export function SampleCard({ sample, onClick }: SampleCardProps) {
                     </CardTitle>
                     <div className="text-xs text-muted-foreground pt-1 flex items-center">
                         <User className="h-3 w-3 mr-1" />
-                        {sample.vendor?.email || "No contact info"}
+                        {sample.vendor?.contactName || sample.vendor?.email || sample.vendor?.phone || "No contact info"}
                     </div>
                 </CardHeader>
                 <CardContent className="p-3 pt-2">

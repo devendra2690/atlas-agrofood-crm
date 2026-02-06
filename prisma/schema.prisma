@@ -247,6 +247,8 @@ model Company {
   type      CompanyType
   phone     String?
   email     String?
+  website   String?   // NEW
+  contactName String? // NEW
   country   Country? @relation(fields: [countryId], references: [id])
   countryId String?
   state     State?   @relation(fields: [stateId], references: [id])
@@ -513,7 +515,8 @@ model SampleRecord {
   qualityStats  Json?        // Stores structured data if needed
   priceQuoted   Decimal?
   priceUnit     OpportunityPriceType @default(PER_KG)
-  images        String[]     // Multi-image support
+  images        String[]     @default([]) // Multi-image support
+  qualityCertifications Json @default("[]") // NEW: Array of {name, url, type}
   status        SampleStatus @default(REQUESTED)
 
   project ProcurementProject @relation(fields: [projectId], references: [id])

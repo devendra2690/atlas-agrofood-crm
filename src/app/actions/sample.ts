@@ -18,6 +18,7 @@ export type UpdateSampleData = {
     feedback?: string;
     notes?: string;
     status?: SampleStatus;
+    qualityCertifications?: any[]; // Changed to any[] for {name, url} objects
 };
 
 export async function updateSampleDetails(id: string, data: UpdateSampleData) {
@@ -30,6 +31,7 @@ export async function updateSampleDetails(id: string, data: UpdateSampleData) {
                 priceQuoted: data.priceQuoted,
                 priceUnit: data.priceUnit,
                 images: data.images,
+                qualityCertifications: data.qualityCertifications, // NEW
                 qualityNotes: data.qualityNotes,
                 feedback: data.feedback,
                 notes: data.notes,

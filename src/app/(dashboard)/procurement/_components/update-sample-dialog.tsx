@@ -45,6 +45,7 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
         priceQuoted: sample.priceQuoted ?? undefined,
         priceUnit: sample.priceUnit ?? "PER_KG",
         images: sample.images ?? [],
+        qualityCertifications: sample.qualityCertifications ?? [],
         qualityNotes: sample.qualityNotes ?? "",
         feedback: sample.feedback ?? "",
         notes: sample.notes ?? "",
@@ -148,6 +149,68 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
         setFormData(prev => ({
             ...prev,
             images: prev.images?.filter((_, i) => i !== index)
+        }));
+    };
+
+    const convertFileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+        });
+    };
+
+    const handleCertificationChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            const toastId = toast.loading("Processing files...");
+            setLoading(true);
+
+            const newFiles: any[] = [];
+
+            try {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    let url = "";
+                    let type = "unknown";
+
+                    if (file.type.startsWith('image/')) {
+                        url = await compressImage(file);
+                        type = "image";
+                    } else if (file.type === 'application/pdf') {
+                        url = await convertFileToBase64(file);
+                        type = "pdf";
+                    }
+
+                    if (url) {
+                        newFiles.push({
+                            name: file.name,
+                            url: url,
+                            type: type
+                        });
+                    }
+                }
+
+                setFormData(prev => ({
+                    ...prev,
+                    qualityCertifications: [...(prev.qualityCertifications || []), ...newFiles]
+                }));
+                toast.success("Certifications added", { id: toastId });
+            } catch (error) {
+                console.error(error);
+                toast.error("Failed to process files", { id: toastId });
+            } finally {
+                setLoading(false);
+                e.target.value = "";
+            }
+        }
+    };
+
+    const removeCertification = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            qualityCertifications: prev.qualityCertifications?.filter((_, i) => i !== index)
         }));
     };
 
@@ -256,6 +319,55 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
                         </div>
                     </div>
 
+
+
+                    <div className="grid gap-2">
+                        <Label>Quality Certifications (PDF/Image)</Label>
+                        <div className="grid grid-cols-4 gap-2 mb-2">
+                            {formData.qualityCertifications?.map((cert: any, i) => {
+                                const isPdf = cert.type === 'pdf' || (typeof cert === 'string' && (cert.startsWith('data:application/pdf') || cert.endsWith('.pdf')));
+                                const url = typeof cert === 'string' ? cert : cert.url;
+                                const name = typeof cert === 'string' ? `Document ${i + 1}` : cert.name;
+
+                                return (
+                                    <div key={i} className="relative aspect-square border rounded-md overflow-hidden group bg-slate-50 flex items-center justify-center">
+                                        {isPdf ? (
+                                            <div className="flex flex-col items-center p-2 text-center w-full">
+                                                <span className="text-2xl">📄</span>
+                                                <span className="text-[10px] truncate w-full px-1 text-muted-foreground mt-1" title={name}>{name}</span>
+                                                <a href={url} download={name} className="text-[10px] text-blue-500 hover:underline mt-1" onClick={(e) => e.stopPropagation()}>Download</a>
+                                            </div>
+                                        ) : (
+                                            <div className="w-full h-full relative">
+                                                <img src={url} alt={name} className="w-full h-full object-cover" />
+                                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] p-1 truncate text-center">
+                                                    {name}
+                                                </div>
+                                            </div>
+                                        )}
+                                        <button
+                                            onClick={() => removeCertification(i)}
+                                            className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                            <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-md aspect-square cursor-pointer hover:bg-slate-50">
+                                <Upload className="h-6 w-6 text-muted-foreground mb-1" />
+                                <span className="text-[10px] text-muted-foreground">Add</span>
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    multiple
+                                    className="hidden"
+                                    onChange={handleCertificationChange}
+                                />
+                            </label>
+                        </div>
+                    </div>
+
                     <div className="grid gap-2">
                         <Label htmlFor="quality">Quality Notes (Inspection)</Label>
                         <Textarea
@@ -297,7 +409,7 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
                             Note: Changing status here updates the sample globally.
                         </p>
                     </div>
-                </div>
+                </div >
 
                 <DialogFooter>
                     <Button onClick={handleUpdate} disabled={loading}>
@@ -305,7 +417,7 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
                         Save Changes
                     </Button>
                 </DialogFooter>
-            </DialogContent>
+            </DialogContent >
         </Dialog >
     );
 }
