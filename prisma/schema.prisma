@@ -322,6 +322,7 @@ model Commodity {
    salesOpportunities SalesOpportunity[]
    procurementProjects ProcurementProject[]
    varieties         CommodityVariety[] // NEW
+   documentTemplate  Json?     // Stores { sections: [...] } for document generation
  }
  
  model CommodityVariety {

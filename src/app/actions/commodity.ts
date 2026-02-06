@@ -36,25 +36,41 @@ export async function createCommodity(name: string, yieldPercentage: number = 10
     }
 }
 
-export async function updateCommodity(id: string, name: string, yieldPercentage: number) {
+export async function updateCommodity(id: string, name?: string, yieldPercentage?: number, documentTemplate?: any) {
     try {
+        const updateData: any = {};
+
+        if (name !== undefined) updateData.name = name;
+        if (yieldPercentage !== undefined) updateData.yieldPercentage = yieldPercentage;
+        if (documentTemplate !== undefined) updateData.documentTemplate = documentTemplate;
+
         const commodity = await prisma.commodity.update({
             where: { id },
-            data: {
-                name,
-                yieldPercentage
-            }
+            data: updateData
         });
+
         await logActivity({
             action: "UPDATE",
             entityType: "Commodity",
             entityId: commodity.id,
-            details: `Updated commodity: ${name}`
+            details: `Updated commodity: ${name || commodity.name}`
         });
         return { success: true, data: commodity };
     } catch (error) {
         console.error("Failed to update commodity:", error);
         return { success: false, error: "Failed to update commodity" };
+    }
+}
+
+export async function getCommodity(id: string) {
+    try {
+        const commodity = await prisma.commodity.findUnique({
+            where: { id }
+        });
+        return { success: true, data: commodity };
+    } catch (error) {
+        console.error("Failed to get commodity:", error);
+        return { success: false, error: "Failed to fetch commodity" };
     }
 }
 

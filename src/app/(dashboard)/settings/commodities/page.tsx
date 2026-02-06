@@ -5,14 +5,18 @@ import { getCommodities, createCommodity, deleteCommodity } from '@/app/actions/
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Trash2, Plus, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Loader2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 import { ManageVarietiesDialog } from './_components/manage-varieties-dialog';
 import { EditCommodityDialog } from './_components/edit-commodity-dialog';
+import { TemplateEditorDialog } from './_components/template-editor-dialog';
 
 type Commodity = {
     id: string;
     name: string;
+    yieldPercentage: number;
+    documentTemplate?: any;
 };
 
 export default function CommoditiesPage() {
@@ -135,9 +139,18 @@ export default function CommoditiesPage() {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
+                                            <Link href={`/documents/commodity/${commodity.id}`}>
+                                                <Button variant="ghost" size="sm">
+                                                    <Printer className="h-4 w-4" />
+                                                </Button>
+                                            </Link>
                                             <ManageVarietiesDialog
                                                 commodityId={commodity.id}
                                                 commodityName={commodity.name}
+                                            />
+                                            <TemplateEditorDialog
+                                                commodityId={commodity.id}
+                                                initialTemplate={commodity.documentTemplate}
                                             />
                                             <EditCommodityDialog
                                                 commodity={commodity}
