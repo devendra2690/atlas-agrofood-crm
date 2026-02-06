@@ -6,7 +6,10 @@ import { MessageSquare, Calendar, User as UserIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 type InteractionWithUser = InteractionLog & {
-    user: User;
+    user: {
+        name: string | null;
+        image?: string | null; // Optional if we add avatar later
+    };
 };
 
 interface InteractionTimelineProps {
