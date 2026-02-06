@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getCommodity } from "@/app/actions/commodity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Printer, ArrowLeft, Globe } from "lucide-react";
+import { Loader2, Printer, ArrowLeft, Globe, FileDown } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useParams } from "next/navigation";
-import { useRef } from "react";
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, HeadingLevel, AlignmentType, ImageRun, Footer } from "docx";
+import { saveAs } from "file-saver";
 
 export default function GenerateDocumentPage() {
     const params = useParams();
@@ -20,21 +21,9 @@ export default function GenerateDocumentPage() {
     const [commodity, setCommodity] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [formData, setFormData] = useState<any>({ "FooterEmail": "sales@atlasagrofood.co.in" });
-    const [docId] = useState(`DOC-${Math.floor(Math.random() * 10000)}`);
-
-    const printRef = useRef(null);
 
     // Initial Load
     useEffect(() => {
-        // Unwrap params if necessary (Next.js 15+ might need await, but relying on prop for now or use hook)
-        // Check Next.js version usage. Next.js 15 params are async. 
-        // I will assume params can be accessed directly or I need to unwrap. 
-        // Given previous file `ProcurementProjectPage` used `await params`, I should probably handle it.
-        // But this is a client component. Client components receive params as promise in Next 15?
-        // Let's assume params is available or unwrap it.
-        // Actually, let's treat it as if params is already resolved for safety, or wrap in async if needed.
-        // Since `use client`, params are props.
-
         if (id) {
             loadCommodity(id);
         }
@@ -56,7 +45,6 @@ export default function GenerateDocumentPage() {
                 });
             }
             // Add some meta fields
-            // Add some meta fields
             initialData["Date"] = format(new Date(), "yyyy-MM-dd");
             initialData["FooterEmail"] = "sales@atlasagrofood.co.in";
             setFormData(initialData);
@@ -66,6 +54,238 @@ export default function GenerateDocumentPage() {
 
     const handlePrint = () => {
         window.print();
+    };
+
+    const handleDownloadWord = async () => {
+        if (!commodity) return;
+
+        // Fetch Logo
+        const logoBlob = await fetch("/logo.png").then(r => r.blob());
+        const logoBuffer = await logoBlob.arrayBuffer();
+
+        // Create Document
+        const doc = new Document({
+            styles: {
+                default: {
+                    document: {
+                        run: {
+                            font: "Arial",
+                            size: 22, // 11pt default
+                            color: "334155", // slate-700
+                        },
+                    },
+                },
+            },
+            sections: [{
+                properties: {
+                    page: {
+                        margin: {
+                            top: 720, // 0.5 inch
+                            bottom: 720,
+                            left: 720,
+                            right: 720,
+                        },
+                    },
+                },
+                footers: {
+                    default: new Footer({
+                        children: [
+                            new Paragraph({
+                                children: [
+                                    new TextRun({ text: "Atlas Agro Food Pvt. Ltd. | India", break: 1, size: 20, color: "666666" }),
+                                    new TextRun({ text: `Email: ${formData["FooterEmail"]} | Website: www.atlasagrofood.co.in`, break: 1, size: 20, color: "666666" }),
+                                    new TextRun({ text: "This document is confidential and intended for business communication only.", italics: true, break: 1, size: 20, color: "666666" }),
+                                ],
+                                alignment: AlignmentType.CENTER,
+                                border: {
+                                    top: { style: BorderStyle.SINGLE, size: 1, space: 10, color: "CCCCCC" },
+                                },
+                            }),
+                        ],
+                    }),
+                },
+                children: [
+                    // Header Table (Logo + Company Info)
+                    new Table({
+                        width: { size: 100, type: WidthType.PERCENTAGE },
+                        borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.SINGLE, size: 8, color: "15803d" }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } },
+                        rows: [
+                            new TableRow({
+                                children: [
+                                    // Logo
+                                    new TableCell({
+                                        children: [
+                                            new Paragraph({
+                                                children: [
+                                                    new ImageRun({
+                                                        data: logoBuffer,
+                                                        transformation: { width: 100, height: 100 },
+                                                        type: "png",
+                                                    }),
+                                                ],
+                                            }),
+                                        ],
+                                        width: { size: 15, type: WidthType.PERCENTAGE },
+                                    }),
+                                    // Company Info
+                                    new TableCell({
+                                        children: [
+                                            new Paragraph({
+                                                text: "ATLAS AGRO FOOD PVT. LTD.",
+                                                heading: HeadingLevel.HEADING_1,
+                                                alignment: AlignmentType.LEFT,
+                                                spacing: { after: 100 },
+                                            }),
+                                            new Paragraph({
+                                                text: "Agri Commodities | Feed Ingredients | Oilseed Products",
+                                                alignment: AlignmentType.LEFT,
+                                                spacing: { after: 60 },
+                                            }),
+                                            new Paragraph({
+                                                children: [
+                                                    new TextRun({ text: "www.atlasagrofood.co.in", color: "15803d", bold: true }),
+                                                ],
+                                                alignment: AlignmentType.LEFT,
+                                            }),
+                                        ],
+                                        width: { size: 85, type: WidthType.PERCENTAGE },
+                                        verticalAlign: "center",
+                                    }),
+                                ],
+                            }),
+                        ],
+                    }),
+
+                    // Title
+                    new Paragraph({
+                        text: commodity.name,
+                        heading: HeadingLevel.HEADING_1,
+                        spacing: { before: 400, after: 200 },
+                    }),
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: "Requirement Gathering Document – Trial Order",
+                                color: "FFFFFF",
+                                bold: true,
+                                size: 36, // 18pt
+                            })
+                        ],
+                        shading: {
+                            type: "clear",
+                            fill: "2563EB", // Blue background
+                        },
+                        spacing: { after: 400 },
+                        indent: { left: 100, right: 100 }, // Padding effect
+                    }),
+
+                    // Client Info
+                    new Table({
+                        width: { size: 100, type: WidthType.PERCENTAGE },
+                        borders: {
+                            top: { style: BorderStyle.NONE },
+                            bottom: { style: BorderStyle.NONE },
+                            left: { style: BorderStyle.NONE },
+                            right: { style: BorderStyle.NONE },
+                            insideHorizontal: { style: BorderStyle.NONE },
+                            insideVertical: { style: BorderStyle.NONE },
+                        },
+                        rows: [
+                            new TableRow({
+                                children: [
+                                    new TableCell({
+                                        children: [new Paragraph({ children: [new TextRun({ text: "Client: ", bold: true }), new TextRun(formData["Client Name"] || "")] })],
+                                    }),
+                                    new TableCell({
+                                        children: [new Paragraph({ children: [new TextRun({ text: "Date: ", bold: true }), new TextRun(formData["Date"] || "")] })],
+                                        width: { size: 30, type: WidthType.PERCENTAGE },
+                                    }),
+                                ],
+                            }),
+                        ],
+                    }),
+                    new Paragraph({ text: "", spacing: { after: 200 } }), // Spacer
+
+                    // Sections
+                    ...(commodity.documentTemplate?.sections?.flatMap((section: any, sIdx: number) => [
+                        new Table({
+                            width: { size: 100, type: WidthType.PERCENTAGE },
+                            rows: [
+                                // Section Header Row
+                                new TableRow({
+                                    children: [
+                                        new TableCell({
+                                            children: [new Paragraph({
+                                                children: [new TextRun({ text: `${sIdx + 1}. ${section.title}`, bold: true, color: "1e3a8a", size: 24 })],
+                                            })],
+                                            columnSpan: 2,
+                                            shading: { fill: "EFF6FF", color: "auto" }, // Blue-50
+                                            borders: {
+                                                bottom: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                                            },
+                                            margins: { top: 120, bottom: 120, left: 120, right: 120 },
+                                        }),
+                                    ],
+                                }),
+                                // Fields Rows
+                                ...section.fields.map((field: any) =>
+                                    new TableRow({
+                                        children: [
+                                            new TableCell({
+                                                children: [new Paragraph({ children: [new TextRun({ text: field.label, bold: true, size: 22 })] })], // 11pt
+                                                width: { size: 50, type: WidthType.PERCENTAGE },
+                                                margins: { top: 120, bottom: 120, left: 120, right: 120 },
+                                                borders: { right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" }, bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" } },
+                                                shading: { fill: "FFFFFF", color: "auto" },
+                                            }),
+                                            new TableCell({
+                                                children: [new Paragraph(formData[field.label] || "")],
+                                                width: { size: 50, type: WidthType.PERCENTAGE },
+                                                margins: { top: 120, bottom: 120, left: 120, right: 120 },
+                                                borders: { bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" } },
+                                                shading: { fill: "FFFFFF", color: "auto" },
+                                            }),
+                                        ],
+                                    })
+                                ),
+                            ],
+                            borders: {
+                                top: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" }, // slate-300
+                                bottom: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                                left: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                                right: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                            },
+                        }),
+                        new Paragraph({ text: "", spacing: { after: 200 } }), // Spacer
+                    ]) || []),
+
+                    // Buyer Confirmation
+                    new Paragraph({
+                        text: "Buyer Confirmation",
+                        heading: HeadingLevel.HEADING_3,
+                        spacing: { before: 400, after: 200 },
+                    }),
+                    ...["Name", "Company", "Signature / Email Confirmation", "Date"].map(label =>
+                        new Table({
+                            width: { size: 100, type: WidthType.PERCENTAGE },
+                            borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } },
+                            rows: [
+                                new TableRow({
+                                    children: [
+                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: label + ":", bold: true })] })], width: { size: 30, type: WidthType.PERCENTAGE } }),
+                                        new TableCell({ children: [new Paragraph("")], borders: { bottom: { style: BorderStyle.SINGLE, size: 1 } }, width: { size: 70, type: WidthType.PERCENTAGE } }),
+                                    ]
+                                })
+                            ],
+                        })
+                    ).flatMap(t => [t, new Paragraph({ text: "", spacing: { after: 200 } })]),
+                ],
+            }],
+        });
+
+        Packer.toBlob(doc).then((blob) => {
+            saveAs(blob, `${commodity.name}_Document.docx`);
+        });
     };
 
     const handleChange = (label: string, value: string) => {
@@ -117,11 +337,16 @@ export default function GenerateDocumentPage() {
 
                     <Card>
                         <CardContent className="p-4 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="font-semibold">Document Details</h3>
-                                <Button onClick={handlePrint}>
-                                    <Printer className="h-4 w-4 mr-2" /> Print / PDF
-                                </Button>
+                            <div className="flex flex-col gap-2">
+                                <h3 className="font-semibold">Actions</h3>
+                                <div className="flex gap-2">
+                                    <Button onClick={handlePrint} className="flex-1">
+                                        <Printer className="h-4 w-4 mr-2" /> Print / PDF
+                                    </Button>
+                                    <Button onClick={handleDownloadWord} variant="outline" className="flex-1">
+                                        <FileDown className="h-4 w-4 mr-2" /> Word (.docx)
+                                    </Button>
+                                </div>
                             </div>
 
                             <hr />
