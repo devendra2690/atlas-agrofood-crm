@@ -151,6 +151,7 @@ export default function CommoditiesPage() {
                                             <TemplateEditorDialog
                                                 commodityId={commodity.id}
                                                 initialTemplate={commodity.documentTemplate}
+                                                commodities={commodities}
                                             />
                                             <EditCommodityDialog
                                                 commodity={commodity}

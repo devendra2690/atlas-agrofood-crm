@@ -27,9 +27,10 @@ interface TemplateEditorDialogProps {
     commodityId: string;
     initialTemplate?: { sections: TemplateSection[] };
     trigger?: React.ReactNode;
+    commodities?: { id: string, name: string, documentTemplate?: any }[];
 }
 
-export function TemplateEditorDialog({ commodityId, initialTemplate, trigger }: TemplateEditorDialogProps) {
+export function TemplateEditorDialog({ commodityId, initialTemplate, trigger, commodities = [] }: TemplateEditorDialogProps) {
     const [open, setOpen] = useState(false);
     const [sections, setSections] = useState<TemplateSection[]>(initialTemplate?.sections || []);
     const [loading, setLoading] = useState(false);
@@ -98,9 +99,39 @@ export function TemplateEditorDialog({ commodityId, initialTemplate, trigger }: 
             <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>Document Template Editor</DialogTitle>
-                    <DialogDescription>
-                        Define sections and fields for generating documents for this commodity.
-                    </DialogDescription>
+                    <div className="flex items-center justify-between">
+                        <DialogDescription>
+                            Define sections and fields for generating documents for this commodity.
+                        </DialogDescription>
+                        {commodities.length > 0 && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Copy from:</span>
+                                <Select onValueChange={(val) => {
+                                    const selected = commodities.find(c => c.id === val);
+                                    if (selected?.documentTemplate?.sections) {
+                                        if (confirm("This will overwrite current sections. Continue?")) {
+                                            setSections(selected.documentTemplate.sections);
+                                            toast.success(`Imported template from ${selected.name}`);
+                                        }
+                                    } else {
+                                        toast.error("Selected commodity has no template");
+                                    }
+                                }}>
+                                    <SelectTrigger className="h-8 w-[180px] text-xs">
+                                        <SelectValue placeholder="Select Commodity" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {commodities
+                                            .filter(c => c.id !== commodityId)
+                                            .map(c => (
+                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                            ))
+                                        }
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                    </div>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto min-h-0 px-1">
