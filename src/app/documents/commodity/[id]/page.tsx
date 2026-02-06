@@ -94,6 +94,16 @@ export default function GenerateDocumentPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 p-6 print:p-0 print:bg-white">
+            <style jsx global>{`
+                @media print {
+                    @page {
+                        margin: 0;
+                    }
+                    body {
+                        margin: 1.6cm;
+                    }
+                }
+            `}</style>
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
 
                 {/* Controls (Hidden in Print) */}
