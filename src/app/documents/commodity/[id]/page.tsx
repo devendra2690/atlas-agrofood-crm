@@ -206,58 +206,57 @@ export default function GenerateDocumentPage() {
                     }),
                     new Paragraph({ text: "", spacing: { after: 200 } }), // Spacer
 
-                    // Sections
-                    ...(commodity.documentTemplate?.sections?.flatMap((section: any, sIdx: number) => [
-                        new Table({
-                            width: { size: 100, type: WidthType.PERCENTAGE },
-                            rows: [
-                                // Section Header Row
+                    // Sections (Merged into one table)
+                    new Table({
+                        width: { size: 100, type: WidthType.PERCENTAGE },
+                        rows: (commodity.documentTemplate?.sections?.flatMap((section: any, sIdx: number) => [
+                            // Section Header Row
+                            new TableRow({
+                                children: [
+                                    new TableCell({
+                                        children: [new Paragraph({
+                                            children: [new TextRun({ text: `${sIdx + 1}. ${section.title}`, bold: true, color: "1e3a8a", size: 24 })],
+                                        })],
+                                        columnSpan: 2,
+                                        shading: { fill: "EFF6FF", color: "auto" }, // Blue-50
+                                        borders: {
+                                            top: sIdx === 0 ? undefined : { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" }, // Top border for subsequent sections
+                                            bottom: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                                        },
+                                        margins: { top: 120, bottom: 120, left: 120, right: 120 },
+                                    }),
+                                ],
+                            }),
+                            // Fields Rows
+                            ...section.fields.map((field: any) =>
                                 new TableRow({
                                     children: [
                                         new TableCell({
-                                            children: [new Paragraph({
-                                                children: [new TextRun({ text: `${sIdx + 1}. ${section.title}`, bold: true, color: "1e3a8a", size: 24 })],
-                                            })],
-                                            columnSpan: 2,
-                                            shading: { fill: "EFF6FF", color: "auto" }, // Blue-50
-                                            borders: {
-                                                bottom: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
-                                            },
+                                            children: [new Paragraph({ children: [new TextRun({ text: field.label, bold: true, size: 22 })] })], // 11pt
+                                            width: { size: 50, type: WidthType.PERCENTAGE },
                                             margins: { top: 120, bottom: 120, left: 120, right: 120 },
+                                            borders: { right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" }, bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" } },
+                                            shading: { fill: "FFFFFF", color: "auto" },
+                                        }),
+                                        new TableCell({
+                                            children: [new Paragraph(formData[field.label] || "")],
+                                            width: { size: 50, type: WidthType.PERCENTAGE },
+                                            margins: { top: 120, bottom: 120, left: 120, right: 120 },
+                                            borders: { bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" } },
+                                            shading: { fill: "FFFFFF", color: "auto" },
                                         }),
                                     ],
-                                }),
-                                // Fields Rows
-                                ...section.fields.map((field: any) =>
-                                    new TableRow({
-                                        children: [
-                                            new TableCell({
-                                                children: [new Paragraph({ children: [new TextRun({ text: field.label, bold: true, size: 22 })] })], // 11pt
-                                                width: { size: 50, type: WidthType.PERCENTAGE },
-                                                margins: { top: 120, bottom: 120, left: 120, right: 120 },
-                                                borders: { right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" }, bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" } },
-                                                shading: { fill: "FFFFFF", color: "auto" },
-                                            }),
-                                            new TableCell({
-                                                children: [new Paragraph(formData[field.label] || "")],
-                                                width: { size: 50, type: WidthType.PERCENTAGE },
-                                                margins: { top: 120, bottom: 120, left: 120, right: 120 },
-                                                borders: { bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" } },
-                                                shading: { fill: "FFFFFF", color: "auto" },
-                                            }),
-                                        ],
-                                    })
-                                ),
-                            ],
-                            borders: {
-                                top: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" }, // slate-300
-                                bottom: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
-                                left: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
-                                right: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
-                            },
-                        }),
-                        new Paragraph({ text: "", spacing: { after: 200 } }), // Spacer
-                    ]) || []),
+                                })
+                            ),
+                        ]) || []),
+                        borders: {
+                            top: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" }, // slate-300
+                            bottom: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                            left: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                            right: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                        },
+                    }),
+                    new Paragraph({ text: "", spacing: { after: 200 } }), // Spacer after the big table
 
                     // Buyer Confirmation
                     new Paragraph({
