@@ -99,17 +99,16 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
         if (!quantity || !commodityId) return;
 
         const comm = availableCommodities.find(c => c.id === commodityId);
-        // If yield unavailable or 0, fallback to 1:1 implies 100% or just ignore
-        if (!comm || !comm.yieldPercentage) {
-            // Optional: set to quantity if we assume 100% yield for unconfigured commodities
-            // setProcurementQuantity(quantity); 
+        const yieldPerc = comm?.yieldPercentage || 100;
+
+        if (!comm && !yieldPerc) {
             return;
         }
 
         const qtyNum = parseFloat(quantity);
         if (!isNaN(qtyNum)) {
             // Needed = Qty * (100 / Yield)
-            const needed = qtyNum * (100 / comm.yieldPercentage);
+            const needed = qtyNum * (100 / yieldPerc);
             setProcurementQuantity(needed.toFixed(2));
         }
     }, [quantity, commodityId, availableCommodities]); // Depends on these changing

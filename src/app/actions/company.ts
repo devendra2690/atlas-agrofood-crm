@@ -355,7 +355,7 @@ export async function getCompanies(filters?: {
                             projectVendors: true
                         }
                     },
-                    commodities: { select: { id: true, name: true } },
+                    commodities: { select: { id: true, name: true, yieldPercentage: true } },
                     country: { select: { name: true } },
                     state: { select: { name: true } },
                     city: { select: { name: true } }
