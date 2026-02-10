@@ -105,6 +105,8 @@ export async function createCompany(data: CompanyFormData) {
         });
 
         revalidatePath("/companies");
+        revalidatePath("/vendors");
+        revalidatePath("/partners");
         return { success: true, data: company };
     } catch (error: any) {
         console.error("Failed to create company:", error);
@@ -441,12 +443,15 @@ export async function getVendors(filters?: {
     trustLevel?: string;
     page?: number;
     limit?: number;
+    type?: CompanyType;
 }) {
     try {
-        const where: any = { type: "VENDOR" };
         const page = filters?.page || 1;
         const limit = filters?.limit || 10;
+        const type = filters?.type || "VENDOR";
         const skip = (page - 1) * limit;
+
+        const where: any = { type: type };
 
         if (filters?.location) {
             where.OR = [

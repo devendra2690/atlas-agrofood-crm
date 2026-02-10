@@ -30,11 +30,12 @@ import {
 interface OpportunityListProps {
     opportunities: any[]; // Using any because of included relations complexity
     companies: any[];
+    partners: any[];
     commodities: any[];
     initialExpandedId?: string;
 }
 
-export function OpportunityList({ opportunities, companies, commodities, initialExpandedId }: OpportunityListProps) {
+export function OpportunityList({ opportunities, companies, partners, commodities, initialExpandedId }: OpportunityListProps) {
     const [expandedId, setExpandedId] = useState<string | null>(initialExpandedId || null);
     const [loadingSampleId, setLoadingSampleId] = useState<string | null>(null);
     const rowRefs = useRef<{ [key: string]: HTMLTableRowElement | null }>({});
@@ -193,7 +194,7 @@ export function OpportunityList({ opportunities, companies, commodities, initial
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div onClick={(e) => e.stopPropagation()}>
-                                        <OpportunityActions opportunity={opp} companies={companies} commodities={commodities} />
+                                        <OpportunityActions opportunity={opp} companies={companies} partners={partners} commodities={commodities} />
                                     </div>
                                 </TableCell>
                             </TableRow>

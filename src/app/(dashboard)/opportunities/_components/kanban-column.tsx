@@ -18,6 +18,8 @@ interface KanbanColumnProps {
     title: string;
     count: number;
     opportunities: any[];
+    companies: any[];
+    partners: any[];
     onCardClick?: (opportunity: any) => void;
     onAttachSample?: (opportunity: any) => void;
 }
@@ -31,7 +33,7 @@ const COLUMN_DESCRIPTIONS: Record<string, string> = {
     "Closed Lost": "Deal lost to competition or abandoned.",
 };
 
-export function KanbanColumn({ id, title, count, opportunities, onCardClick, onAttachSample }: KanbanColumnProps) {
+export function KanbanColumn({ id, title, count, opportunities, companies, partners, onCardClick, onAttachSample }: KanbanColumnProps) {
     const { setNodeRef } = useDroppable({ id });
 
     return (
@@ -61,6 +63,8 @@ export function KanbanColumn({ id, title, count, opportunities, onCardClick, onA
                         <KanbanCard
                             key={opportunity.id}
                             opportunity={opportunity}
+                            companies={companies}
+                            partners={partners}
                             onClick={() => onCardClick?.(opportunity)}
                             onAttachSample={() => onAttachSample?.(opportunity)}
                         />

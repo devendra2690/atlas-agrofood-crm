@@ -52,6 +52,9 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
         status: sample.status
     });
 
+    // Store pending files for deferred processing
+    const [pendingFiles, setPendingFiles] = useState<{ url: string, file: File, type: 'image' | 'pdf' }[]>([]);
+
     async function handleUpdate() {
         // VALIDATION: Price Quote is required to move beyond REQUESTED
         if (formData.status !== 'REQUESTED' && !formData.priceQuoted) {
@@ -60,35 +63,73 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
         }
 
         setLoading(true);
+        const toastId = toast.loading("Processing files...");
+
         try {
-            const result = await updateSampleDetails(sample.id, formData);
+            // Process pending images
+            const finalImages = [...(formData.images || [])];
+            const finalCerts = [...(formData.qualityCertifications || [])];
+
+            // Helper to process a single pending file
+            const processFile = async (item: { url: string, file: File, type: string }) => {
+                let processedUrl = "";
+                if (item.type === 'image') {
+                    processedUrl = await compressImage(item.file);
+                } else {
+                    processedUrl = await convertFileToBase64(item.file);
+                }
+                return processedUrl;
+            };
+
+            // Replace preview URLs with processed Base64 in finalImages
+            for (let i = 0; i < finalImages.length; i++) {
+                const imgUrl = finalImages[i];
+                const pending = pendingFiles.find(p => p.url === imgUrl);
+                if (pending) {
+                    finalImages[i] = await processFile(pending);
+                }
+            }
+
+            // Replace preview items in finalCerts
+            // Certs structure locally: { name, url, type }
+            for (let i = 0; i < finalCerts.length; i++) {
+                const cert = finalCerts[i];
+                const url = typeof cert === 'string' ? cert : cert.url;
+                const pending = pendingFiles.find(p => p.url === url);
+                if (pending) {
+                    const processed = await processFile(pending);
+                    if (typeof cert === 'string') {
+                        finalCerts[i] = processed;
+                    } else {
+                        finalCerts[i] = { ...cert, url: processed };
+                    }
+                }
+            }
+
+            const submissionData = {
+                ...formData,
+                images: finalImages,
+                qualityCertifications: finalCerts
+            };
+
+            const result = await updateSampleDetails(sample.id, submissionData);
             if (result.success) {
-                toast.success("Sample details updated");
+                toast.success("Sample details updated", { id: toastId });
                 onUpdate?.(result.data); // Call callback
                 setOpen(false);
+                setPendingFiles([]); // Clear pending
             } else {
-                toast.error(result.error || "Failed to update");
+                toast.error(result.error || "Failed to update", { id: toastId });
             }
         } catch (error) {
-            toast.error("An error occurred");
+            console.error(error);
+            toast.error("An error occurred", { id: toastId });
         } finally {
             setLoading(false);
         }
     }
 
-    async function handleSubmissionStatus(submissionId: string, status: SampleStatus) {
-        const toastId = toast.loading("Updating status...");
-        try {
-            const result = await updateSubmissionStatus(submissionId, status);
-            if (result.success) {
-                toast.success("Status updated", { id: toastId });
-            } else {
-                toast.error("Failed to update status", { id: toastId });
-            }
-        } catch (error) {
-            toast.error("An error occurred", { id: toastId });
-        }
-    }
+    // ... (keep handleSubmissionStatus)
 
     const compressImage = (file: File): Promise<string> => {
         return new Promise((resolve) => {
@@ -116,42 +157,6 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
         });
     };
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (files && files.length > 0) {
-            const toastId = toast.loading("Compressing images...");
-            setLoading(true);
-
-            const newImages: string[] = [];
-
-            try {
-                for (let i = 0; i < files.length; i++) {
-                    const compressed = await compressImage(files[i]);
-                    newImages.push(compressed);
-                }
-
-                setFormData(prev => ({
-                    ...prev,
-                    images: [...(prev.images || []), ...newImages]
-                }));
-                toast.success("Images added", { id: toastId });
-            } catch (error) {
-                console.error(error);
-                toast.error("Failed to process images", { id: toastId });
-            } finally {
-                setLoading(false);
-                e.target.value = "";
-            }
-        }
-    };
-
-    const removeImage = (index: number) => {
-        setFormData(prev => ({
-            ...prev,
-            images: prev.images?.filter((_, i) => i !== index)
-        }));
-    };
-
     const convertFileToBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -161,57 +166,82 @@ export function UpdateSampleDialog({ sample, trigger, open: controlledOpen, onOp
         });
     };
 
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            // Instant Preview - No heavy processing here
+            const newPreviews: string[] = [];
+            const newPending: { url: string, file: File, type: 'image' | 'pdf' }[] = [];
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const url = URL.createObjectURL(file);
+                newPreviews.push(url);
+                newPending.push({ url, file, type: 'image' });
+            }
+
+            setPendingFiles(prev => [...prev, ...newPending]);
+            setFormData(prev => ({
+                ...prev,
+                images: [...(prev.images || []), ...newPreviews]
+            }));
+
+            e.target.value = "";
+        }
+    };
+
+    const removeImage = (index: number) => {
+        const imageToRemove = formData.images?.[index];
+        setFormData(prev => ({
+            ...prev,
+            images: prev.images?.filter((_, i) => i !== index)
+        }));
+        // Cleanup pending if needed (optional but good)
+        if (imageToRemove) {
+            setPendingFiles(prev => prev.filter(p => p.url !== imageToRemove));
+        }
+    };
+
     const handleCertificationChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files && files.length > 0) {
-            const toastId = toast.loading("Processing files...");
-            setLoading(true);
+            const newCerts: any[] = [];
+            const newPending: { url: string, file: File, type: 'image' | 'pdf' }[] = [];
 
-            const newFiles: any[] = [];
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const url = URL.createObjectURL(file);
+                const type = file.type === 'application/pdf' ? 'pdf' : 'image';
 
-            try {
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    let url = "";
-                    let type = "unknown";
-
-                    if (file.type.startsWith('image/')) {
-                        url = await compressImage(file);
-                        type = "image";
-                    } else if (file.type === 'application/pdf') {
-                        url = await convertFileToBase64(file);
-                        type = "pdf";
-                    }
-
-                    if (url) {
-                        newFiles.push({
-                            name: file.name,
-                            url: url,
-                            type: type
-                        });
-                    }
-                }
-
-                setFormData(prev => ({
-                    ...prev,
-                    qualityCertifications: [...(prev.qualityCertifications || []), ...newFiles]
-                }));
-                toast.success("Certifications added", { id: toastId });
-            } catch (error) {
-                console.error(error);
-                toast.error("Failed to process files", { id: toastId });
-            } finally {
-                setLoading(false);
-                e.target.value = "";
+                newCerts.push({
+                    name: file.name,
+                    url: url,
+                    type: type
+                });
+                newPending.push({ url, file, type });
             }
+
+            setPendingFiles(prev => [...prev, ...newPending]);
+            setFormData(prev => ({
+                ...prev,
+                qualityCertifications: [...(prev.qualityCertifications || []), ...newCerts]
+            }));
+
+            e.target.value = "";
         }
     };
 
     const removeCertification = (index: number) => {
+        const certToRemove = formData.qualityCertifications?.[index];
         setFormData(prev => ({
             ...prev,
             qualityCertifications: prev.qualityCertifications?.filter((_, i) => i !== index)
         }));
+        // Cleanup pending
+        if (certToRemove) {
+            const url = typeof certToRemove === 'string' ? certToRemove : certToRemove.url;
+            setPendingFiles(prev => prev.filter(p => p.url !== url));
+        }
     };
 
     return (

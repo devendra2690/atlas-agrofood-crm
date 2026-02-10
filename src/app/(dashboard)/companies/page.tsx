@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { getCompanies } from "@/app/actions/company";
 import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Table,
@@ -49,10 +50,18 @@ export default async function CompaniesPage({
                         Manage your Clients, Prospects, and Vendors.
                     </p>
                 </div>
-                <CompanyDialog
-                    initialCommodities={initialCommodities}
-                    initialCountries={initialCountries}
-                />
+                <div className="flex gap-2">
+                    <CompanyDialog
+                        initialCommodities={initialCommodities}
+                        initialCountries={initialCountries}
+                        trigger={<Button variant="outline"><Plus className="mr-2 h-4 w-4" /> Add Vendor</Button>}
+                        defaultType="VENDOR"
+                    />
+                    <CompanyDialog
+                        initialCommodities={initialCommodities}
+                        initialCountries={initialCountries}
+                    />
+                </div>
             </div>
 
             <Card>

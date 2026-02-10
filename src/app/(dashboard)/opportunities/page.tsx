@@ -52,6 +52,12 @@ export default async function OpportunitiesPage({
         commodities: c.commodities // Pass commodities
     })) || [];
 
+    const partnerOptions = companies?.filter(c => c.type === 'PARTNER' || c.type === 'VENDOR').map(c => ({
+        id: c.id,
+        name: c.name,
+        type: c.type // Keep type for filtering in dialog
+    })) || [];
+
     // Sanitize opportunities for Client Components (Decimal to Number)
     const safeOpportunities = opportunities?.map(opp => ({
         ...opp,
@@ -82,6 +88,7 @@ export default async function OpportunitiesPage({
                     <OpportunityBoard
                         opportunities={safeOpportunities}
                         companies={clientOptions}
+                        partners={partnerOptions}
                         commodities={allCommodities || []}
                     />
                 </div>
@@ -97,6 +104,7 @@ export default async function OpportunitiesPage({
                         <OpportunityList
                             opportunities={safeOpportunities}
                             companies={clientOptions}
+                            partners={partnerOptions}
                             commodities={allCommodities || []}
                             initialExpandedId={highlight}
                         />

@@ -54,6 +54,7 @@ const sidebarItems = [
         items: [
             { name: "Projects", href: "/procurement", icon: PackageSearch },
             { name: "Vendors", href: "/vendors", icon: Factory },
+            { name: "Partners", href: "/partners", icon: Users }, // Added Partners
             { name: "Samples", href: "/samples", icon: FlaskConical },
             { name: "Purchase Orders", href: "/purchase-orders", icon: FileText },
             { name: "Logistics", href: "/logistics", icon: Truck },

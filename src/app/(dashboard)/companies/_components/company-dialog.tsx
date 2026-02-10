@@ -42,9 +42,10 @@ interface CompanyDialogProps {
     defaultType?: CompanyType;
     initialCommodities: { id: string; name: string }[];
     initialCountries: { id: string; name: string }[];
+    buttonLabel?: string;
 }
 
-export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", initialCommodities, initialCountries }: CompanyDialogProps) {
+export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", initialCommodities, initialCountries, buttonLabel }: CompanyDialogProps) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -74,16 +75,6 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
     const [availableCommodities, setAvailableCommodities] = useState<{ id: string, name: string }[]>(initialCommodities);
     const [selectedCommodities, setSelectedCommodities] = useState<string[]>([]);
 
-    // Load Initial Data (Countries & Commodities) - Removed in favor of props
-    // useEffect(() => {
-    //     getCommodities().then(res => {
-    //         if (res.success && res.data) setAvailableCommodities(res.data);
-    //     });
-    //     getCountries().then(res => {
-    //         if (res.success && res.data) setCountries(res.data);
-    //     });
-    // }, []);
-
     // Init Edit Data
     useEffect(() => {
         if (company) {
@@ -100,11 +91,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                 setSelectedCommodities(company.commodities.map((c: any) => c.id));
             }
 
-            // Handle Location Pre-filling (complex due to async cascading)
-            // We assume company has relations: company.country.id, etc.
-            // Or if existing data was string-based, it might be null now.
-            // But we know we just cleared the DB, so we only care about new relations.
-
+            // Handle Location Pre-filling
             if (company.countryId) {
                 setCountryId(company.countryId);
                 // Load states for this country
@@ -156,11 +143,6 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
         const errors: string[] = [];
         if (!formData.name) errors.push("Name is required");
         if (!formData.phone) errors.push("Phone is required");
-        if (!countryId) errors.push("Country is required");
-        if (!stateId) errors.push("State is required");
-        if (!cityId) errors.push("City is required");
-        if (selectedCommodities.length === 0) errors.push("At least one commodity is required");
-
         if (errors.length > 0) {
             setError(errors.join("\n"));
             setIsLoading(false);
@@ -210,35 +192,27 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
 
     return (
         <>
-            <AlertDialog open={!!error} onOpenChange={(open) => !open && setError(null)}>
-                <AlertDialogContent className="z-[100]">
-                    <AlertDialogHeader>
-                        <AlertDialogTitle className="text-destructive">Error</AlertDialogTitle>
-                        <AlertDialogDescription className="whitespace-pre-line">
-                            {error}
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogAction onClick={() => setError(null)}>OK</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
+            {/* ... AlertDialog ... */}
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
                     {trigger ? trigger : (
                         <Button>
-                            <Plus className="mr-2 h-4 w-4" /> Add Company
+                            <Plus className="mr-2 h-4 w-4" /> {buttonLabel || "Add Company"}
                         </Button>
                     )}
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px] overflow-y-auto max-h-[90vh]">
                     <form onSubmit={handleSubmit}>
                         <DialogHeader>
-                            <DialogTitle>{isEditMode ? "Edit Company" : "Add New Company"}</DialogTitle>
+                            <DialogTitle>{isEditMode ? "Edit Company" : (buttonLabel || "Add New Company")}</DialogTitle>
                             <DialogDescription>
-                                {isEditMode ? "Update company details." : "Create a new Client, Prospect, or Vendor profile."}
+                                {isEditMode ? "Update company details." : "Create a new profile."}
                             </DialogDescription>
+                            {error && (
+                                <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md mt-2">
+                                    {error}
+                                </div>
+                            )}
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid grid-cols-[120px_1fr] items-center gap-4">
@@ -264,9 +238,16 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                                         <SelectValue placeholder="Select type" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="PROSPECT">Prospect</SelectItem>
-                                        <SelectItem value="CLIENT">Client</SelectItem>
-                                        <SelectItem value="VENDOR">Vendor</SelectItem>
+                                        {(defaultType === "VENDOR" || (isEditMode && company.type === "VENDOR")) ? (
+                                            <SelectItem value="VENDOR">Vendor</SelectItem>
+                                        ) : (defaultType === "PARTNER" || (isEditMode && company.type === "PARTNER")) ? (
+                                            <SelectItem value="PARTNER">Partner</SelectItem>
+                                        ) : (
+                                            <>
+                                                <SelectItem value="PROSPECT">Prospect</SelectItem>
+                                                <SelectItem value="CLIENT">Client</SelectItem>
+                                            </>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -315,7 +296,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
 
                             {/* Location Fields */}
                             <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                                <Label className="text-right">Country <span className="text-red-500">*</span></Label>
+                                <Label className="text-right">Country</Label>
                                 <Select value={countryId} onValueChange={handleCountryChange}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select Country" />
@@ -329,7 +310,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                             </div>
 
                             <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                                <Label className="text-right">State <span className="text-red-500">*</span></Label>
+                                <Label className="text-right">State</Label>
                                 <Select value={stateId} onValueChange={handleStateChange} disabled={!countryId}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select State" />
@@ -343,7 +324,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                             </div>
 
                             <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                                <Label className="text-right">City <span className="text-red-500">*</span></Label>
+                                <Label className="text-right">City</Label>
                                 <Select value={cityId} onValueChange={(val) => setCityId(val)} disabled={!stateId}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select City" />
@@ -358,7 +339,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
 
                             <div className="grid grid-cols-[120px_1fr] items-start gap-4">
                                 <Label className="text-right pt-2">
-                                    Commodities <span className="text-red-500">*</span>
+                                    Commodities
                                 </Label>
                                 <div className="border rounded-md p-3 h-32 overflow-y-auto space-y-2">
                                     {availableCommodities.length === 0 ? (
@@ -394,7 +375,10 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                         <DialogFooter>
                             <Button type="submit" disabled={isLoading}>
                                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {isEditMode ? "Save Changes" : "Save Company"}
+                                {isEditMode
+                                    ? "Save Changes"
+                                    : (formData.type === "VENDOR" ? "Save Vendor" : (formData.type === "PARTNER" ? "Save Partner" : "Save Company"))
+                                }
                             </Button>
                         </DialogFooter>
                     </form>

@@ -22,12 +22,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Trash2, Pencil } from "lucide-react";
 import { DeleteCompanyDialog } from "../../companies/_components/delete-company-dialog";
+import { CompanyDialog } from "../../companies/_components/company-dialog";
 
 interface VendorTableProps {
     vendors: any[];
+    initialCommodities: { id: string; name: string }[];
+    initialCountries: { id: string; name: string }[];
 }
 
-export function VendorTable({ vendors }: VendorTableProps) {
+export function VendorTable({ vendors, initialCommodities, initialCountries }: VendorTableProps) {
     const router = useRouter();
 
     return (
@@ -106,10 +109,16 @@ export function VendorTable({ vendors }: VendorTableProps) {
                                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/vendors/${vendor.id}`); }}>
                                             <Eye className="mr-2 h-4 w-4" /> View Details
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); /* Edit logic would go here, usually opening dialog */ }}>
-                                            {/* For now, generic edit links to details page where edit exists, or we need to wrap CompanyDialog here */}
-                                            <Pencil className="mr-2 h-4 w-4" /> Edit
-                                        </DropdownMenuItem>
+                                        <CompanyDialog
+                                            company={vendor}
+                                            initialCommodities={initialCommodities}
+                                            initialCountries={initialCountries}
+                                            trigger={
+                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                                                </DropdownMenuItem>
+                                            }
+                                        />
                                         <DeleteCompanyDialog
                                             id={vendor.id}
                                             name={vendor.name}

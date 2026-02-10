@@ -5,7 +5,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, X, MoreHorizontal } from "lucide-react";
+import { Check, X, MoreHorizontal, PlusCircle } from "lucide-react"; // Added PlusCircle
 import { updateSubmissionStatus } from "@/app/actions/sample";
 import { createSalesOrder } from "@/app/actions/order";
 import { useRouter } from "next/navigation";
@@ -18,14 +18,17 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Calendar, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CollectSampleDialog } from "./collect-sample-dialog";
 
 interface KanbanCardProps {
     opportunity: any;
+    companies: any[];
+    partners: any[];
     onClick?: () => void;
     onAttachSample?: () => void;
 }
 
-export function KanbanCard({ opportunity, onClick, onAttachSample }: KanbanCardProps) {
+export function KanbanCard({ opportunity, companies, partners, onClick, onAttachSample }: KanbanCardProps) {
     const router = useRouter();
     const [optimisticSubmissions, setOptimisticSubmissions] = useState(opportunity.sampleSubmissions || []);
 
@@ -222,6 +225,25 @@ export function KanbanCard({ opportunity, onClick, onAttachSample }: KanbanCardP
                         >
                             <FlaskConical className="h-3 w-3" />
                         </Button>
+                        {/* Collect Sample Action */}
+                        {["OPEN", "QUALIFICATION", "PROPOSAL", "NEGOTIATION"].includes(opportunity.status) && (
+                            <div onClick={(e) => e.stopPropagation()}>
+                                <CollectSampleDialog
+                                    opportunityId={opportunity.id}
+                                    companies={partners || []}
+                                    trigger={
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                            title="Collect Partner Sample"
+                                        >
+                                            <PlusCircle className="h-3 w-3" />
+                                        </Button>
+                                    }
+                                />
+                            </div>
+                        )}
                     </div>
                 </CardContent>
             </Card>

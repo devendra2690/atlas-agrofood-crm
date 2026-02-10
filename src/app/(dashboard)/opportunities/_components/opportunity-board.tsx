@@ -33,12 +33,13 @@ const COLUMNS = [
 interface OpportunityBoardProps {
     opportunities: any[];
     companies: any[];
+    partners: any[];
     commodities: any[];
 }
 
 import { AttachSampleDialog } from "./attach-sample-dialog";
 
-export function OpportunityBoard({ opportunities: initialOpportunities, companies, commodities }: OpportunityBoardProps) {
+export function OpportunityBoard({ opportunities: initialOpportunities, companies, partners, commodities }: OpportunityBoardProps) {
     const [opportunities, setOpportunities] = useState(initialOpportunities);
 
     // Sync local state when server data changes (e.g. after router.refresh())
@@ -180,6 +181,8 @@ export function OpportunityBoard({ opportunities: initialOpportunities, companie
                         title={col.title}
                         count={col.opportunities.length}
                         opportunities={col.opportunities}
+                        companies={companies}
+                        partners={partners}
                         onCardClick={(opp) => {
                             setEditingOpportunity(opp);
                             setEditDialogOpen(true);
@@ -193,7 +196,7 @@ export function OpportunityBoard({ opportunities: initialOpportunities, companie
             </div>
 
             <DragOverlay>
-                {activeOpportunity ? <KanbanCard opportunity={activeOpportunity} /> : null}
+                {activeOpportunity ? <KanbanCard opportunity={activeOpportunity} companies={companies} partners={partners} /> : null}
             </DragOverlay>
 
             <OpportunityDialog
@@ -202,6 +205,7 @@ export function OpportunityBoard({ opportunities: initialOpportunities, companie
                 initialData={editingOpportunity}
                 companies={companies}
                 commodities={commodities}
+                trigger={null}
             />
 
             <AttachSampleDialog

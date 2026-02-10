@@ -12,6 +12,7 @@ import { OpportunityDialog } from "./opportunity-dialog";
 import { deleteOpportunity } from "@/app/actions/opportunity";
 import { createSalesOrder } from "@/app/actions/order";
 import { toast } from "sonner";
+import { CollectSampleDialog } from "./collect-sample-dialog";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -26,10 +27,11 @@ import {
 interface OpportunityActionsProps {
     opportunity: any; // Ideally typed
     companies: any[];
+    partners: any[];
     commodities: any[];
 }
 
-export function OpportunityActions({ opportunity, companies, commodities }: OpportunityActionsProps) {
+export function OpportunityActions({ opportunity, companies, partners, commodities }: OpportunityActionsProps) {
     const [open, setOpen] = useState(false);
     const [showDeleteAlert, setShowDeleteAlert] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -62,7 +64,10 @@ export function OpportunityActions({ opportunity, companies, commodities }: Oppo
     }
 
     return (
-        <>
+        <div className="flex items-center gap-2">
+            {["OPEN", "QUALIFICATION", "PROPOSAL", "NEGOTIATION"].includes(opportunity.status) && (
+                <CollectSampleDialog opportunityId={opportunity.id} companies={partners} />
+            )}
             <DropdownMenu open={open} onOpenChange={setOpen}>
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
@@ -123,6 +128,6 @@ export function OpportunityActions({ opportunity, companies, commodities }: Oppo
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </>
+        </div>
     );
 }
