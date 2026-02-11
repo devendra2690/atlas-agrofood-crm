@@ -109,9 +109,16 @@ export function ProcurementList({ projects, commodities = [] }: ProcurementListP
                                 </TableCell>
                                 <TableCell>
                                     {project.commodity ? (
-                                        <Badge variant="outline" className="font-normal">
-                                            {project.commodity.name}
-                                        </Badge>
+                                        <div className="flex flex-col gap-1 items-start">
+                                            <Badge variant="outline" className="font-normal">
+                                                {project.commodity.name}
+                                            </Badge>
+                                            {project.variety && (
+                                                <span className="text-[10px] text-muted-foreground ml-1">
+                                                    ({project.variety.name})
+                                                </span>
+                                            )}
+                                        </div>
                                     ) : project.salesOpportunities?.[0]?.commodity ? (
                                         <Badge variant="outline" className="font-normal text-muted-foreground border-dashed">
                                             {project.salesOpportunities[0].commodity.name}

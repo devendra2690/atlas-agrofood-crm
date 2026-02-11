@@ -9,7 +9,8 @@ import { logActivity } from "./audit";
 export type OpportunityFormData = {
     companyId: string;
     productName: string;
-    commodityId?: string; // NEW
+    commodityId?: string;
+    varietyId?: string; // NEW
     targetPrice?: number;
     priceType?: "PER_KG" | "PER_MT" | "TOTAL_AMOUNT";
     quantity?: number;
@@ -22,20 +23,32 @@ export type OpportunityFormData = {
 };
 
 // Helper: Calculate procurement quantity
-async function calculateProcurementQuantity(commodityId?: string, quantity?: number, manualProcurementQty?: number): Promise<number | undefined> {
+async function calculateProcurementQuantity(commodityId?: string, varietyId?: string, quantity?: number, manualProcurementQty?: number): Promise<number | undefined> {
     if (manualProcurementQty) return manualProcurementQty;
     if (!commodityId || !quantity) return undefined;
 
-    const commodity = await prisma.commodity.findUnique({
-        where: { id: commodityId },
-        select: { yieldPercentage: true }
-    });
+    let yieldPercentage = 100;
 
-    if (!commodity || !commodity.yieldPercentage) return quantity; // Default to same quantity if no yield info
+    if (varietyId) {
+        const variety = await prisma.commodityVariety.findUnique({
+            where: { id: varietyId },
+            select: { yieldPercentage: true }
+        });
+        if (variety?.yieldPercentage) {
+            yieldPercentage = variety.yieldPercentage;
+        }
+    } else {
+        const commodity = await prisma.commodity.findUnique({
+            where: { id: commodityId },
+            select: { yieldPercentage: true }
+        });
+        if (commodity?.yieldPercentage) {
+            yieldPercentage = commodity.yieldPercentage;
+        }
+    }
 
     // Formula: Needed = Quantity * (100 / Yield%)
-    // E.g. 25% yield: 100/25 = 4 needed per 1 unit.
-    const multiplier = 100 / commodity.yieldPercentage;
+    const multiplier = 100 / yieldPercentage;
     return quantity * multiplier;
 }
 
@@ -43,6 +56,7 @@ export async function createOpportunity(data: OpportunityFormData) {
     try {
         const procurementQuantity = await calculateProcurementQuantity(
             data.commodityId,
+            data.varietyId,
             data.quantity,
             data.procurementQuantity
         );
@@ -72,6 +86,7 @@ export async function createOpportunity(data: OpportunityFormData) {
                 companyId: data.companyId,
                 productName: data.productName,
                 commodityId: data.commodityId,
+                varietyId: data.varietyId,
                 targetPrice: data.targetPrice,
                 priceType: data.priceType || "PER_KG",
                 quantity: data.quantity,
@@ -113,6 +128,7 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
     try {
         const procurementQuantity = await calculateProcurementQuantity(
             data.commodityId,
+            data.varietyId,
             data.quantity,
             data.procurementQuantity
         );
@@ -140,6 +156,7 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
                 companyId: data.companyId,
                 productName: data.productName,
                 commodityId: data.commodityId,
+                varietyId: data.varietyId,
                 targetPrice: data.targetPrice,
                 priceType: data.priceType || "PER_KG",
                 quantity: data.quantity,
@@ -299,6 +316,7 @@ export async function getOpportunities(filters?: {
                 include: {
                     company: true,
                     commodity: true,
+                    variety: true, // NEW
                     createdBy: { select: { name: true } },
                     updatedBy: { select: { name: true } },
                     sampleSubmissions: {
@@ -348,6 +366,7 @@ export async function getOpportunities(filters?: {
                     include: {
                         company: true,
                         commodity: true,
+                        variety: true, // NEW
                         createdBy: { select: { name: true } },
                         updatedBy: { select: { name: true } },
                         sampleSubmissions: {

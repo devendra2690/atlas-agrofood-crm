@@ -49,7 +49,9 @@ export function AttachSampleDialog({ open, onOpenChange, opportunity }: AttachSa
             commodityId: commodityId
         });
         if (result.success && result.data) {
-            setSamples(result.data);
+            // Filter to only show VENDOR samples (exclude PARTNER samples)
+            const vendorSamples = result.data.filter((s: any) => s.vendor?.type === 'VENDOR');
+            setSamples(vendorSamples);
         }
         setLoading(false);
     }

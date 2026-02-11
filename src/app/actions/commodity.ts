@@ -6,7 +6,12 @@ import { logActivity } from "./audit";
 export async function getCommodities() {
     try {
         const commodities = await prisma.commodity.findMany({
-            orderBy: { name: 'asc' }
+            orderBy: { name: 'asc' },
+            include: {
+                varieties: {
+                    orderBy: { name: 'asc' }
+                }
+            }
         });
         return { success: true, data: commodities };
     } catch (error) {
@@ -105,19 +110,20 @@ export async function getCommodityVarieties(commodityId: string) {
     }
 }
 
-export async function createCommodityVariety(commodityId: string, name: string) {
+export async function createCommodityVariety(commodityId: string, name: string, yieldPercentage: number = 100) {
     try {
         const variety = await prisma.commodityVariety.create({
             data: {
                 name,
-                commodityId
+                commodityId,
+                yieldPercentage
             }
         });
         await logActivity({
             action: "CREATE",
             entityType: "CommodityVariety",
             entityId: variety.id,
-            details: `Created variety: ${name}`
+            details: `Created variety: ${name} with yield ${yieldPercentage}%`
         });
         return { success: true, data: variety };
     } catch (error) {

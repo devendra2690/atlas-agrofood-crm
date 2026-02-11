@@ -1,5 +1,5 @@
 import { getOpportunities } from "@/app/actions/opportunity";
-import { getCompanies } from "@/app/actions/company";
+import { getCompanies, getVendors } from "@/app/actions/company";
 import { getCommodities } from "@/app/actions/commodity";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { OpportunityList } from "./_components/opportunity-list";
@@ -28,6 +28,8 @@ export default async function OpportunitiesPage({
     const [
         { data: opportunities, pagination },
         { data: companies },
+        { data: vendors },
+        { data: partners },
         allCommoditiesResponse
     ] = await Promise.all([
         getOpportunities({
@@ -39,6 +41,8 @@ export default async function OpportunitiesPage({
             priorityId: highlight
         }),
         getCompanies({ limit: 1000 }),
+        getVendors({ limit: 1000, type: 'VENDOR' }),
+        getVendors({ limit: 1000, type: 'PARTNER' }),
         getCommodities()
     ]);
 
@@ -46,17 +50,20 @@ export default async function OpportunitiesPage({
     const allCommodities = allCommoditiesResponse.data;
 
     // Filter only companies that are clients or prospects for the dropdown
-    const clientOptions = companies?.filter(c => c.type === 'CLIENT' || c.type === 'PROSPECT').map(c => ({
+    const clientOptions = companies?.map(c => ({
         id: c.id,
         name: c.name,
         commodities: c.commodities // Pass commodities
     })) || [];
 
-    const partnerOptions = companies?.filter(c => c.type === 'PARTNER' || c.type === 'VENDOR').map(c => ({
+    const partnerOptions = [
+        ...(vendors || []),
+        ...(partners || [])
+    ].map(c => ({
         id: c.id,
         name: c.name,
-        type: c.type // Keep type for filtering in dialog
-    })) || [];
+        type: c.type
+    }));
 
     // Sanitize opportunities for Client Components (Decimal to Number)
     const safeOpportunities = opportunities?.map(opp => ({

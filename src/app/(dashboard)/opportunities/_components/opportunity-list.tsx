@@ -124,6 +124,7 @@ export function OpportunityList({ opportunities, companies, partners, commoditie
                                             {opp.commodity && (
                                                 <div className="text-xs text-muted-foreground font-normal">
                                                     {opp.commodity.name}
+                                                    {opp.variety && <span className="ml-1 text-slate-400">({opp.variety.name})</span>}
                                                 </div>
                                             )}
                                         </div>

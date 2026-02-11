@@ -38,7 +38,8 @@ export async function createPartnerSample(data: {
                     createdById: session?.user?.id,
                     updatedById: session?.user?.id,
                     // Link to Commodity if opp has one
-                    commodityId: opportunity.commodityId
+                    commodityId: opportunity.commodityId,
+                    varietyId: opportunity.varietyId
                 }
             });
             projectId = project.id;

@@ -22,6 +22,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { createProcurementProject, updateProcurementProject } from "@/app/actions/procurement";
+import { getCommodityVarieties } from "@/app/actions/commodity";
 import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { ProjectStatus } from "@prisma/client";
@@ -42,6 +43,8 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [selectedCommodityId, setSelectedCommodityId] = useState<string>("");
+    const [selectedVarietyId, setSelectedVarietyId] = useState<string>(""); // NEW
+    const [varieties, setVarieties] = useState<any[]>([]); // NEW
     const [type, setType] = useState<string>("PROJECT");
     const [projectName, setProjectName] = useState("");
 
@@ -50,13 +53,30 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
         if (project) {
             setProjectName(project.name);
             setSelectedCommodityId(project.commodityId || "");
+            setSelectedVarietyId(project.varietyId || ""); // NEW
             setType(project.type || "PROJECT");
         } else if (open) {
             setProjectName("");
             setSelectedCommodityId("");
+            setSelectedVarietyId(""); // NEW
             setType("PROJECT");
         }
     }, [project, open]);
+
+    // Fetch Varieties
+    useEffect(() => {
+        if (selectedCommodityId) {
+            getCommodityVarieties(selectedCommodityId).then(res => {
+                if (res.success && res.data) {
+                    setVarieties(res.data);
+                } else {
+                    setVarieties([]);
+                }
+            });
+        } else {
+            setVarieties([]);
+        }
+    }, [selectedCommodityId]);
 
     // Auto-fill project name logic
     const updateProjectName = (currentType: string, commodityId: string) => {
@@ -67,7 +87,8 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
         if (!comm) return;
 
         if (currentType === "PROJECT") {
-            setProjectName(`Project (SOURCING) - ${comm.name} Sourcing`);
+            const varietyName = varieties.find(v => v.id === selectedVarietyId)?.name;
+            setProjectName(`Project (SOURCING) - ${comm.name}${varietyName ? ` (${varietyName})` : ''} Sourcing`);
         } else if (currentType === "SAMPLE") {
             // Fallback or simple default for sample
             setProjectName(`${comm.name} Sample Request`);
@@ -76,6 +97,7 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
 
     const handleCommodityChange = (val: string) => {
         setSelectedCommodityId(val);
+        setSelectedVarietyId(""); // Reset variety
         updateProjectName(type, val);
     };
 
@@ -116,7 +138,8 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                     name,
                     status,
                     type,
-                    commodityId: selectedCommodityId
+                    commodityId: selectedCommodityId,
+                    varietyId: selectedVarietyId || undefined // NEW
                 });
             } else {
                 result = await createProcurementProject({
@@ -133,6 +156,7 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                 if (!id) {
                     setProjectName("");
                     setSelectedCommodityId("");
+                    setSelectedVarietyId("");
                 }
             } else {
                 toast.error(result.error || "Failed to save project");
@@ -175,6 +199,26 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                                 searchPlaceholder="Search commodity..."
                             />
                         </div>
+
+                        {/* Variety Selection */}
+                        {varieties.length > 0 && (
+                            <div className="grid gap-2">
+                                <Label htmlFor="variety">Variety (Optional)</Label>
+                                <Combobox
+                                    options={varieties.map(v => ({ label: v.name, value: v.id }))}
+                                    value={selectedVarietyId}
+                                    onChange={(val) => {
+                                        setSelectedVarietyId(val);
+                                        // Optional: update name again if variety changes?
+                                        // updateProjectName(type, selectedCommodityId); // Need to pass variety logic to updateProjectName if we want it to react
+                                    }}
+                                    placeholder="Select variety..."
+                                    searchPlaceholder="Search variety..."
+                                    emptyMessage="No varieties found"
+                                />
+                            </div>
+                        )}
+
                         <div className="grid gap-2">
                             <Label htmlFor="name">Project Name <span className="text-red-500">*</span></Label>
                             <Input

@@ -20,6 +20,7 @@ export function ManageVarietiesDialog({ commodityId, commodityName, trigger }: M
     const [varieties, setVarieties] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [newVariety, setNewVariety] = useState("");
+    const [newYield, setNewYield] = useState("100");
     const [creating, setCreating] = useState(false);
 
     const loadVarieties = async () => {
@@ -41,10 +42,11 @@ export function ManageVarietiesDialog({ commodityId, commodityName, trigger }: M
         if (!newVariety.trim()) return;
 
         setCreating(true);
-        const res = await createCommodityVariety(commodityId, newVariety);
+        const res = await createCommodityVariety(commodityId, newVariety, parseFloat(newYield) || 100);
         if (res.success) {
             toast.success("Variety added");
             setNewVariety("");
+            setNewYield("100");
             loadVarieties();
         } else {
             toast.error("Failed to add variety");
@@ -77,13 +79,26 @@ export function ManageVarietiesDialog({ commodityId, commodityName, trigger }: M
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
-                    <div className="flex gap-2">
-                        <Input
-                            placeholder="Add new variety (e.g. Red Onion)"
-                            value={newVariety}
-                            onChange={(e) => setNewVariety(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                        />
+                    <div className="flex gap-2 items-end">
+                        <div className="flex-1">
+                            <label className="text-xs font-medium mb-1 block">Name</label>
+                            <Input
+                                placeholder="Variety Name (e.g. Red Onion)"
+                                value={newVariety}
+                                onChange={(e) => setNewVariety(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                            />
+                        </div>
+                        <div className="w-[100px]">
+                            <label className="text-xs font-medium mb-1 block">Yield %</label>
+                            <Input
+                                type="number"
+                                placeholder="%"
+                                value={newYield}
+                                onChange={(e) => setNewYield(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                            />
+                        </div>
                         <Button onClick={handleCreate} disabled={creating || !newVariety.trim()}>
                             {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                         </Button>
@@ -99,14 +114,17 @@ export function ManageVarietiesDialog({ commodityId, commodityName, trigger }: M
                                 No varieties added yet.
                             </div>
                         ) : (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="grid gap-2">
                                 {varieties.map((variety) => (
-                                    <Badge key={variety.id} variant="secondary" className="px-3 py-1.5 flex items-center gap-2 bg-white border shadow-sm text-sm">
-                                        {variety.name}
-                                        <button onClick={() => handleDelete(variety.id)} className="text-muted-foreground hover:text-red-500">
-                                            <Trash2 className="w-3 h-3" />
+                                    <div key={variety.id} className="flex items-center justify-between bg-white p-2 rounded border shadow-sm text-sm">
+                                        <div className="flex flex-col">
+                                            <span className="font-medium">{variety.name}</span>
+                                            <span className="text-xs text-muted-foreground">Yield: {variety.yieldPercentage}%</span>
+                                        </div>
+                                        <button onClick={() => handleDelete(variety.id)} className="text-muted-foreground hover:text-red-500 p-1">
+                                            <Trash2 className="w-4 h-4" />
                                         </button>
-                                    </Badge>
+                                    </div>
                                 ))}
                             </div>
                         )}

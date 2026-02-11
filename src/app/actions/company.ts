@@ -42,8 +42,18 @@ export async function createCompany(data: CompanyFormData) {
         };
 
         if (session?.user?.id) {
-            createData.createdById = session.user.id;
-            createData.updatedById = session.user.id;
+            // Verify user exists to satisfy FK constraint
+            const userExists = await prisma.user.findUnique({
+                where: { id: session.user.id },
+                select: { id: true }
+            });
+
+            if (userExists) {
+                createData.createdById = session.user.id;
+                createData.updatedById = session.user.id;
+            } else {
+                console.warn(`[createCompany] Session User ID ${session.user.id} not found in DB. Skipping createdBy/updatedBy.`);
+            }
         }
 
         const phone = cleanString(data.phone);
@@ -260,10 +270,22 @@ export async function deleteCompany(id: string) {
 export async function updateCompanyTrustLevel(id: string, trustLevel: TrustLevel) {
     try {
         const session = await auth();
+
+        let updatedById = undefined;
+        if (session?.user?.id) {
+            const userExists = await prisma.user.findUnique({
+                where: { id: session.user.id },
+                select: { id: true }
+            });
+            if (userExists) {
+                updatedById = session.user.id;
+            }
+        }
+
         const company = await prisma.company.update({
             where: { id },
             data: {
-                updatedById: session?.user?.id,
+                updatedById,
                 trustLevel
             }
         });

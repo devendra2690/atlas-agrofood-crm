@@ -331,9 +331,12 @@ model Commodity {
    name        String
    commodityId String
    description String?
+   yieldPercentage Float @default(100.0) // Percentage yield specific to this variety
    
    commodity   Commodity @relation(fields: [commodityId], references: [id])
    vendorMappings VendorVariety[]
+   salesOpportunities SalesOpportunity[] // Relation
+   procurementProjects ProcurementProject[] // Relation
    
    @@unique([name, commodityId])
  }
@@ -452,6 +455,8 @@ model SalesOpportunity {
   procurementProject ProcurementProject? @relation(fields: [procurementProjectId], references: [id])
   commodity          Commodity?          @relation(fields: [commodityId], references: [id])
   commodityId        String?
+  variety            CommodityVariety?   @relation(fields: [varietyId], references: [id])
+  varietyId          String?
   salesOrders        SalesOrder[]
   sampleSubmissions  SampleSubmission[]
 
@@ -486,6 +491,8 @@ model ProcurementProject {
   purchaseOrders     PurchaseOrder[]
   commodity          Commodity?    @relation(fields: [commodityId], references: [id])
   commodityId        String?
+  variety            CommodityVariety? @relation(fields: [varietyId], references: [id])
+  varietyId          String?
 
   createdById String?
   updatedById String?

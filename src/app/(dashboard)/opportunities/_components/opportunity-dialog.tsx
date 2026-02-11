@@ -21,6 +21,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { createOpportunity, updateOpportunity } from "@/app/actions/opportunity";
+import { getCommodityVarieties } from "@/app/actions/commodity";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { OpportunityStatus } from "@prisma/client";
@@ -66,6 +67,8 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
 
     const [companyId, setCompanyId] = useState(initialData?.companyId || "");
     const [commodityId, setCommodityId] = useState(initialData?.commodityId || "");
+    const [varietyId, setVarietyId] = useState(initialData?.varietyId || ""); // NEW
+    const [varieties, setVarieties] = useState<any[]>([]); // NEW
     const [productName, setProductName] = useState(initialData?.productName || "");
     const [opportunityType, setOpportunityType] = useState<"ONE_TIME" | "RECURRING">(initialData?.type || "ONE_TIME");
 
@@ -78,12 +81,28 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
         if (open) {
             setCompanyId(initialData?.companyId || "");
             setCommodityId(initialData?.commodityId || "");
+            setVarietyId(initialData?.varietyId || "");
             setProductName(initialData?.productName || "");
             setOpportunityType(initialData?.type || "ONE_TIME");
             setQuantity(initialData?.quantity?.toString() || "");
             setProcurementQuantity(initialData?.procurementQuantity?.toString() || "");
         }
     }, [initialData, open]);
+
+    // Fetch varieties when commodity changes
+    useEffect(() => {
+        if (commodityId) {
+            getCommodityVarieties(commodityId).then(res => {
+                if (res.success && res.data) {
+                    setVarieties(res.data);
+                } else {
+                    setVarieties([]);
+                }
+            });
+        } else {
+            setVarieties([]);
+        }
+    }, [commodityId]);
 
     // Filter available commodities
     const selectedCompany = companies.find(c => c.id === companyId);
@@ -99,10 +118,14 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
         if (!quantity || !commodityId) return;
 
         const comm = availableCommodities.find(c => c.id === commodityId);
-        const yieldPerc = comm?.yieldPercentage || 100;
+        let yieldPerc = comm?.yieldPercentage || 100;
 
-        if (!comm && !yieldPerc) {
-            return;
+        // Override with variety yield if selected
+        if (varietyId) {
+            const variety = varieties.find(v => v.id === varietyId);
+            if (variety && variety.yieldPercentage) {
+                yieldPerc = variety.yieldPercentage;
+            }
         }
 
         const qtyNum = parseFloat(quantity);
@@ -111,10 +134,11 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
             const needed = qtyNum * (100 / yieldPerc);
             setProcurementQuantity(needed.toFixed(2));
         }
-    }, [quantity, commodityId, availableCommodities]); // Depends on these changing
+    }, [quantity, commodityId, varietyId, availableCommodities, varieties]);
 
     const handleCommodityChange = (val: string) => {
         setCommodityId(val);
+        setVarietyId(""); // Reset variety
         const comm = availableCommodities.find(c => c.id === val);
         const selectedCompany = companies.find(c => c.id === companyId);
 
@@ -183,6 +207,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                 companyId,
                 productName,
                 commodityId: commodityId || undefined,
+                varietyId: varietyId || undefined,
                 targetPrice: targetPriceStr ? parseFloat(targetPriceStr) : undefined,
                 priceType: priceType || "PER_KG",
                 quantity: quantityStr ? parseFloat(quantityStr) : undefined,
@@ -208,6 +233,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                 if (!initialData) {
                     setCompanyId("");
                     setCommodityId("");
+                    setVarietyId("");
                     setProductName("");
                     setQuantity("");
                     setProcurementQuantity("");
@@ -257,6 +283,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                                 onChange={(val) => {
                                     setCompanyId(val);
                                     setCommodityId("");
+                                    setVarietyId("");
                                 }}
                                 placeholder="Select company..."
                                 searchPlaceholder="Search company..."
@@ -275,6 +302,20 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                                 emptyMessage="No commodities found"
                             />
                         </div>
+
+                        {varieties.length > 0 && (
+                            <div className="grid gap-2">
+                                <Label htmlFor="variety">Variety (Optional)</Label>
+                                <Combobox
+                                    options={varieties.map(v => ({ label: `${v.name} (Yield: ${v.yieldPercentage}%)`, value: v.id }))}
+                                    value={varietyId}
+                                    onChange={setVarietyId}
+                                    placeholder="Select variety..."
+                                    searchPlaceholder="Search variety..."
+                                    emptyMessage="No varieties found"
+                                />
+                            </div>
+                        )}
 
                         <div className="grid gap-2">
                             <Label htmlFor="productName">Product Name / Deal Title <span className="text-red-500">*</span></Label>

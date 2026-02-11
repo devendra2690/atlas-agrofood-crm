@@ -9,8 +9,9 @@ import { logActivity } from "./audit";
 export type ProcurementProjectFormData = {
     name: string;
     status?: ProjectStatus;
-    type?: ProcurementType; // NEW
+    type?: ProcurementType;
     commodityId?: string;
+    varietyId?: string; // NEW
 };
 
 export async function getProcurementProjects(filters?: {
@@ -86,6 +87,7 @@ export async function getProcurementProjects(filters?: {
                         }
                     },
                     commodity: true,
+                    variety: true, // NEW
                     projectVendors: {
                         include: {
                             vendor: true
@@ -94,11 +96,12 @@ export async function getProcurementProjects(filters?: {
                     salesOpportunities: {
                         select: {
                             id: true,
-                            productName: true, // Add this
+                            productName: true,
                             quantity: true,
                             procurementQuantity: true,
                             status: true,
-                            commodity: true, // Fetch commodity from opportunity as fallback
+                            commodity: true,
+                            variety: true, // NEW
                             sampleSubmissions: {
                                 where: { status: 'CLIENT_APPROVED' },
                                 select: {
@@ -179,7 +182,8 @@ export async function createProcurementProject(data: ProcurementProjectFormData)
                 name: data.name,
                 status: data.status || "SOURCING",
                 type: data.type || "PROJECT",
-                commodityId: data.commodityId // NEW
+                commodityId: data.commodityId,
+                varietyId: data.varietyId // NEW
             }
         });
 
@@ -210,7 +214,8 @@ export async function updateProcurementProject(id: string, data: ProcurementProj
                 name: data.name,
                 status: data.status,
                 type: data.type,
-                commodityId: data.commodityId
+                commodityId: data.commodityId,
+                varietyId: data.varietyId
             }
         });
 
