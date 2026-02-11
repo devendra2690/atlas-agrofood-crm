@@ -28,9 +28,10 @@ interface VendorTableProps {
     vendors: any[];
     initialCommodities: { id: string; name: string }[];
     initialCountries: { id: string; name: string }[];
+    basePath?: string;
 }
 
-export function VendorTable({ vendors, initialCommodities, initialCountries }: VendorTableProps) {
+export function VendorTable({ vendors, initialCommodities, initialCountries, basePath = "/vendors" }: VendorTableProps) {
     const router = useRouter();
 
     return (
@@ -58,7 +59,7 @@ export function VendorTable({ vendors, initialCommodities, initialCountries }: V
                         <TableRow
                             key={vendor.id}
                             className="group cursor-pointer hover:bg-muted/50"
-                            onClick={() => router.push(`/vendors/${vendor.id}`)}
+                            onClick={() => router.push(`${basePath}/${vendor.id}`)}
                         >
                             <TableCell className="font-medium">
                                 <div className="flex items-center gap-2">
@@ -98,7 +99,7 @@ export function VendorTable({ vendors, initialCommodities, initialCountries }: V
                                     ))}
                                 </div>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>

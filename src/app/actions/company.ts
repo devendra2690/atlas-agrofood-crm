@@ -296,8 +296,8 @@ export async function getCompanies(filters?: {
 }) {
     try {
         const where: any = {
-            type: {
-                not: "VENDOR"
+            type: filters?.type ? filters.type : {
+                notIn: ["VENDOR", "PARTNER"]
             }
         };
 

@@ -52,7 +52,14 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
     const isEditMode = !!company;
 
     // Form State
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<{
+        name: string;
+        type: CompanyType;
+        phone: string;
+        email: string;
+        website: string;
+        contactName: string;
+    }>({
         name: "",
         type: defaultType,
         phone: "",
@@ -238,9 +245,9 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                                         <SelectValue placeholder="Select type" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {(defaultType === "VENDOR" || (isEditMode && company.type === "VENDOR")) ? (
+                                        {(defaultType as string === "VENDOR" || (isEditMode && company.type as string === "VENDOR")) ? (
                                             <SelectItem value="VENDOR">Vendor</SelectItem>
-                                        ) : (defaultType === "PARTNER" || (isEditMode && company.type === "PARTNER")) ? (
+                                        ) : (defaultType as string === "PARTNER" || (isEditMode && company.type as string === "PARTNER")) ? (
                                             <SelectItem value="PARTNER">Partner</SelectItem>
                                         ) : (
                                             <>
@@ -377,7 +384,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {isEditMode
                                     ? "Save Changes"
-                                    : (formData.type === "VENDOR" ? "Save Vendor" : (formData.type === "PARTNER" ? "Save Partner" : "Save Company"))
+                                    : (formData.type as string === "VENDOR" ? "Save Vendor" : (formData.type as string === "PARTNER" ? "Save Partner" : "Save Company"))
                                 }
                             </Button>
                         </DialogFooter>

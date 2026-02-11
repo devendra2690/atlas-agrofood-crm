@@ -74,6 +74,7 @@ export default async function PartnersPage({
                         vendors={partners || []}
                         initialCommodities={commodities || []}
                         initialCountries={countries || []}
+                        basePath="/partners"
                     />
                     {pagination && (
                         <PaginationControls

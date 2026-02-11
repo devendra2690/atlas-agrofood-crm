@@ -47,16 +47,16 @@ export default async function CompaniesPage({
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Companies</h2>
                     <p className="text-muted-foreground">
-                        Manage your Clients, Prospects, and Vendors.
+                        Manage your Clients and Prospects.
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <CompanyDialog
+                    {/* <CompanyDialog
                         initialCommodities={initialCommodities}
                         initialCountries={initialCountries}
                         trigger={<Button variant="outline"><Plus className="mr-2 h-4 w-4" /> Add Vendor</Button>}
                         defaultType="VENDOR"
-                    />
+                    /> */}
                     <CompanyDialog
                         initialCommodities={initialCommodities}
                         initialCountries={initialCountries}
