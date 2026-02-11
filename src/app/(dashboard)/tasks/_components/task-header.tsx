@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { TaskDialog } from "./task-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter, useSearchParams } from "next/navigation";
+import { SearchInput } from "@/components/search-input";
 
 export function TaskHeader({ currentFilter }: { currentFilter: string }) {
     const router = useRouter();
@@ -25,7 +26,10 @@ export function TaskHeader({ currentFilter }: { currentFilter: string }) {
                 <p className="text-muted-foreground">Manage and track team assignments.</p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
+                <div className="w-[200px]">
+                    <SearchInput placeholder="Search tasks..." />
+                </div>
                 <Tabs value={currentFilter} onValueChange={handleFilterChange} className="w-[400px]">
                     <TabsList>
                         <TabsTrigger value="my">My Tasks</TabsTrigger>

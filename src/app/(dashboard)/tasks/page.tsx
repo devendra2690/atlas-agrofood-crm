@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getTodos } from "@/app/actions/notes";
 import { TaskList } from "./_components/task-list";
 import { TaskHeader } from "./_components/task-header";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { auth } from "@/auth";
 
 export default async function TasksPage({
@@ -42,6 +43,14 @@ export default async function TasksPage({
             <Suspense fallback={<div>Loading tasks...</div>}>
                 <TaskList tasks={tasks || []} currentUser={session?.user} />
             </Suspense>
+            {pagination && (
+                <PaginationControls
+                    hasNextPage={pagination.page < pagination.totalPages}
+                    hasPrevPage={pagination.page > 1}
+                    totalPages={pagination.totalPages}
+                    currentPage={pagination.page}
+                />
+            )}
         </div>
     );
 }

@@ -10,6 +10,16 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TaskDialog } from "./task-dialog";
 import { useState } from "react";
 import { updateTodo, deleteTodo } from "@/app/actions/notes";
@@ -23,14 +33,39 @@ interface TaskListProps {
 
 export function TaskList({ tasks, currentUser }: TaskListProps) {
     const [editingTask, setEditingTask] = useState<any>(null);
+    const [completingTask, setCompletingTask] = useState<any>(null);
+    const [completionNote, setCompletionNote] = useState("");
 
     const handleStatusToggle = async (task: any) => {
-        const newStatus = task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
-        const res = await updateTodo(task.id, { status: newStatus });
-        if (res.success) {
-            toast.success(`Task marked as ${newStatus.toLowerCase()}`);
+        if (task.status === 'COMPLETED') {
+            // Uncheck - no note needed
+            const res = await updateTodo(task.id, { status: 'PENDING' });
+            if (res.success) {
+                toast.success("Task marked as pending");
+            } else {
+                toast.error("Failed to update status");
+            }
         } else {
-            toast.error("Failed to update status");
+            // Check - require note
+            setCompletingTask(task);
+            setCompletionNote("");
+        }
+    };
+
+    const confirmCompletion = async () => {
+        if (!completingTask) return;
+
+        const res = await updateTodo(completingTask.id, {
+            status: 'COMPLETED',
+            completionNote: completionNote
+        });
+
+        if (res.success) {
+            toast.success("Task completed");
+            setCompletingTask(null);
+            setCompletionNote("");
+        } else {
+            toast.error("Failed to complete task");
         }
     };
 
@@ -74,7 +109,14 @@ export function TaskList({ tasks, currentUser }: TaskListProps) {
                                     {task.content}
                                 </p>
 
-                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                {task.replies && task.replies.length > 0 && (
+                                    <div className="bg-muted/50 p-2 rounded text-xs text-muted-foreground mt-1">
+                                        <p className="font-semibold text-[10px] uppercase mb-0.5">Note:</p>
+                                        <p>{task.replies[task.replies.length - 1].content}</p>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1">
                                     <Badge variant={getPriorityVariant(task.priority)} className="text-[10px] h-5 px-1.5">
                                         {task.priority}
                                     </Badge>
@@ -125,6 +167,32 @@ export function TaskList({ tasks, currentUser }: TaskListProps) {
                     onOpenChange={(open) => !open && setEditingTask(null)}
                 />
             )}
+
+            {/* Task Completion Dialog */}
+            <AlertDialog open={!!completingTask} onOpenChange={(open) => !open && setCompletingTask(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Complete Task</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Please provide a note or summary of the completed work.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="py-2">
+                        <textarea
+                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            placeholder="Enter completion note..."
+                            value={completionNote}
+                            onChange={(e) => setCompletionNote(e.target.value)}
+                        />
+                    </div>
+                    <AlertDialogFooter>
+                        <Button variant="outline" onClick={() => setCompletingTask(null)}>Cancel</Button>
+                        <Button onClick={confirmCompletion} disabled={!completionNote.trim()}>
+                            Complete Task
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

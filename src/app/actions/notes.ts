@@ -22,6 +22,7 @@ export type UpdateTodoData = {
     status?: TodoStatus;
     priority?: TodoPriority;
     dueDate?: Date | null;
+    completionNote?: string;
 };
 
 export async function createTodo(data: CreateTodoData) {
@@ -121,6 +122,11 @@ export async function createTodo(data: CreateTodoData) {
 
 export async function updateTodo(id: string, data: UpdateTodoData) {
     try {
+        // If completing and has a note, add it as a reply
+        if (data.status === 'COMPLETED' && data.completionNote) {
+            await createReply(id, `Task Completed: ${data.completionNote}`);
+        }
+
         await prisma.todo.update({
             where: { id },
             data: {
@@ -135,10 +141,11 @@ export async function updateTodo(id: string, data: UpdateTodoData) {
             action: "UPDATE",
             entityType: "Note",
             entityId: id,
-            details: `Updated note`
+            details: `Updated note type=${data.status || 'unknown'}`
         });
 
         revalidatePath("/notes");
+        revalidatePath("/tasks"); // Ensure tasks view updates too
         return { success: true };
     } catch (error) {
         console.error("Failed to update todo:", error);

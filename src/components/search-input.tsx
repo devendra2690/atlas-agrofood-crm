@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 
 interface SearchInputProps {
     placeholder?: string;
+    className?: string;
 }
 
-export function SearchInput({ placeholder }: SearchInputProps) {
+export function SearchInput({ placeholder, className }: SearchInputProps) {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const { replace } = useRouter();
@@ -28,7 +29,7 @@ export function SearchInput({ placeholder }: SearchInputProps) {
     }, 300);
 
     return (
-        <div className="flex w-[300px] items-center space-x-2">
+        <div className={`flex w-full items-center space-x-2 ${className}`}>
             <Input
                 placeholder={placeholder || "Search..."}
                 className="h-9"
