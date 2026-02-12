@@ -13,25 +13,14 @@ export type InteractionFormData = {
     status?: "FOLLOW_UP_SCHEDULED" | "CLOSED";
 };
 
-// TODO: In a real app, we would get the logged-in user's ID from the session.
-// For now, we'll fetch the first user or create a dummy one if none exists.
-async function getSystemUserId() {
-    const user = await prisma.user.findFirst();
-    if (user) return user.id;
-
-    const newUser = await prisma.user.create({
-        data: {
-            name: "System User",
-            email: "system@atlasagro.com",
-            role: "ADMIN"
-        }
-    });
-    return newUser.id;
-}
-
 export async function logInteraction(data: InteractionFormData) {
     try {
-        const userId = await getSystemUserId();
+        const session = await auth();
+        const userId = session?.user?.id;
+
+        if (!userId) {
+            return { success: false, error: "Unauthorized: Please log in to log interactions." };
+        }
 
         const interaction = await prisma.interactionLog.create({
             data: {
@@ -40,7 +29,9 @@ export async function logInteraction(data: InteractionFormData) {
                 description: data.description,
                 date: data.date || new Date(),
                 nextFollowUp: data.nextFollowUp,
-                status: data.status || "FOLLOW_UP_SCHEDULED"
+                status: data.status || "FOLLOW_UP_SCHEDULED",
+                createdById: userId,
+                updatedById: userId
             }
         });
 
