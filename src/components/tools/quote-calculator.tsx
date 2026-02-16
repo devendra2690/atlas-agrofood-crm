@@ -266,7 +266,8 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             // --- 3. Items Table ---
             const tableBody = quoteItems.length > 0 ? quoteItems.map((item, index) => {
                 const quantity = 100 * (item.yieldPercentage / 100);
-                const rateVal = item.finalPriceExclGST / quantity;
+                const rateVal = item.finalPriceExclGST; // Rate is Per Kg
+                const lineAmount = quantity * rateVal;  // Amount = Qty * Rate
                 const cgstRate = 2.5;
                 const sgstRate = 2.5;
 
@@ -279,13 +280,14 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                     'Kg',
                     `${cgstRate}%`,
                     `${sgstRate}%`,
-                    formatMoney(item.finalPriceExclGST).replace('₹', '')
+                    formatMoney(lineAmount).replace('₹', '')
                 ];
             }) : [];
 
             if (tableBody.length === 0 && selectedCommodityId) {
                 const quantity = 100 * (yieldPercentage / 100);
                 const rateVal = perKgSellingPriceExclGST;
+                const lineAmount = quantity * rateVal;
                 const gstRateVal = gstRate;
 
                 let desc = `${selectedCommodity?.name} - ${selectedVariety?.name || 'Default'}`;
@@ -306,7 +308,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                     'Kg',
                     `${gstRateVal / 2}%`,
                     `${gstRateVal / 2}%`,
-                    formatMoney(finalSellingPriceExclGST).replace('₹', '')
+                    formatMoney(lineAmount).replace('₹', '')
                 ]);
             }
 
@@ -357,11 +359,14 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             let totalSGST = 0;
 
             const itemsToCalc = quoteItems.length > 0 ? quoteItems : (selectedCommodityId ? [{
-                finalPriceExclGST: finalSellingPriceExclGST,
+                finalPriceExclGST: perKgSellingPriceExclGST, // Use Per Kg Price
+                yieldPercentage: yieldPercentage // Include Yield for calculation
             }] : []);
 
             itemsToCalc.forEach((item: any) => {
-                totalTaxable += item.finalPriceExclGST;
+                const quantity = 100 * (item.yieldPercentage / 100);
+                const rateVal = item.finalPriceExclGST;
+                totalTaxable += (quantity * rateVal);
             });
 
             const gstRateVal = quoteItems.length > 0 ? 5 : gstRate;
