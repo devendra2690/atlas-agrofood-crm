@@ -65,6 +65,7 @@ interface QuoteItem {
     varietyName: string;
     yieldPercentage: number;
     quantity: number; // User defined quantity
+    unit: 'Kg' | 'Ton'; // NEW: Unit
     rawMaterialPrice: number;
     finalPriceExclGST: number;
     remarks: string;
@@ -97,6 +98,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
 
     // NEW: Quoted Quantity State
     const [quotedQuantity, setQuotedQuantity] = useState<number>(0);
+    const [quantityUnit, setQuantityUnit] = useState<'Kg' | 'Ton'>('Kg'); // NEW: Unit State
 
     // Constants
     const POWER_CONSUMPTION_RATE = 12.5; // units per hour per 100kg input
@@ -181,6 +183,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
 
         // Use user input quantity or fallback to batch output if 0/empty
         const quantityToQuote = quotedQuantity > 0 ? quotedQuantity : fgWeight;
+        const unitToQuote = quotedQuantity > 0 ? quantityUnit : 'Kg';
 
         let varietyName = selectedVariety?.name || 'Default';
 
@@ -198,6 +201,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             varietyName: varietyName,
             yieldPercentage: yieldPercentage,
             quantity: quantityToQuote,
+            unit: unitToQuote,
             rawMaterialPrice: rawMaterialPrice,
             finalPriceExclGST: perKgSellingPriceExclGST,
             remarks: `${yieldPercentage}% Yield`
@@ -245,14 +249,35 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
 
             currentY += 25;
 
+            // Prepare Client Details
+            let clientAddress = "-";
+            let clientGSTIN = "-";
+
+            // Try to match clientName with a company in the list
+            const matchedCompany = companies.find(c => c.name === clientName);
+            if (matchedCompany) {
+                // Construct Address from City/State/Country
+                const parts = [];
+                if (matchedCompany.city?.name) parts.push(matchedCompany.city.name);
+                if (matchedCompany.state?.name) parts.push(matchedCompany.state.name);
+                if (matchedCompany.country?.name) parts.push(matchedCompany.country.name);
+
+                if (parts.length > 0) {
+                    clientAddress = parts.join(", ");
+                }
+
+                // GSTIN is not currently in the Company model, so it remains "-"
+                // If it becomes available later, accessing matchedCompany.gstin would go here.
+            }
+
             // Client & Consignee Table
             autoTable(doc, {
                 startY: currentY,
                 theme: 'grid',
                 body: [
                     [
-                        { content: `Buyer (Bill To):\n${clientName || 'Cash Client'}\nAddress: [Client Address Here]\nGSTIN: [Client GSTIN]`, styles: { halign: 'left', cellWidth: pageWidth / 2 - 14 } },
-                        { content: `Consignee (Ship To):\n${clientName || 'Same as Buyer'}\n[Ship Address Here]`, styles: { halign: 'left', cellWidth: pageWidth / 2 - 14 } }
+                        { content: `Buyer (Bill To):\n${clientName || 'Cash Client'}\nAddress: ${clientAddress}\nGSTIN: ${clientGSTIN}`, styles: { halign: 'left', cellWidth: pageWidth / 2 - 14 } },
+                        { content: `Consignee (Ship To):\n${clientName || 'Same as Buyer'}\nAddress: ${clientAddress}`, styles: { halign: 'left', cellWidth: pageWidth / 2 - 14 } }
                     ]
                 ],
                 styles: {
@@ -277,6 +302,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                 finalPriceExclGST: perKgSellingPriceExclGST,
                 yieldPercentage: yieldPercentage,
                 quantity: quotedQuantity > 0 ? quotedQuantity : fgWeight,
+                unit: quotedQuantity > 0 ? quantityUnit : 'Kg',
                 isSingleItem: true,
                 commodityName: selectedCommodity?.name,
                 varietyName: selectedVariety?.name
@@ -284,8 +310,18 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
 
             itemsToCalc.forEach((item: any) => {
                 const quantity = item.quantity;
-                const rateVal = item.finalPriceExclGST;
-                totalTaxable += (quantity * rateVal);
+                const unit = item.unit || 'Kg';
+                const ratePerKg = item.finalPriceExclGST;
+
+                // If unit is Ton, we display quantity in Tons, and Rate per Ton.
+                // Total Amount = Quantity (Tons) * Rate (Per Ton)
+                // Rate (Per Ton) = Rate (Per Kg) * 1000
+
+                const multiplier = unit === 'Ton' ? 1000 : 1;
+                const displayRate = ratePerKg * multiplier;
+                const lineAmount = quantity * displayRate;
+
+                totalTaxable += lineAmount;
             });
 
             const gstRateVal = quoteItems.length > 0 ? 5 : gstRate;
@@ -296,62 +332,61 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             // Build Table Body
             let tableBody = [];
 
-            if (quoteItems.length > 0) {
-                tableBody = quoteItems.map((item, index) => {
-                    const quantity = item.quantity;
-                    const rateVal = item.finalPriceExclGST;
-                    const lineAmount = quantity * rateVal;
-                    const cgstRate = 2.5;
-                    const sgstRate = 2.5;
+            const buildRow = (item: any, index: number) => {
+                const qty = item.quantity;
+                const unit = item.unit || 'Kg';
+                const ratePerKg = item.finalPriceExclGST;
 
-                    return [
-                        index + 1,
-                        `${item.commodityName} - ${item.varietyName}`,
-                        '0804',
-                        quantity.toFixed(2),
-                        formatMoney(rateVal).replace('₹', ''),
-                        'Kg',
-                        `${cgstRate}%`,
-                        `${sgstRate}%`,
-                        formatMoney(lineAmount).replace('₹', '')
-                    ];
-                });
-            } else if (selectedCommodityId) {
-                const quantity = quotedQuantity > 0 ? quotedQuantity : fgWeight;
-                const rateVal = perKgSellingPriceExclGST;
-                const lineAmount = quantity * rateVal;
+                const multiplier = unit === 'Ton' ? 1000 : 1;
+                const displayRate = ratePerKg * multiplier;
+                const lineAmount = qty * displayRate;
 
-                let desc = `${selectedCommodity?.name} - ${selectedVariety?.name || 'Default'}`;
-                if (selectedVarietyFormId && selectedVariety?.forms) {
-                    const form = selectedVariety.forms.find((f: any) => f.id === selectedVarietyFormId);
-                    if (form) {
-                        desc += ` - ${form.formName}`;
+                const cgstRate = 2.5;
+                const sgstRate = 2.5;
+
+                let desc = item.isSingleItem
+                    ? `${selectedCommodity?.name} - ${selectedVariety?.name || 'Default'}`
+                    : `${item.commodityName} - ${item.varietyName}`;
+
+                if (item.isSingleItem) {
+                    if (selectedVarietyFormId && selectedVariety?.forms) {
+                        const form = selectedVariety.forms.find((f: any) => f.id === selectedVarietyFormId);
+                        if (form) {
+                            desc += ` - ${form.formName}`;
+                        }
                     }
                 }
 
-                tableBody.push([
-                    1,
+                return [
+                    index + 1,
                     desc,
-                    '0804',
-                    quantity.toFixed(2),
-                    formatMoney(rateVal).replace('₹', ''),
-                    'Kg',
-                    `${gstRateVal / 2}%`,
-                    `${gstRateVal / 2}%`,
+                    '0804', // HSN
+                    `${qty.toFixed(2)} ${unit}`, // Qty merged with Unit
+                    formatMoney(displayRate).replace('₹', ''), // Rate
+                    `${cgstRate}%`,
+                    `${sgstRate}%`,
                     formatMoney(lineAmount).replace('₹', '')
-                ]);
+                ];
+            };
+
+            if (quoteItems.length > 0) {
+                tableBody = quoteItems.map((item, index) => buildRow(item, index));
+            } else if (selectedCommodityId) {
+                const item = itemsToCalc[0];
+                tableBody.push(buildRow(item, 0));
             }
 
             // Append Totals Rows with colSpan
+            // Changed colSpan from 8 to 7 because we removed the Unit column
             tableBody.push(
                 // @ts-ignore
-                [{ content: 'Total Taxable', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalTaxable).replace('₹', '')],
+                [{ content: 'Total Taxable', colSpan: 7, styles: { halign: 'right' } }, formatMoney(totalTaxable).replace('₹', '')],
                 // @ts-ignore
-                [{ content: 'CGST', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalCGST).replace('₹', '')],
+                [{ content: 'CGST', colSpan: 7, styles: { halign: 'right' } }, formatMoney(totalCGST).replace('₹', '')],
                 // @ts-ignore
-                [{ content: 'SGST', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalSGST).replace('₹', '')],
+                [{ content: 'SGST', colSpan: 7, styles: { halign: 'right' } }, formatMoney(totalSGST).replace('₹', '')],
                 // @ts-ignore
-                [{ content: 'Total', colSpan: 8, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatMoney(grandTotal).replace('₹', ''), styles: { fontStyle: 'bold', halign: 'right' } }]
+                [{ content: 'Total', colSpan: 7, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatMoney(grandTotal).replace('₹', ''), styles: { fontStyle: 'bold', halign: 'right' } }]
             );
 
             autoTable(doc, {
@@ -364,7 +399,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                         { content: 'HSN', styles: { halign: 'center', valign: 'middle' } },
                         { content: 'Qty', styles: { halign: 'center', valign: 'middle' } },
                         { content: 'Rate', styles: { halign: 'center', valign: 'middle' } },
-                        { content: 'Unit', styles: { halign: 'center', valign: 'middle' } },
+                        // Unit Column Removed
                         { content: 'CGST', styles: { halign: 'center', valign: 'middle' } },
                         { content: 'SGST', styles: { halign: 'center', valign: 'middle' } },
                         { content: 'Amount', styles: { halign: 'center', valign: 'middle' } }
@@ -380,15 +415,15 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                     valign: 'middle'
                 },
                 columnStyles: {
-                    0: { cellWidth: 10, halign: 'center' },
-                    1: { cellWidth: 'auto' }, // Description
-                    2: { cellWidth: 20, halign: 'center' },
-                    3: { cellWidth: 15, halign: 'center' },
-                    4: { cellWidth: 20, halign: 'right' },
-                    5: { cellWidth: 15, halign: 'center' },
-                    6: { cellWidth: 15, halign: 'center' },
-                    7: { cellWidth: 15, halign: 'center' },
-                    8: { cellWidth: 25, halign: 'right' }
+                    0: { cellWidth: 10, halign: 'center' }, // Sr
+                    1: { cellWidth: 'auto' }, // Description gets remaining space
+                    2: { cellWidth: 20, halign: 'center' }, // HSN
+                    3: { cellWidth: 25, halign: 'center' }, // Qty (Widened slightly for unit)
+                    4: { cellWidth: 35, halign: 'right' },  // Rate (Widened significantly for readability)
+                    // Unit Removed
+                    5: { cellWidth: 15, halign: 'center' }, // CGST
+                    6: { cellWidth: 15, halign: 'center' }, // SGST
+                    7: { cellWidth: 30, halign: 'right' }   // Amount
                 }
             });
 
@@ -701,21 +736,38 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                             </div>
                         </div>
 
-                        {/* NEW: Quoted Quantity Input */}
+                        {/* NEW: Quoted Quantity Input & Unit Selection */}
                         <div className="space-y-2 pt-2">
-                            <Label>Quoted Quantity (Kg)</Label>
+                            <Label>Quoted Quantity</Label>
                             <div className="flex gap-2">
-                                <Input
-                                    type="number"
-                                    placeholder={`Batch Output: ${fgWeight.toFixed(2)}`}
-                                    value={quotedQuantity || ''}
-                                    onChange={(e) => setQuotedQuantity(Number(e.target.value))}
-                                />
+                                <div className="flex-1">
+                                    <Input
+                                        type="number"
+                                        placeholder={`Batch Output: ${fgWeight.toFixed(2)}`}
+                                        value={quotedQuantity || ''}
+                                        onChange={(e) => setQuotedQuantity(Number(e.target.value))}
+                                    />
+                                </div>
+                                <div className="w-[100px]">
+                                    <Select value={quantityUnit} onValueChange={(val: 'Kg' | 'Ton') => setQuantityUnit(val)}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Kg">Kg</SelectItem>
+                                            <SelectItem value="Ton">Ton</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                                 <div className="flex items-center text-sm font-medium whitespace-nowrap px-3 bg-slate-100 rounded border border-slate-200">
-                                    Total: {formatMoney((quotedQuantity || fgWeight) * perKgSellingPriceExclGST)}
+                                    Total: {formatMoney((quotedQuantity || fgWeight) * (quantityUnit === 'Ton' ? 1000 : 1) * perKgSellingPriceExclGST)}
                                 </div>
                             </div>
-                            <p className="text-[10px] text-muted-foreground">Leave empty to use batch output ({fgWeight.toFixed(2)} Kg)</p>
+                            <p className="text-[10px] text-muted-foreground">
+                                {quantityUnit === 'Ton'
+                                    ? `Rate will be converted to Per Ton (${formatMoney(perKgSellingPriceExclGST * 1000)})`
+                                    : `Leave empty to use batch output (${fgWeight.toFixed(2)} Kg)`}
+                            </p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 mt-4">
@@ -762,27 +814,30 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                                         <TableHead>Variety</TableHead>
                                         <TableHead>Yield</TableHead>
                                         <TableHead>Qty</TableHead>
-                                        <TableHead>Raw Material</TableHead>
+                                        <TableHead>Rate</TableHead>
                                         <TableHead className="text-right">Price (Excl. GST)</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {quoteItems.map((item) => (
-                                        <TableRow key={item.id}>
-                                            <TableCell className="font-medium">{item.commodityName}</TableCell>
-                                            <TableCell>{item.varietyName}</TableCell>
-                                            <TableCell>{item.yieldPercentage}%</TableCell>
-                                            <TableCell>{item.quantity.toFixed(2)}</TableCell>
-                                            <TableCell>{formatMoney(item.rawMaterialPrice)}</TableCell>
-                                            <TableCell className="text-right font-bold">{formatMoney(item.finalPriceExclGST)}</TableCell>
-                                            <TableCell>
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeFromQuote(item.id)}>
-                                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                    {quoteItems.map((item) => {
+                                        const multiplier = item.unit === 'Ton' ? 1000 : 1;
+                                        return (
+                                            <TableRow key={item.id}>
+                                                <TableCell className="font-medium">{item.commodityName}</TableCell>
+                                                <TableCell>{item.varietyName}</TableCell>
+                                                <TableCell>{item.yieldPercentage}%</TableCell>
+                                                <TableCell>{item.quantity.toFixed(2)} {item.unit}</TableCell>
+                                                <TableCell>{formatMoney(item.finalPriceExclGST * multiplier)}/{item.unit}</TableCell>
+                                                <TableCell className="text-right font-bold">{formatMoney(item.finalPriceExclGST)}</TableCell>
+                                                <TableCell>
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeFromQuote(item.id)}>
+                                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         </CardContent>
