@@ -263,35 +263,59 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             // @ts-ignore
             currentY = doc.lastAutoTable.finalY + 5;
 
-            // --- 3. Items Table ---
-            const tableBody = quoteItems.length > 0 ? quoteItems.map((item, index) => {
+            // --- 3. Items & Totals Table ---
+
+            // Calculate Totals First
+            let totalTaxable = 0;
+            let totalCGST = 0;
+            let totalSGST = 0;
+
+            const itemsToCalc = quoteItems.length > 0 ? quoteItems : (selectedCommodityId ? [{
+                finalPriceExclGST: perKgSellingPriceExclGST,
+                yieldPercentage: yieldPercentage,
+                isSingleItem: true
+            }] : []);
+
+            itemsToCalc.forEach((item: any) => {
                 const quantity = 100 * (item.yieldPercentage / 100);
-                const rateVal = item.finalPriceExclGST; // Rate is Per Kg
-                const lineAmount = quantity * rateVal;  // Amount = Qty * Rate
-                const cgstRate = 2.5;
-                const sgstRate = 2.5;
+                const rateVal = item.finalPriceExclGST;
+                totalTaxable += (quantity * rateVal);
+            });
 
-                return [
-                    index + 1,
-                    `${item.commodityName} - ${item.varietyName}`,
-                    '0804',
-                    quantity.toFixed(2),
-                    formatMoney(rateVal).replace('₹', ''),
-                    'Kg',
-                    `${cgstRate}%`,
-                    `${sgstRate}%`,
-                    formatMoney(lineAmount).replace('₹', '')
-                ];
-            }) : [];
+            const gstRateVal = quoteItems.length > 0 ? 5 : gstRate;
+            totalCGST = totalTaxable * ((gstRateVal / 2) / 100);
+            totalSGST = totalTaxable * ((gstRateVal / 2) / 100);
+            const grandTotal = totalTaxable + totalCGST + totalSGST;
 
-            if (tableBody.length === 0 && selectedCommodityId) {
+            // Build Table Body
+            let tableBody = [];
+
+            if (quoteItems.length > 0) {
+                tableBody = quoteItems.map((item, index) => {
+                    const quantity = 100 * (item.yieldPercentage / 100);
+                    const rateVal = item.finalPriceExclGST;
+                    const lineAmount = quantity * rateVal;
+                    const cgstRate = 2.5;
+                    const sgstRate = 2.5;
+
+                    return [
+                        index + 1,
+                        `${item.commodityName} - ${item.varietyName}`,
+                        '0804',
+                        quantity.toFixed(2),
+                        formatMoney(rateVal).replace('₹', ''),
+                        'Kg',
+                        `${cgstRate}%`,
+                        `${sgstRate}%`,
+                        formatMoney(lineAmount).replace('₹', '')
+                    ];
+                });
+            } else if (selectedCommodityId) {
                 const quantity = 100 * (yieldPercentage / 100);
                 const rateVal = perKgSellingPriceExclGST;
                 const lineAmount = quantity * rateVal;
-                const gstRateVal = gstRate;
 
                 let desc = `${selectedCommodity?.name} - ${selectedVariety?.name || 'Default'}`;
-                // Append form name if selected for single item PDF generation too
                 if (selectedVarietyFormId && selectedVariety?.forms) {
                     const form = selectedVariety.forms.find((f: any) => f.id === selectedVarietyFormId);
                     if (form) {
@@ -312,33 +336,46 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                 ]);
             }
 
+            // Append Totals Rows with colSpan
+            tableBody.push(
+                // @ts-ignore
+                [{ content: 'Total Taxable', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalTaxable).replace('₹', '')],
+                // @ts-ignore
+                [{ content: 'CGST', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalCGST).replace('₹', '')],
+                // @ts-ignore
+                [{ content: 'SGST', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalSGST).replace('₹', '')],
+                // @ts-ignore
+                [{ content: 'Total', colSpan: 8, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatMoney(grandTotal).replace('₹', ''), styles: { fontStyle: 'bold', halign: 'right' } }]
+            );
+
             autoTable(doc, {
                 startY: currentY,
                 theme: 'grid',
                 head: [
                     [
-                        { content: 'Sr', styles: { halign: 'center' } },
-                        { content: 'Description', styles: { halign: 'center' } },
-                        { content: 'HSN', styles: { halign: 'center' } },
-                        { content: 'Qty', styles: { halign: 'center' } },
-                        { content: 'Rate', styles: { halign: 'center' } },
-                        { content: 'Unit', styles: { halign: 'center' } },
-                        { content: 'CGST', styles: { halign: 'center' } },
-                        { content: 'SGST', styles: { halign: 'center' } },
-                        { content: 'Amount', styles: { halign: 'center' } }
+                        { content: 'Sr', styles: { halign: 'center', valign: 'middle' } },
+                        { content: 'Description', styles: { halign: 'left', valign: 'middle' } },
+                        { content: 'HSN', styles: { halign: 'center', valign: 'middle' } },
+                        { content: 'Qty', styles: { halign: 'center', valign: 'middle' } },
+                        { content: 'Rate', styles: { halign: 'center', valign: 'middle' } },
+                        { content: 'Unit', styles: { halign: 'center', valign: 'middle' } },
+                        { content: 'CGST', styles: { halign: 'center', valign: 'middle' } },
+                        { content: 'SGST', styles: { halign: 'center', valign: 'middle' } },
+                        { content: 'Amount', styles: { halign: 'center', valign: 'middle' } }
                     ]
                 ],
                 body: tableBody,
                 styles: {
                     fontSize: 9,
-                    cellPadding: 2,
+                    cellPadding: 3,
                     lineColor: [0, 0, 0],
                     lineWidth: 0.1,
-                    textColor: [0, 0, 0]
+                    textColor: [0, 0, 0],
+                    valign: 'middle'
                 },
                 columnStyles: {
                     0: { cellWidth: 10, halign: 'center' },
-                    1: { cellWidth: 'auto' },
+                    1: { cellWidth: 'auto' }, // Description
                     2: { cellWidth: 20, halign: 'center' },
                     3: { cellWidth: 15, halign: 'center' },
                     4: { cellWidth: 20, halign: 'right' },
@@ -346,52 +383,6 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                     6: { cellWidth: 15, halign: 'center' },
                     7: { cellWidth: 15, halign: 'center' },
                     8: { cellWidth: 25, halign: 'right' }
-                }
-            });
-
-            // @ts-ignore
-            currentY = doc.lastAutoTable.finalY + 10;
-            // ... (Rest of PDF generation remains matching previous logic)
-
-            // --- 4. Totals & Footer ---
-            let totalTaxable = 0;
-            let totalCGST = 0;
-            let totalSGST = 0;
-
-            const itemsToCalc = quoteItems.length > 0 ? quoteItems : (selectedCommodityId ? [{
-                finalPriceExclGST: perKgSellingPriceExclGST, // Use Per Kg Price
-                yieldPercentage: yieldPercentage // Include Yield for calculation
-            }] : []);
-
-            itemsToCalc.forEach((item: any) => {
-                const quantity = 100 * (item.yieldPercentage / 100);
-                const rateVal = item.finalPriceExclGST;
-                totalTaxable += (quantity * rateVal);
-            });
-
-            const gstRateVal = quoteItems.length > 0 ? 5 : gstRate;
-            totalCGST = totalTaxable * ((gstRateVal / 2) / 100);
-            totalSGST = totalTaxable * ((gstRateVal / 2) / 100);
-            const grandTotal = totalTaxable + totalCGST + totalSGST;
-
-            autoTable(doc, {
-                startY: currentY,
-                theme: 'grid',
-                body: [
-                    [{ content: 'Total Taxable', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalTaxable).replace('₹', '')],
-                    [{ content: 'CGST', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalCGST).replace('₹', '')],
-                    [{ content: 'SGST', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalSGST).replace('₹', '')],
-                    [{ content: 'Total', colSpan: 8, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatMoney(grandTotal).replace('₹', ''), styles: { fontStyle: 'bold', halign: 'right' } }]
-                ],
-                styles: {
-                    fontSize: 9,
-                    cellPadding: 2,
-                    lineColor: [0, 0, 0],
-                    lineWidth: 0.1,
-                },
-                columnStyles: {
-                    0: { halign: 'right' },
-                    8: { halign: 'right' }
                 }
             });
 
