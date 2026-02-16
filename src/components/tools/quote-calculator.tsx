@@ -18,6 +18,7 @@ interface Variety {
 interface Commodity {
     id: string;
     name: string;
+    yieldPercentage: number;
     varieties: Variety[];
 }
 
@@ -49,11 +50,16 @@ export function QuoteCalculator({ commodities }: QuoteCalculatorProps) {
     const POWER_CONSUMPTION_RATE = 12.5; // units per hour per 100kg input
 
     useEffect(() => {
-        if (selectedCommodityId && selectedVarietyId) {
+        if (selectedCommodityId) {
             const commodity = commodities.find(c => c.id === selectedCommodityId);
-            const variety = commodity?.varieties.find(v => v.id === selectedVarietyId);
-            if (variety) {
-                setYieldPercentage(variety.yieldPercentage);
+            if (selectedVarietyId) {
+                const variety = commodity?.varieties.find(v => v.id === selectedVarietyId);
+                if (variety) {
+                    setYieldPercentage(variety.yieldPercentage);
+                }
+            } else if (commodity) {
+                // Fallback to commodity default yield
+                setYieldPercentage(commodity.yieldPercentage);
             }
         } else {
             setYieldPercentage(0);
