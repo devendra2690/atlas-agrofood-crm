@@ -10,7 +10,8 @@ export type OpportunityFormData = {
     companyId: string;
     productName: string;
     commodityId?: string;
-    varietyId?: string; // NEW
+    varietyId?: string;
+    varietyFormId?: string; // NEW
     targetPrice?: number;
     priceType?: "PER_KG" | "PER_MT" | "TOTAL_AMOUNT";
     quantity?: number;
@@ -23,13 +24,21 @@ export type OpportunityFormData = {
 };
 
 // Helper: Calculate procurement quantity
-async function calculateProcurementQuantity(commodityId?: string, varietyId?: string, quantity?: number, manualProcurementQty?: number): Promise<number | undefined> {
+async function calculateProcurementQuantity(commodityId?: string, varietyId?: string, varietyFormId?: string, quantity?: number, manualProcurementQty?: number): Promise<number | undefined> {
     if (manualProcurementQty) return manualProcurementQty;
     if (!commodityId || !quantity) return undefined;
 
     let yieldPercentage = 100;
 
-    if (varietyId) {
+    if (varietyFormId) {
+        const form = await prisma.varietyForm.findUnique({
+            where: { id: varietyFormId },
+            select: { yieldPercentage: true }
+        });
+        if (form?.yieldPercentage) {
+            yieldPercentage = form.yieldPercentage;
+        }
+    } else if (varietyId) {
         const variety = await prisma.commodityVariety.findUnique({
             where: { id: varietyId },
             select: { yieldPercentage: true }
@@ -57,6 +66,7 @@ export async function createOpportunity(data: OpportunityFormData) {
         const procurementQuantity = await calculateProcurementQuantity(
             data.commodityId,
             data.varietyId,
+            data.varietyFormId,
             data.quantity,
             data.procurementQuantity
         );
@@ -87,6 +97,7 @@ export async function createOpportunity(data: OpportunityFormData) {
                 productName: data.productName,
                 commodityId: data.commodityId,
                 varietyId: data.varietyId,
+                varietyFormId: data.varietyFormId,
                 targetPrice: data.targetPrice,
                 priceType: data.priceType || "PER_KG",
                 quantity: data.quantity,
@@ -129,6 +140,7 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
         const procurementQuantity = await calculateProcurementQuantity(
             data.commodityId,
             data.varietyId,
+            data.varietyFormId,
             data.quantity,
             data.procurementQuantity
         );
@@ -157,6 +169,7 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
                 productName: data.productName,
                 commodityId: data.commodityId,
                 varietyId: data.varietyId,
+                varietyFormId: data.varietyFormId,
                 targetPrice: data.targetPrice,
                 priceType: data.priceType || "PER_KG",
                 quantity: data.quantity,
@@ -316,7 +329,8 @@ export async function getOpportunities(filters?: {
                 include: {
                     company: true,
                     commodity: true,
-                    variety: true, // NEW
+                    variety: true,
+                    varietyForm: true, // NEW
                     createdBy: { select: { name: true } },
                     updatedBy: { select: { name: true } },
                     sampleSubmissions: {
@@ -366,7 +380,8 @@ export async function getOpportunities(filters?: {
                     include: {
                         company: true,
                         commodity: true,
-                        variety: true, // NEW
+                        variety: true,
+                        varietyForm: true, // NEW
                         createdBy: { select: { name: true } },
                         updatedBy: { select: { name: true } },
                         sampleSubmissions: {

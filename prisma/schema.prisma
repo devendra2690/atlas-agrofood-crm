@@ -352,6 +352,7 @@ model Commodity {
    wastagePercentage Float            @default(0.0)
    
    variety           CommodityVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
+   salesOpportunities SalesOpportunity[]
 
    @@unique([varietyId, formName])
  }
@@ -472,6 +473,8 @@ model SalesOpportunity {
   commodityId        String?
   variety            CommodityVariety?   @relation(fields: [varietyId], references: [id])
   varietyId          String?
+  varietyForm        VarietyForm?        @relation(fields: [varietyFormId], references: [id])
+  varietyFormId      String?
   salesOrders        SalesOrder[]
   sampleSubmissions  SampleSubmission[]
 

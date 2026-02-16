@@ -67,8 +67,9 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
 
     const [companyId, setCompanyId] = useState(initialData?.companyId || "");
     const [commodityId, setCommodityId] = useState(initialData?.commodityId || "");
-    const [varietyId, setVarietyId] = useState(initialData?.varietyId || ""); // NEW
-    const [varieties, setVarieties] = useState<any[]>([]); // NEW
+    const [varietyId, setVarietyId] = useState(initialData?.varietyId || "");
+    const [varietyFormId, setVarietyFormId] = useState(initialData?.varietyFormId || ""); // NEW
+    const [varieties, setVarieties] = useState<any[]>([]);
     const [productName, setProductName] = useState(initialData?.productName || "");
     const [opportunityType, setOpportunityType] = useState<"ONE_TIME" | "RECURRING">(initialData?.type || "ONE_TIME");
 
@@ -82,6 +83,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
             setCompanyId(initialData?.companyId || "");
             setCommodityId(initialData?.commodityId || "");
             setVarietyId(initialData?.varietyId || "");
+            setVarietyFormId(initialData?.varietyFormId || ""); // FIX: Load saved form
             setProductName(initialData?.productName || "");
             setOpportunityType(initialData?.type || "ONE_TIME");
             setQuantity(initialData?.quantity?.toString() || "");
@@ -123,8 +125,18 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
         // Override with variety yield if selected
         if (varietyId) {
             const variety = varieties.find(v => v.id === varietyId);
-            if (variety && variety.yieldPercentage) {
-                yieldPerc = variety.yieldPercentage;
+            if (variety) {
+                // If form selected, use form yield
+                if (varietyFormId) {
+                    const form = variety.forms?.find((f: any) => f.id === varietyFormId);
+                    if (form && form.yieldPercentage) {
+                        yieldPerc = form.yieldPercentage;
+                    } else if (variety.yieldPercentage) {
+                        yieldPerc = variety.yieldPercentage;
+                    }
+                } else if (variety.yieldPercentage) {
+                    yieldPerc = variety.yieldPercentage;
+                }
             }
         }
 
@@ -134,11 +146,12 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
             const needed = qtyNum * (100 / yieldPerc);
             setProcurementQuantity(needed.toFixed(2));
         }
-    }, [quantity, commodityId, varietyId, availableCommodities, varieties]);
+    }, [quantity, commodityId, varietyId, varietyFormId, availableCommodities, varieties]);
 
     const handleCommodityChange = (val: string) => {
         setCommodityId(val);
         setVarietyId(""); // Reset variety
+        setVarietyFormId(""); // Reset Form
         const comm = availableCommodities.find(c => c.id === val);
         const selectedCompany = companies.find(c => c.id === companyId);
 
@@ -208,6 +221,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                 productName,
                 commodityId: commodityId || undefined,
                 varietyId: varietyId || undefined,
+                varietyFormId: varietyFormId || undefined,
                 targetPrice: targetPriceStr ? parseFloat(targetPriceStr) : undefined,
                 priceType: priceType || "PER_KG",
                 quantity: quantityStr ? parseFloat(quantityStr) : undefined,
@@ -284,6 +298,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                                     setCompanyId(val);
                                     setCommodityId("");
                                     setVarietyId("");
+                                    setVarietyFormId(""); // Reset Form
                                 }}
                                 placeholder="Select company..."
                                 searchPlaceholder="Search company..."
@@ -313,6 +328,23 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                                     placeholder="Select variety..."
                                     searchPlaceholder="Search variety..."
                                     emptyMessage="No varieties found"
+                                />
+                            </div>
+                        )}
+
+                        {varietyId && varieties.find(v => v.id === varietyId)?.forms?.length > 0 && (
+                            <div className="grid gap-2">
+                                <Label htmlFor="varietyForm">Form (Optional)</Label>
+                                <Combobox
+                                    options={varieties.find(v => v.id === varietyId)?.forms.map((f: any) => ({
+                                        label: `${f.formName} (Yield: ${f.yieldPercentage}%)`,
+                                        value: f.id
+                                    }))}
+                                    value={varietyFormId}
+                                    onChange={setVarietyFormId}
+                                    placeholder="Select form..."
+                                    searchPlaceholder="Search form..."
+                                    emptyMessage="No forms found"
                                 />
                             </div>
                         )}
