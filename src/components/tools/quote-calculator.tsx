@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { numberToWords } from "@/lib/utils";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -65,10 +66,11 @@ interface QuoteItem {
     varietyName: string;
     yieldPercentage: number;
     quantity: number; // User defined quantity
-    unit: 'Kg' | 'Ton'; // NEW: Unit
+    unit: 'Kg' | 'Ton';
     rawMaterialPrice: number;
     finalPriceExclGST: number;
     remarks: string;
+    calculationMode: 'batch' | 'order'; // NEW
 }
 
 export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps) {
@@ -77,28 +79,38 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
     const [isClientOpen, setIsClientOpen] = useState(false);
     const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
 
+    // Mode Toggle
+    const [calculationMode, setCalculationMode] = useState<'batch' | 'order'>('batch');
+
     // Canvas Inputs
     const [selectedCommodityId, setSelectedCommodityId] = useState<string>('');
     const [selectedVarietyId, setSelectedVarietyId] = useState<string>('');
     const [selectedVarietyFormId, setSelectedVarietyFormId] = useState<string>('');
     const [rawMaterialPrice, setRawMaterialPrice] = useState<number>(0);
+    const [gstRate, setGstRate] = useState<number>(5); // Default 5%
+    const [marginPercentage, setMarginPercentage] = useState<number>(25); // Default 25%
+
+    // --- BATCH MODE INPUTS ---
     const [batchDuration, setBatchDuration] = useState<number>(0); // Hours
     const [numberOfLaborers, setNumberOfLaborers] = useState<number>(0);
     const [costPerLaborer, setCostPerLaborer] = useState<number>(0);
     const [packagingCost, setPackagingCost] = useState<number>(0);
     const [transportCost, setTransportCost] = useState<number>(0);
-    const [gstRate, setGstRate] = useState<number>(5); // Default 5%
+    const [electricityRate, setElectricityRate] = useState<number>(8.5); // Default 8.5
+
+    // --- ORDER MODE INPUTS ---
+    const [targetOrderQty, setTargetOrderQty] = useState<number>(1000); // Default 1 ton
+    const [lumpSumLaborCost, setLumpSumLaborCost] = useState<number>(0);
+    const [lumpSumPackagingCost, setLumpSumPackagingCost] = useState<number>(0);
+    const [lumpSumTransportCost, setLumpSumTransportCost] = useState<number>(0);
+    const [lumpSumPowerCost, setLumpSumPowerCost] = useState<number>(0); // Entered directly or calculated? Let's allow direct first.
 
     // Derived States for Display
     const [yieldPercentage, setYieldPercentage] = useState<number>(0);
 
-    const [marginPercentage, setMarginPercentage] = useState<number>(25); // Default 25%
-
-    const [electricityRate, setElectricityRate] = useState<number>(8.5); // Default 8.5
-
-    // NEW: Quoted Quantity State
+    // NEW: Quoted Quantity State (Used for 'Batch' mode mainly, synced in 'Order' mode)
     const [quotedQuantity, setQuotedQuantity] = useState<number>(0);
-    const [quantityUnit, setQuantityUnit] = useState<'Kg' | 'Ton'>('Kg'); // NEW: Unit State
+    const [quantityUnit, setQuantityUnit] = useState<'Kg' | 'Ton'>('Kg');
 
     // Constants
     const POWER_CONSUMPTION_RATE = 12.5; // units per hour per 100kg input
@@ -130,39 +142,68 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
         }
     }, [selectedCommodityId, selectedVarietyId, selectedVarietyFormId, commodities]);
 
+    // --- CALCULATIONS ---
 
-    // Calculations
-    const totalLaborCost = numberOfLaborers * costPerLaborer;
+    let finalSellingPriceExclGST = 0;
+    let perKgSellingPriceExclGST = 0;
+    let rawMaterialBatchCost = 0;
+    let unitsConsumed = 0;
+    let totalPowerCost = 0;
+    let totalLaborCost = 0;
+    let totalProductionCost = 0;
+    let fgWeight = 0;
+    let marginAmount = 0;
 
-    // Power Cost
-    const unitsConsumed = batchDuration * POWER_CONSUMPTION_RATE;
-    const totalPowerCost = unitsConsumed * electricityRate;
+    if (calculationMode === 'batch') {
+        // --- BATCH MODE CALC ---
+        fgWeight = 100 * (yieldPercentage / 100); // Output from 100kg Input
+        rawMaterialBatchCost = rawMaterialPrice * 100; // Cost for 100kg Input
 
-    // Total Production Cost (for 100kg INPUT)
-    // Note: Raw Material Price is per Kg. So for 100kg batch:
-    const rawMaterialBatchCost = rawMaterialPrice * 100;
+        totalLaborCost = numberOfLaborers * costPerLaborer;
+        unitsConsumed = batchDuration * POWER_CONSUMPTION_RATE;
+        totalPowerCost = unitsConsumed * electricityRate;
 
-    const totalProductionCost = rawMaterialBatchCost + totalPowerCost + totalLaborCost + packagingCost + transportCost;
+        totalProductionCost = rawMaterialBatchCost + totalPowerCost + totalLaborCost + packagingCost + transportCost;
 
-    // Yield Processing
-    // Finished Goods (FG) Weight = 100 kg * Yield % / 100
-    const fgWeight = 100 * (yieldPercentage / 100);
+        marginAmount = totalProductionCost * (marginPercentage / 100);
+        const totalWithMargin = totalProductionCost + marginAmount;
 
-    // Margin Addition
-    const marginAmount = totalProductionCost * (marginPercentage / 100);
-    const totalWithMargin = totalProductionCost + marginAmount;
+        // Per Kg Selling Price
+        perKgSellingPriceExclGST = fgWeight > 0 ? totalWithMargin / fgWeight : 0;
+        finalSellingPriceExclGST = totalWithMargin; // For the Batch
 
-    // Selling Prices
-    // This 'totalWithMargin' is for the entire batch (which resulted in fgWeight kg of product)
-    const finalSellingPriceExclGST = totalWithMargin;
+    } else {
+        // --- ORDER MODE CALC (Reverse) ---
+        // Target: targetOrderQty (e.g., 1000kg)
+        // Yield: 10%
+        // RM Needed = Target / Yield %
+        const rmNeeded = yieldPercentage > 0 ? targetOrderQty / (yieldPercentage / 100) : 0;
 
-    // Per Kg Selling Price (Excl. GST)
-    const perKgSellingPriceExclGST = fgWeight > 0 ? finalSellingPriceExclGST / fgWeight : 0;
+        rawMaterialBatchCost = rmNeeded * rawMaterialPrice; // Total RM Cost for Order
 
-    // GST Amount
+        // Lump Sum Costs are direct inputs
+        totalLaborCost = lumpSumLaborCost;
+        totalPowerCost = lumpSumPowerCost;
+
+        // We use the lump sum state variables directly
+        const pkgCost = lumpSumPackagingCost;
+        const tptCost = lumpSumTransportCost;
+
+        totalProductionCost = rawMaterialBatchCost + totalLaborCost + totalPowerCost + pkgCost + tptCost;
+
+        marginAmount = totalProductionCost * (marginPercentage / 100);
+        const totalWithMargin = totalProductionCost + marginAmount;
+
+        // Per Kg Selling Price
+        perKgSellingPriceExclGST = targetOrderQty > 0 ? totalWithMargin / targetOrderQty : 0;
+        finalSellingPriceExclGST = totalWithMargin; // For the entire Order
+
+        // Sync fgWeight for display/logic consistency
+        fgWeight = targetOrderQty;
+    }
+
+    // Common Totals
     const gstAmountPerKg = perKgSellingPriceExclGST * (gstRate / 100);
-
-    // Final Landing Price (Incl. GST)
     const finalLandingPriceInclGST = perKgSellingPriceExclGST + gstAmountPerKg;
     const finalLandingPricePerTon = finalLandingPriceInclGST * 1000;
 
@@ -182,8 +223,13 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
         if (!selectedCommodity) return;
 
         // Use user input quantity or fallback to batch output if 0/empty
-        const quantityToQuote = quotedQuantity > 0 ? quotedQuantity : fgWeight;
-        const unitToQuote = quotedQuantity > 0 ? quantityUnit : 'Kg';
+        const quantityToQuote = calculationMode === 'order'
+            ? targetOrderQty
+            : (quotedQuantity > 0 ? quotedQuantity : fgWeight);
+
+        const unitToQuote = calculationMode === 'order'
+            ? 'Kg' // Order mode targets Kg usually, but let's default to Kg for simplicity or use existing unit selection
+            : (quotedQuantity > 0 ? quantityUnit : 'Kg');
 
         let varietyName = selectedVariety?.name || 'Default';
 
@@ -204,7 +250,8 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             unit: unitToQuote,
             rawMaterialPrice: rawMaterialPrice,
             finalPriceExclGST: perKgSellingPriceExclGST,
-            remarks: `${yieldPercentage}% Yield`
+            remarks: calculationMode === 'order' ? 'Project Based' : `${yieldPercentage}% Yield`,
+            calculationMode: calculationMode
         };
 
         setQuoteItems([...quoteItems, newItem]);
@@ -265,9 +312,6 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                 if (parts.length > 0) {
                     clientAddress = parts.join(", ");
                 }
-
-                // GSTIN is not currently in the Company model, so it remains "-"
-                // If it becomes available later, accessing matchedCompany.gstin would go here.
             }
 
             // Client & Consignee Table
@@ -301,8 +345,8 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             const itemsToCalc = quoteItems.length > 0 ? quoteItems : (selectedCommodityId ? [{
                 finalPriceExclGST: perKgSellingPriceExclGST,
                 yieldPercentage: yieldPercentage,
-                quantity: quotedQuantity > 0 ? quotedQuantity : fgWeight,
-                unit: quotedQuantity > 0 ? quantityUnit : 'Kg',
+                quantity: calculationMode === 'order' ? targetOrderQty : (quotedQuantity > 0 ? quotedQuantity : fgWeight),
+                unit: calculationMode === 'order' ? 'Kg' : (quotedQuantity > 0 ? quantityUnit : 'Kg'),
                 isSingleItem: true,
                 commodityName: selectedCommodity?.name,
                 varietyName: selectedVariety?.name
@@ -313,10 +357,6 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                 const unit = item.unit || 'Kg';
                 const ratePerKg = item.finalPriceExclGST;
 
-                // If unit is Ton, we display quantity in Tons, and Rate per Ton.
-                // Total Amount = Quantity (Tons) * Rate (Per Ton)
-                // Rate (Per Ton) = Rate (Per Kg) * 1000
-
                 const multiplier = unit === 'Ton' ? 1000 : 1;
                 const displayRate = ratePerKg * multiplier;
                 const lineAmount = quantity * displayRate;
@@ -324,7 +364,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                 totalTaxable += lineAmount;
             });
 
-            const gstRateVal = quoteItems.length > 0 ? 5 : gstRate;
+            const gstRateVal = quoteItems.length > 0 ? 5 : gstRate; // Fixed to 5% or dynamic? Using dynamic if single, else 5%
             totalCGST = totalTaxable * ((gstRateVal / 2) / 100);
             totalSGST = totalTaxable * ((gstRateVal / 2) / 100);
             const grandTotal = totalTaxable + totalCGST + totalSGST;
@@ -376,8 +416,6 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                 tableBody.push(buildRow(item, 0));
             }
 
-            // Append Totals Rows with colSpan
-            // Changed colSpan from 8 to 7 because we removed the Unit column
             tableBody.push(
                 // @ts-ignore
                 [{ content: 'Total Taxable', colSpan: 7, styles: { halign: 'right' } }, formatMoney(totalTaxable).replace('₹', '')],
@@ -399,7 +437,6 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                         { content: 'HSN', styles: { halign: 'center', valign: 'middle' } },
                         { content: 'Qty', styles: { halign: 'center', valign: 'middle' } },
                         { content: 'Rate', styles: { halign: 'center', valign: 'middle' } },
-                        // Unit Column Removed
                         { content: 'CGST', styles: { halign: 'center', valign: 'middle' } },
                         { content: 'SGST', styles: { halign: 'center', valign: 'middle' } },
                         { content: 'Amount', styles: { halign: 'center', valign: 'middle' } }
@@ -415,15 +452,14 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                     valign: 'middle'
                 },
                 columnStyles: {
-                    0: { cellWidth: 10, halign: 'center' }, // Sr
-                    1: { cellWidth: 'auto' }, // Description gets remaining space
-                    2: { cellWidth: 20, halign: 'center' }, // HSN
-                    3: { cellWidth: 25, halign: 'center' }, // Qty (Widened slightly for unit)
-                    4: { cellWidth: 35, halign: 'right' },  // Rate (Widened significantly for readability)
-                    // Unit Removed
-                    5: { cellWidth: 15, halign: 'center' }, // CGST
-                    6: { cellWidth: 15, halign: 'center' }, // SGST
-                    7: { cellWidth: 30, halign: 'right' }   // Amount
+                    0: { cellWidth: 10, halign: 'center' },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 20, halign: 'center' },
+                    3: { cellWidth: 25, halign: 'center' },
+                    4: { cellWidth: 35, halign: 'right' },
+                    5: { cellWidth: 15, halign: 'center' },
+                    6: { cellWidth: 15, halign: 'center' },
+                    7: { cellWidth: 30, halign: 'right' }
                 }
             });
 
@@ -472,7 +508,6 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                             <PopoverContent className="w-[300px] p-0">
                                 <Command>
                                     <CommandInput placeholder="Search client..." onValueChange={(search) => {
-                                        // Update client Name as user types to support "Creatable" behavior
                                         if (search) setClientName(search);
                                     }} />
                                     <CommandList>
@@ -506,9 +541,19 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                     <div className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle>Input Parameters</CardTitle>
-                            <CardDescription>Enter batch details based on 100kg Input</CardDescription>
+                            <CardDescription>
+                                {calculationMode === 'batch'
+                                    ? "Enter details for a 100kg Input Batch"
+                                    : "Enter details for the Total Project Order"}
+                            </CardDescription>
                         </div>
                     </div>
+                    <Tabs value={calculationMode} onValueChange={(val) => setCalculationMode(val as 'batch' | 'order')} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="batch">Standard (Batch Mode)</TabsTrigger>
+                            <TabsTrigger value="order">Project (Order Mode)</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -584,64 +629,130 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <Label>Batch Duration (Hours)</Label>
-                        <Input
-                            type="number"
-                            value={batchDuration || ''}
-                            onChange={e => setBatchDuration(Number(e.target.value))}
-                            placeholder="Hours for 100kg input"
-                        />
-                    </div>
+                    {/* CONDITIONAL INPUTS BASED ON MODE */}
+                    {calculationMode === 'batch' ? (
+                        <>
+                            <div className="space-y-2">
+                                <Label>Batch Duration (Hours - for 100kg)</Label>
+                                <Input
+                                    type="number"
+                                    value={batchDuration || ''}
+                                    onChange={e => setBatchDuration(Number(e.target.value))}
+                                    placeholder="Hours for 100kg input"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Electricity Rate (Per Unit)</Label>
+                                <Input
+                                    type="number"
+                                    value={electricityRate || ''}
+                                    onChange={e => setElectricityRate(Number(e.target.value))}
+                                    placeholder="e.g. 8.5"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>No. of Laborers</Label>
+                                    <Input
+                                        type="number"
+                                        value={numberOfLaborers || ''}
+                                        onChange={e => setNumberOfLaborers(Number(e.target.value))}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Cost per Laborer</Label>
+                                    <Input
+                                        type="number"
+                                        value={costPerLaborer || ''}
+                                        onChange={e => setCostPerLaborer(Number(e.target.value))}
+                                        placeholder="Total per "
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Batch Packaging Cost</Label>
+                                    <Input
+                                        type="number"
+                                        value={packagingCost || ''}
+                                        onChange={e => setPackagingCost(Number(e.target.value))}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Batch Transport Cost</Label>
+                                    <Input
+                                        type="number"
+                                        value={transportCost || ''}
+                                        onChange={e => setTransportCost(Number(e.target.value))}
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        // ORDER MODE INPUTS
+                        <>
+                            <div className="space-y-2 border-l-4 border-blue-500 pl-4 bg-blue-50/50 py-2">
+                                <Label className="text-blue-700">Target Order Quantity (Kg)</Label>
+                                <Input
+                                    type="number"
+                                    className="font-bold text-lg"
+                                    value={targetOrderQty || ''}
+                                    onChange={e => setTargetOrderQty(Number(e.target.value))}
+                                    placeholder="e.g. 1000"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    RM Needed: {yieldPercentage > 0 ? (targetOrderQty / (yieldPercentage / 100)).toFixed(0) : 0} Kg
+                                </p>
+                            </div>
 
-                    <div className="space-y-2">
-                        <Label>Electricity Rate (Per Unit)</Label>
-                        <Input
-                            type="number"
-                            value={electricityRate || ''}
-                            onChange={e => setElectricityRate(Number(e.target.value))}
-                            placeholder="e.g. 8.5"
-                        />
-                    </div>
+                            <div className="space-y-1">
+                                <Label>Total Project Lump Sum Costs</Label>
+                                <Separator />
+                            </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label>No. of Laborers</Label>
-                            <Input
-                                type="number"
-                                value={numberOfLaborers || ''}
-                                onChange={e => setNumberOfLaborers(Number(e.target.value))}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Cost per Laborer</Label>
-                            <Input
-                                type="number"
-                                value={costPerLaborer || ''}
-                                onChange={e => setCostPerLaborer(Number(e.target.value))}
-                                placeholder="Total per person"
-                            />
-                        </div>
-                    </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Total Labor Cost</Label>
+                                    <Input
+                                        type="number"
+                                        value={lumpSumLaborCost || ''}
+                                        onChange={e => setLumpSumLaborCost(Number(e.target.value))}
+                                        placeholder="Total for Project"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Total Power Cost</Label>
+                                    <Input
+                                        type="number"
+                                        value={lumpSumPowerCost || ''}
+                                        onChange={e => setLumpSumPowerCost(Number(e.target.value))}
+                                        placeholder="Total Power Bill"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Total Packaging Cost</Label>
+                                    <Input
+                                        type="number"
+                                        value={lumpSumPackagingCost || ''}
+                                        onChange={e => setLumpSumPackagingCost(Number(e.target.value))}
+                                        placeholder="Total Bags/Boxes"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Total Transport Cost</Label>
+                                    <Input
+                                        type="number"
+                                        value={lumpSumTransportCost || ''}
+                                        onChange={e => setLumpSumTransportCost(Number(e.target.value))}
+                                        placeholder="Total Truck/Logs"
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label>Packaging Cost</Label>
-                            <Input
-                                type="number"
-                                value={packagingCost || ''}
-                                onChange={e => setPackagingCost(Number(e.target.value))}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Transport Cost</Label>
-                            <Input
-                                type="number"
-                                value={transportCost || ''}
-                                onChange={e => setTransportCost(Number(e.target.value))}
-                            />
-                        </div>
-                    </div>
 
                     <div className="space-y-2">
                         <Label>GST Rate (%)</Label>
@@ -685,24 +796,24 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             <div className="space-y-6">
                 <Card className="bg-slate-50 border-slate-200">
                     <CardHeader>
-                        <CardTitle className="text-slate-800">Cost Analysis</CardTitle>
+                        <CardTitle className="text-slate-800">Cost Analysis ({calculationMode === 'batch' ? 'Per 100kg Input' : 'Total Project'})</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Raw Material (100kg)</span>
+                            <span className="text-muted-foreground">Raw Material Cost</span>
                             <span>{formatMoney(rawMaterialBatchCost)}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Power ({unitsConsumed} units)</span>
+                            <span className="text-muted-foreground">Power Cost</span>
                             <span>{formatMoney(totalPowerCost)}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Labor</span>
+                            <span className="text-muted-foreground">Labor Cost</span>
                             <span>{formatMoney(totalLaborCost)}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Overheads (Pkg + Tpt)</span>
-                            <span>{formatMoney(packagingCost + transportCost)}</span>
+                            <span>{formatMoney((calculationMode === 'batch' ? (packagingCost + transportCost) : (lumpSumPackagingCost + lumpSumTransportCost)))}</span>
                         </div>
                         <Separator className="my-2" />
                         <div className="flex justify-between font-medium text-base">
@@ -715,12 +826,12 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                 <Card className="bg-primary/5 border-primary/20">
                     <CardHeader>
                         <CardTitle className="text-primary">Quote Result</CardTitle>
-                        <CardDescription>Based on {yieldPercentage}% Yield ({fgWeight.toFixed(2)} Kg Output)</CardDescription>
+                        <CardDescription>Based on {yieldPercentage}% Yield ({calculationMode === 'batch' ? `${fgWeight.toFixed(2)} Kg Output` : `${targetOrderQty.toFixed(2)} Kg Order`})</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-muted-foreground">Per Kg Calculation Base</span>
-                            <span className="font-medium bg-slate-100 px-2 py-0.5 rounded text-slate-700">Batch Revenue: {formatMoney(finalSellingPriceExclGST)}</span>
+                            <span className="font-medium bg-slate-100 px-2 py-0.5 rounded text-slate-700">Total Revenue: {formatMoney(finalSellingPriceExclGST)}</span>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 pt-2">
@@ -743,13 +854,21 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                                 <div className="flex-1">
                                     <Input
                                         type="number"
-                                        placeholder={`Batch Output: ${fgWeight.toFixed(2)}`}
-                                        value={quotedQuantity || ''}
-                                        onChange={(e) => setQuotedQuantity(Number(e.target.value))}
+                                        placeholder={`Output: ${fgWeight.toFixed(2)}`}
+                                        // In Order Mode, this is read-only or synced
+                                        value={calculationMode === 'order' ? targetOrderQty : (quotedQuantity || '')}
+                                        onChange={(e) => {
+                                            if (calculationMode === 'batch') setQuotedQuantity(Number(e.target.value));
+                                            else setTargetOrderQty(Number(e.target.value));
+                                        }}
+                                        disabled={calculationMode === 'order'}
                                     />
                                 </div>
                                 <div className="w-[100px]">
-                                    <Select value={quantityUnit} onValueChange={(val: 'Kg' | 'Ton') => setQuantityUnit(val)}>
+                                    <Select
+                                        value={calculationMode === 'order' ? 'Kg' : quantityUnit}
+                                        onValueChange={(val: 'Kg' | 'Ton') => setQuantityUnit(val)}
+                                        disabled={calculationMode === 'order'}>
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -760,13 +879,13 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                                     </Select>
                                 </div>
                                 <div className="flex items-center text-sm font-medium whitespace-nowrap px-3 bg-slate-100 rounded border border-slate-200">
-                                    Total: {formatMoney((quotedQuantity || fgWeight) * (quantityUnit === 'Ton' ? 1000 : 1) * perKgSellingPriceExclGST)}
+                                    Total: {formatMoney(calculationMode === 'order' ? (targetOrderQty * perKgSellingPriceExclGST) : ((quotedQuantity || fgWeight) * (quantityUnit === 'Ton' ? 1000 : 1) * perKgSellingPriceExclGST))}
                                 </div>
                             </div>
                             <p className="text-[10px] text-muted-foreground">
-                                {quantityUnit === 'Ton'
+                                {quantityUnit === 'Ton' && calculationMode === 'batch'
                                     ? `Rate will be converted to Per Ton (${formatMoney(perKgSellingPriceExclGST * 1000)})`
-                                    : `Leave empty to use batch output (${fgWeight.toFixed(2)} Kg)`}
+                                    : `Final Quote Value`}
                             </p>
                         </div>
 
