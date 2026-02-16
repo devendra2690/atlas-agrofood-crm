@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button"; // For reset if needed
-import { formatCurrency, numberToWords } from "@/lib/utils"; // Assuming this exists, or I will use Intl.NumberFormat
+import { Button } from "@/components/ui/button";
+import { numberToWords } from "@/lib/utils";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Check, ChevronsUpDown, Plus, Trash2 } from 'lucide-react';
@@ -56,7 +56,7 @@ interface Commodity {
 
 interface QuoteCalculatorProps {
     commodities: Commodity[];
-    companies: any[]; // Using any for simplicity as Company type might be complex to import here, or import { Company } from "@prisma/client"
+    companies: any[];
 }
 
 interface QuoteItem {
@@ -64,6 +64,7 @@ interface QuoteItem {
     commodityName: string;
     varietyName: string;
     yieldPercentage: number;
+    quantity: number; // User defined quantity
     rawMaterialPrice: number;
     finalPriceExclGST: number;
     remarks: string;
@@ -78,7 +79,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
     // Canvas Inputs
     const [selectedCommodityId, setSelectedCommodityId] = useState<string>('');
     const [selectedVarietyId, setSelectedVarietyId] = useState<string>('');
-    const [selectedVarietyFormId, setSelectedVarietyFormId] = useState<string>(''); // NEW
+    const [selectedVarietyFormId, setSelectedVarietyFormId] = useState<string>('');
     const [rawMaterialPrice, setRawMaterialPrice] = useState<number>(0);
     const [batchDuration, setBatchDuration] = useState<number>(0); // Hours
     const [numberOfLaborers, setNumberOfLaborers] = useState<number>(0);
@@ -94,8 +95,10 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
 
     const [electricityRate, setElectricityRate] = useState<number>(8.5); // Default 8.5
 
+    // NEW: Quoted Quantity State
+    const [quotedQuantity, setQuotedQuantity] = useState<number>(0);
+
     // Constants
-    // const FIXED_ELECTRICITY_RATE = 8.50; // Now dynamic
     const POWER_CONSUMPTION_RATE = 12.5; // units per hour per 100kg input
 
     useEffect(() => {
@@ -144,7 +147,6 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
     const fgWeight = 100 * (yieldPercentage / 100);
 
     // Margin Addition
-    // Margin Addition
     const marginAmount = totalProductionCost * (marginPercentage / 100);
     const totalWithMargin = totalProductionCost + marginAmount;
 
@@ -158,7 +160,6 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
     // GST Amount
     const gstAmountPerKg = perKgSellingPriceExclGST * (gstRate / 100);
 
-    // Final Landing Price (Incl. GST)
     // Final Landing Price (Incl. GST)
     const finalLandingPriceInclGST = perKgSellingPriceExclGST + gstAmountPerKg;
     const finalLandingPricePerTon = finalLandingPriceInclGST * 1000;
@@ -178,6 +179,9 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
     const addToQuote = () => {
         if (!selectedCommodity) return;
 
+        // Use user input quantity or fallback to batch output if 0/empty
+        const quantityToQuote = quotedQuantity > 0 ? quotedQuantity : fgWeight;
+
         let varietyName = selectedVariety?.name || 'Default';
 
         // Append Form Name if selected
@@ -193,6 +197,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             commodityName: selectedCommodity.name,
             varietyName: varietyName,
             yieldPercentage: yieldPercentage,
+            quantity: quantityToQuote,
             rawMaterialPrice: rawMaterialPrice,
             finalPriceExclGST: perKgSellingPriceExclGST,
             remarks: `${yieldPercentage}% Yield`
@@ -209,8 +214,6 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
         try {
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.width;
-
-            // ... (Logo logic removed)
 
             // --- Helper Constants ---
             const leftMargin = 14;
@@ -273,11 +276,14 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             const itemsToCalc = quoteItems.length > 0 ? quoteItems : (selectedCommodityId ? [{
                 finalPriceExclGST: perKgSellingPriceExclGST,
                 yieldPercentage: yieldPercentage,
-                isSingleItem: true
+                quantity: quotedQuantity > 0 ? quotedQuantity : fgWeight,
+                isSingleItem: true,
+                commodityName: selectedCommodity?.name,
+                varietyName: selectedVariety?.name
             }] : []);
 
             itemsToCalc.forEach((item: any) => {
-                const quantity = 100 * (item.yieldPercentage / 100);
+                const quantity = item.quantity;
                 const rateVal = item.finalPriceExclGST;
                 totalTaxable += (quantity * rateVal);
             });
@@ -292,7 +298,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
 
             if (quoteItems.length > 0) {
                 tableBody = quoteItems.map((item, index) => {
-                    const quantity = 100 * (item.yieldPercentage / 100);
+                    const quantity = item.quantity;
                     const rateVal = item.finalPriceExclGST;
                     const lineAmount = quantity * rateVal;
                     const cgstRate = 2.5;
@@ -311,7 +317,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                     ];
                 });
             } else if (selectedCommodityId) {
-                const quantity = 100 * (yieldPercentage / 100);
+                const quantity = quotedQuantity > 0 ? quotedQuantity : fgWeight;
                 const rateVal = perKgSellingPriceExclGST;
                 const lineAmount = quantity * rateVal;
 
@@ -695,6 +701,23 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                             </div>
                         </div>
 
+                        {/* NEW: Quoted Quantity Input */}
+                        <div className="space-y-2 pt-2">
+                            <Label>Quoted Quantity (Kg)</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    type="number"
+                                    placeholder={`Batch Output: ${fgWeight.toFixed(2)}`}
+                                    value={quotedQuantity || ''}
+                                    onChange={(e) => setQuotedQuantity(Number(e.target.value))}
+                                />
+                                <div className="flex items-center text-sm font-medium whitespace-nowrap px-3 bg-slate-100 rounded border border-slate-200">
+                                    Total: {formatMoney((quotedQuantity || fgWeight) * perKgSellingPriceExclGST)}
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">Leave empty to use batch output ({fgWeight.toFixed(2)} Kg)</p>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4 mt-4">
                             <Button type="button" onClick={addToQuote} className="w-full" variant="secondary">
                                 <Plus className="w-4 h-4 mr-2" /> Add to Quote
@@ -738,6 +761,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                                         <TableHead>Commodity</TableHead>
                                         <TableHead>Variety</TableHead>
                                         <TableHead>Yield</TableHead>
+                                        <TableHead>Qty</TableHead>
                                         <TableHead>Raw Material</TableHead>
                                         <TableHead className="text-right">Price (Excl. GST)</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
@@ -749,6 +773,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                                             <TableCell className="font-medium">{item.commodityName}</TableCell>
                                             <TableCell>{item.varietyName}</TableCell>
                                             <TableCell>{item.yieldPercentage}%</TableCell>
+                                            <TableCell>{item.quantity.toFixed(2)}</TableCell>
                                             <TableCell>{formatMoney(item.rawMaterialPrice)}</TableCell>
                                             <TableCell className="text-right font-bold">{formatMoney(item.finalPriceExclGST)}</TableCell>
                                             <TableCell>
