@@ -136,6 +136,9 @@ export default function CommoditiesPage() {
                                                 <span className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">
                                                     Yield: {commodity.yieldPercentage}%
                                                 </span>
+                                                <span className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">
+                                                    Wastage: {commodity.wastagePercentage || 0}%
+                                                </span>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -147,6 +150,8 @@ export default function CommoditiesPage() {
                                             <ManageVarietiesDialog
                                                 commodityId={commodity.id}
                                                 commodityName={commodity.name}
+                                                commodityYield={commodity.yieldPercentage}
+                                                commodityWastage={commodity.wastagePercentage || 0}
                                             />
                                             <TemplateEditorDialog
                                                 commodityId={commodity.id}

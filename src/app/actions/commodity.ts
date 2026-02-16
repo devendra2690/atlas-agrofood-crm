@@ -20,12 +20,14 @@ export async function getCommodities() {
     }
 }
 
-export async function createCommodity(name: string, yieldPercentage: number = 100) {
+
+export async function createCommodity(name: string, yieldPercentage: number = 100, wastagePercentage: number = 0) {
     try {
         const commodity = await prisma.commodity.create({
             data: {
                 name,
-                yieldPercentage
+                yieldPercentage,
+                wastagePercentage
             }
         });
         await logActivity({
@@ -41,12 +43,13 @@ export async function createCommodity(name: string, yieldPercentage: number = 10
     }
 }
 
-export async function updateCommodity(id: string, name?: string, yieldPercentage?: number, documentTemplate?: any) {
+export async function updateCommodity(id: string, name?: string, yieldPercentage?: number, wastagePercentage?: number, documentTemplate?: any) {
     try {
         const updateData: any = {};
 
         if (name !== undefined) updateData.name = name;
         if (yieldPercentage !== undefined) updateData.yieldPercentage = yieldPercentage;
+        if (wastagePercentage !== undefined) updateData.wastagePercentage = wastagePercentage;
         if (documentTemplate !== undefined) updateData.documentTemplate = documentTemplate;
 
         const commodity = await prisma.commodity.update({
@@ -101,6 +104,9 @@ export async function getCommodityVarieties(commodityId: string) {
     try {
         const varieties = await prisma.commodityVariety.findMany({
             where: { commodityId },
+            include: {
+                forms: true // Include forms
+            },
             orderBy: { name: 'asc' }
         });
         return { success: true, data: varieties };
@@ -110,13 +116,14 @@ export async function getCommodityVarieties(commodityId: string) {
     }
 }
 
-export async function createCommodityVariety(commodityId: string, name: string, yieldPercentage: number = 100) {
+export async function createCommodityVariety(commodityId: string, name: string, yieldPercentage: number = 100, wastagePercentage: number = 0) {
     try {
         const variety = await prisma.commodityVariety.create({
             data: {
                 name,
                 commodityId,
-                yieldPercentage
+                yieldPercentage,
+                wastagePercentage
             }
         });
         await logActivity({
@@ -129,6 +136,31 @@ export async function createCommodityVariety(commodityId: string, name: string, 
     } catch (error) {
         console.error("Failed to create variety:", error);
         return { success: false, error: "Failed to create variety" };
+    }
+}
+
+export async function updateCommodityVariety(id: string, name?: string, yieldPercentage?: number, wastagePercentage?: number) {
+    try {
+        const updateData: any = {};
+        if (name !== undefined) updateData.name = name;
+        if (yieldPercentage !== undefined) updateData.yieldPercentage = yieldPercentage;
+        if (wastagePercentage !== undefined) updateData.wastagePercentage = wastagePercentage;
+
+        const variety = await prisma.commodityVariety.update({
+            where: { id },
+            data: updateData
+        });
+
+        await logActivity({
+            action: "UPDATE",
+            entityType: "CommodityVariety",
+            entityId: variety.id,
+            details: `Updated variety: ${variety.name}`
+        });
+        return { success: true, data: variety };
+    } catch (error) {
+        console.error("Failed to update variety:", error);
+        return { success: false, error: "Failed to update variety" };
     }
 }
 
@@ -147,5 +179,54 @@ export async function deleteCommodityVariety(id: string) {
     } catch (error) {
         console.error("Failed to delete variety:", error);
         return { success: false, error: "Failed to delete variety" };
+    }
+}
+
+// Variety Forms Actions
+
+export async function addVarietyForm(varietyId: string, formName: string, yieldPercentage: number, wastagePercentage: number) {
+    try {
+        const form = await prisma.varietyForm.create({
+            data: {
+                varietyId,
+                formName,
+                yieldPercentage,
+                wastagePercentage
+            }
+        });
+        return { success: true, data: form };
+    } catch (error) {
+        console.error("Failed to add variety form:", error);
+        return { success: false, error: "Failed to add variety form" };
+    }
+}
+
+export async function updateVarietyForm(id: string, formName?: string, yieldPercentage?: number, wastagePercentage?: number) {
+    try {
+        const updateData: any = {};
+        if (formName !== undefined) updateData.formName = formName;
+        if (yieldPercentage !== undefined) updateData.yieldPercentage = yieldPercentage;
+        if (wastagePercentage !== undefined) updateData.wastagePercentage = wastagePercentage;
+
+        const form = await prisma.varietyForm.update({
+            where: { id },
+            data: updateData
+        });
+        return { success: true, data: form };
+    } catch (error) {
+        console.error("Failed to update variety form:", error);
+        return { success: false, error: "Failed to update variety form" };
+    }
+}
+
+export async function deleteVarietyForm(id: string) {
+    try {
+        await prisma.varietyForm.delete({
+            where: { id }
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to delete variety form:", error);
+        return { success: false, error: "Failed to delete variety form" };
     }
 }

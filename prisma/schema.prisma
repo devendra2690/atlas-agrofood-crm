@@ -319,6 +319,7 @@ model Commodity {
    id        String    @id @default(uuid())
    name      String    @unique
    yieldPercentage Float @default(100.0) // Percentage yield (e.g. 25.0 for 25%)
+   wastagePercentage Float @default(0.0) // Percentage wastage
    companies         Company[]
    salesOpportunities SalesOpportunity[]
    procurementProjects ProcurementProject[]
@@ -332,13 +333,27 @@ model Commodity {
    commodityId String
    description String?
    yieldPercentage Float @default(100.0) // Percentage yield specific to this variety
+   wastagePercentage Float @default(0.0) // Percentage wastage specific to this variety
    
    commodity   Commodity @relation(fields: [commodityId], references: [id])
    vendorMappings VendorVariety[]
    salesOpportunities SalesOpportunity[] // Relation
    procurementProjects ProcurementProject[] // Relation
+   forms             VarietyForm[]      // NEW
    
    @@unique([name, commodityId])
+ }
+
+ model VarietyForm {
+   id                String           @id @default(uuid())
+   varietyId         String
+   formName          String
+   yieldPercentage   Float            @default(100.0)
+   wastagePercentage Float            @default(0.0)
+   
+   variety           CommodityVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
+
+   @@unique([varietyId, formName])
  }
  
  model VendorVariety {
