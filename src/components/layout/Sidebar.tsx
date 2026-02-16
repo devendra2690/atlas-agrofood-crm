@@ -24,7 +24,8 @@ import {
     Database,
     MessageSquare,
     Megaphone,
-    LineChart
+    LineChart,
+    Calculator
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -76,6 +77,12 @@ const sidebarItems = [
             { name: "Tasks", href: "/tasks", icon: ClipboardList },
             { name: "Discussions", href: "/notes", icon: MessageSquare },
             { name: "Marketing", href: "/marketing", icon: Megaphone },
+        ]
+    },
+    {
+        title: "Tools",
+        items: [
+            { name: "Quote Calculator", href: "/tools/quote-calculator", icon: Calculator },
         ]
     },
 ];
