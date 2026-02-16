@@ -34,10 +34,17 @@ import {
     TableRow,
 } from "@/components/ui/table";
 
+interface VarietyForm {
+    id: string;
+    formName: string;
+    yieldPercentage: number;
+}
+
 interface Variety {
     id: string;
     name: string;
     yieldPercentage: number;
+    forms?: VarietyForm[];
 }
 
 interface Commodity {
@@ -71,6 +78,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
     // Canvas Inputs
     const [selectedCommodityId, setSelectedCommodityId] = useState<string>('');
     const [selectedVarietyId, setSelectedVarietyId] = useState<string>('');
+    const [selectedVarietyFormId, setSelectedVarietyFormId] = useState<string>(''); // NEW
     const [rawMaterialPrice, setRawMaterialPrice] = useState<number>(0);
     const [batchDuration, setBatchDuration] = useState<number>(0); // Hours
     const [numberOfLaborers, setNumberOfLaborers] = useState<number>(0);
@@ -96,7 +104,17 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             if (selectedVarietyId) {
                 const variety = commodity?.varieties.find(v => v.id === selectedVarietyId);
                 if (variety) {
-                    setYieldPercentage(variety.yieldPercentage);
+                    // Check if form is selected
+                    if (selectedVarietyFormId) {
+                        const form = variety.forms?.find((f: any) => f.id === selectedVarietyFormId);
+                        if (form) {
+                            setYieldPercentage(form.yieldPercentage);
+                        } else {
+                            setYieldPercentage(variety.yieldPercentage);
+                        }
+                    } else {
+                        setYieldPercentage(variety.yieldPercentage);
+                    }
                 }
             } else if (commodity) {
                 // Fallback to commodity default yield
@@ -105,7 +123,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
         } else {
             setYieldPercentage(0);
         }
-    }, [selectedCommodityId, selectedVarietyId, commodities]);
+    }, [selectedCommodityId, selectedVarietyId, selectedVarietyFormId, commodities]);
 
 
     // Calculations
@@ -155,11 +173,20 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
     };
 
     const selectedCommodity = commodities.find(c => c.id === selectedCommodityId);
+    const selectedVariety = selectedCommodity?.varieties.find(v => v.id === selectedVarietyId); // Helper
 
     const addToQuote = () => {
         if (!selectedCommodity) return;
 
-        const varietyName = selectedCommodity.varieties.find(v => v.id === selectedVarietyId)?.name || 'Default';
+        let varietyName = selectedVariety?.name || 'Default';
+
+        // Append Form Name if selected
+        if (selectedVarietyFormId && selectedVariety?.forms) {
+            const form = selectedVariety.forms.find((f: any) => f.id === selectedVarietyFormId);
+            if (form) {
+                varietyName += ` - ${form.formName}`;
+            }
+        }
 
         const newItem: QuoteItem = {
             id: crypto.randomUUID(),
@@ -183,8 +210,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.width;
 
-            // Logo Logic Removed as per user request to resolve file size/corruption
-            // ---------------------------------------------------------------------
+            // ... (Logo logic removed)
 
             // --- Helper Constants ---
             const leftMargin = 14;
@@ -204,7 +230,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             // Company Details
             doc.setFontSize(10);
             doc.setFont("helvetica", "bold");
-            doc.text("Atlas Agrofood", 14, startY + 5); // Moved left since logo is gone
+            doc.text("Atlas Agrofood", 14, startY + 5);
             doc.setFont("helvetica", "normal");
             doc.setFontSize(9);
             doc.text("123, Business Park,\nMumbai, Maharashtra, India.\nGSTIN: 27AAAAA0000A1Z5\nEmail: contact@atlasagrofood.com", 14, startY + 10);
@@ -241,8 +267,8 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             const tableBody = quoteItems.length > 0 ? quoteItems.map((item, index) => {
                 const quantity = 100 * (item.yieldPercentage / 100);
                 const rateVal = item.finalPriceExclGST / quantity;
-                const cgstRate = 2.5; // Fixed 2.5% CGST (assuming 5% total)
-                const sgstRate = 2.5; // Fixed 2.5% SGST
+                const cgstRate = 2.5;
+                const sgstRate = 2.5;
 
                 return [
                     index + 1,
@@ -262,9 +288,18 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                 const rateVal = perKgSellingPriceExclGST;
                 const gstRateVal = gstRate;
 
+                let desc = `${selectedCommodity?.name} - ${selectedVariety?.name || 'Default'}`;
+                // Append form name if selected for single item PDF generation too
+                if (selectedVarietyFormId && selectedVariety?.forms) {
+                    const form = selectedVariety.forms.find((f: any) => f.id === selectedVarietyFormId);
+                    if (form) {
+                        desc += ` - ${form.formName}`;
+                    }
+                }
+
                 tableBody.push([
                     1,
-                    `${selectedCommodity?.name} - ${selectedCommodity?.varieties.find(v => v.id === selectedVarietyId)?.name || 'Default'}`,
+                    desc,
                     '0804',
                     quantity.toFixed(2),
                     formatMoney(rateVal).replace('₹', ''),
@@ -313,7 +348,8 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             });
 
             // @ts-ignore
-            currentY = doc.lastAutoTable.finalY;
+            currentY = doc.lastAutoTable.finalY + 10;
+            // ... (Rest of PDF generation remains matching previous logic)
 
             // --- 4. Totals & Footer ---
             let totalTaxable = 0;
@@ -444,6 +480,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                             <Select value={selectedCommodityId} onValueChange={(val) => {
                                 setSelectedCommodityId(val);
                                 setSelectedVarietyId(''); // Reset variety
+                                setSelectedVarietyFormId(''); // Reset form
                             }}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select commodity" />
@@ -457,7 +494,10 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                         </div>
                         <div className="space-y-2">
                             <Label>Variety (Yield %)</Label>
-                            <Select value={selectedVarietyId} onValueChange={setSelectedVarietyId} disabled={!selectedCommodityId}>
+                            <Select value={selectedVarietyId} onValueChange={(val) => {
+                                setSelectedVarietyId(val);
+                                setSelectedVarietyFormId(''); // Reset form
+                            }} disabled={!selectedCommodityId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select variety" />
                                 </SelectTrigger>
@@ -470,6 +510,23 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                                 </SelectContent>
                             </Select>
                         </div>
+                        {selectedVariety?.forms && selectedVariety.forms.length > 0 && (
+                            <div className="space-y-2">
+                                <Label>Form (Yield)</Label>
+                                <Select value={selectedVarietyFormId} onValueChange={setSelectedVarietyFormId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select form" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {selectedVariety.forms.map((f: any) => (
+                                            <SelectItem key={f.id} value={f.id}>
+                                                {f.formName} ({f.yieldPercentage}%)
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label>Yield (%)</Label>
                             <Input
@@ -585,6 +642,8 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                     </div>
                 </CardContent>
             </Card>
+
+
 
             <div className="space-y-6">
                 <Card className="bg-slate-50 border-slate-200">

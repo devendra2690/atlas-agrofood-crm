@@ -9,6 +9,7 @@ export async function getCommodities() {
             orderBy: { name: 'asc' },
             include: {
                 varieties: {
+                    include: { forms: true }, // Include variety forms
                     orderBy: { name: 'asc' }
                 }
             }

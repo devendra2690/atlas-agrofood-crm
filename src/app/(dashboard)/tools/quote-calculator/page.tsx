@@ -8,6 +8,8 @@ export const metadata: Metadata = {
     description: "Calculate product landing prices",
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function QuoteCalculatorPage() {
     const { data: commodities } = await getCommodities();
     const { data: companies } = await getCompanies({ limit: 1000 }); // Fetch all companies for dropdown
