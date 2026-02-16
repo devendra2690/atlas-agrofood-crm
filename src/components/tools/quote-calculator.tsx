@@ -8,6 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button"; // For reset if needed
 import { formatCurrency } from "@/lib/utils"; // Assuming this exists, or I will use Intl.NumberFormat
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { Download } from 'lucide-react';
 
 interface Variety {
     id: string;
@@ -24,9 +27,49 @@ interface Commodity {
 
 interface QuoteCalculatorProps {
     commodities: Commodity[];
+    companies: any[]; // Using any for simplicity as Company type might be complex to import here, or import { Company } from "@prisma/client"
 }
 
-export function QuoteCalculator({ commodities }: QuoteCalculatorProps) {
+interface QuoteItem {
+    id: string;
+    commodityName: string;
+    varietyName: string;
+    yieldPercentage: number;
+    rawMaterialPrice: number;
+    finalPriceExclGST: number;
+    remarks: string;
+}
+
+import { Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+
+export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps) {
+    // Client State
+    const [clientName, setClientName] = useState<string>('');
+    const [isClientOpen, setIsClientOpen] = useState(false);
+    const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
+
     // Canvas Inputs
     const [selectedCommodityId, setSelectedCommodityId] = useState<string>('');
     const [selectedVarietyId, setSelectedVarietyId] = useState<string>('');
@@ -115,12 +158,194 @@ export function QuoteCalculator({ commodities }: QuoteCalculatorProps) {
 
     const selectedCommodity = commodities.find(c => c.id === selectedCommodityId);
 
+    const addToQuote = () => {
+        if (!selectedCommodity) return;
+
+        const varietyName = selectedCommodity.varieties.find(v => v.id === selectedVarietyId)?.name || 'Default';
+
+        const newItem: QuoteItem = {
+            id: crypto.randomUUID(),
+            commodityName: selectedCommodity.name,
+            varietyName: varietyName,
+            yieldPercentage: yieldPercentage,
+            rawMaterialPrice: rawMaterialPrice,
+            finalPriceExclGST: perKgSellingPriceExclGST,
+            remarks: `${yieldPercentage}% Yield`
+        };
+
+        setQuoteItems([...quoteItems, newItem]);
+    };
+
+    const removeFromQuote = (id: string) => {
+        setQuoteItems(quoteItems.filter(item => item.id !== id));
+    };
+
+    const generatePDF = async () => {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.width;
+
+        // Load Logo
+        const logoUrl = '/logo.png';
+        const logoImg = new Image();
+        logoImg.src = logoUrl;
+
+        try {
+            await new Promise((resolve, reject) => {
+                logoImg.onload = resolve;
+                logoImg.onerror = reject;
+            });
+            doc.addImage(logoImg, 'PNG', 14, 10, 25, 25);
+        } catch (e) {
+            console.warn("Logo not found or failed to load", e);
+        }
+
+        // Header
+        doc.setFontSize(20);
+        doc.setTextColor(40, 40, 40);
+        doc.text("Atlas Agrofood", 45, 22);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Quote Rate Calculation Report", 45, 28);
+        doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - 14, 22, { align: 'right' });
+
+        // Line
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(200, 200, 200);
+        doc.line(14, 38, pageWidth - 14, 38);
+
+        // Input Parameters
+        autoTable(doc, {
+            startY: 45,
+            head: [['Input Parameter', 'Value']],
+            body: [
+                ['Commodity', selectedCommodity?.name || '-'],
+                ['Variety', selectedCommodity?.varieties.find(v => v.id === selectedVarietyId)?.name || 'Default'],
+                ['Yield %', `${yieldPercentage}%`],
+                ['Raw Material Price', formatMoney(rawMaterialPrice) + ' / Kg'],
+                ['Batch Duration', `${batchDuration} Hours`],
+                ['Electricity Rate', `${electricityRate} / Unit`],
+                ['Labor', `${numberOfLaborers} @ ${formatMoney(costPerLaborer)}`],
+                ['Overheads (Pkg + Tpt)', formatMoney(packagingCost + transportCost)],
+                ['Margin', `${marginPercentage}%`],
+                ['GST Rate', `${gstRate}%`],
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+            styles: { fontSize: 9, cellPadding: 3 },
+            alternateRowStyles: { fillColor: [245, 245, 245] }
+        });
+
+        // Cost Analysis
+        autoTable(doc, {
+            //@ts-ignore
+            startY: doc.lastAutoTable.finalY + 10,
+            head: [['Cost Component', 'Value']],
+            body: [
+                ['Raw Material (100kg)', formatMoney(rawMaterialBatchCost)],
+                ['Power', formatMoney(totalPowerCost)],
+                ['Labor', formatMoney(totalLaborCost)],
+                ['Overheads', formatMoney(packagingCost + transportCost)],
+                ['Total Production Cost', formatMoney(totalProductionCost)],
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [52, 152, 219], textColor: 255, fontStyle: 'bold' },
+            styles: { fontSize: 9, cellPadding: 3 }
+        });
+
+        // Final Quote
+        autoTable(doc, {
+            //@ts-ignore
+            startY: doc.lastAutoTable.finalY + 10,
+            head: [['Metric', 'Value']],
+            body: [
+                ['Output Weight', `${fgWeight.toFixed(2)} Kg`],
+                ['Batch Revenue (Excl. GST)', formatMoney(finalSellingPriceExclGST)],
+                ['Selling Price (Excl. GST)', `${formatMoney(perKgSellingPriceExclGST)} / Kg`],
+                ['GST Amount', `${formatMoney(gstAmountPerKg)} / Kg`],
+                ['Final Landing Price', `${formatMoney(finalLandingPriceInclGST)} / Kg`],
+                ['Final Landing Price (Per Ton)', formatMoney(finalLandingPricePerTon)],
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [39, 174, 96], textColor: 255, fontStyle: 'bold' }, // Green for money
+            columnStyles: {
+                0: { fontStyle: 'bold' },
+                1: { fontStyle: 'bold', halign: 'right' }
+            },
+            styles: { fontSize: 10, cellPadding: 4 }
+        });
+
+        // Footer
+        const pageCount = doc.getNumberOfPages();
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.text('Generated by Atlas Agrofood CRM', 14, doc.internal.pageSize.height - 10);
+            doc.text(`Page ${i} of ${pageCount}`, pageWidth - 14, doc.internal.pageSize.height - 10, { align: 'right' });
+        }
+
+        doc.save(`Quote_${selectedCommodity?.name || 'Calculation'}_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
-                <CardHeader>
-                    <CardTitle>Input Parameters</CardTitle>
-                    <CardDescription>Enter batch details based on 100kg Input</CardDescription>
+                <CardHeader className="space-y-4">
+                    <div className="flex flex-col space-y-2">
+                        <Label>Client Name</Label>
+                        <Popover open={isClientOpen} onOpenChange={setIsClientOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={isClientOpen}
+                                    className="w-full justify-between"
+                                >
+                                    {clientName ? clientName : "Select or type client name..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[300px] p-0">
+                                <Command>
+                                    <CommandInput placeholder="Search client..." onValueChange={(search) => {
+                                        // Update client Name as user types to support "Creatable" behavior
+                                        if (search) setClientName(search);
+                                    }} />
+                                    <CommandList>
+                                        <CommandEmpty>Typing new client: "{clientName}"</CommandEmpty>
+                                        <CommandGroup>
+                                            {companies.map((company) => (
+                                                <CommandItem
+                                                    key={company.id}
+                                                    value={company.name}
+                                                    onSelect={(currentValue) => {
+                                                        setClientName(currentValue)
+                                                        setIsClientOpen(false)
+                                                    }}
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            "mr-2 h-4 w-4",
+                                                            clientName === company.name ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                    {company.name}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                    <Separator />
+                    <div className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Input Parameters</CardTitle>
+                            <CardDescription>Enter batch details based on 100kg Input</CardDescription>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -309,7 +534,7 @@ export function QuoteCalculator({ commodities }: QuoteCalculatorProps) {
                     <CardContent className="space-y-3">
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-muted-foreground">Per Kg Calculation Base</span>
-                            <span className="font-medium">{formatMoney(perKgSellingPriceExclGST)} (Excl. Gst)</span>
+                            <span className="font-medium bg-slate-100 px-2 py-0.5 rounded text-slate-700">Batch Revenue: {formatMoney(finalSellingPriceExclGST)}</span>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 pt-2">
@@ -323,6 +548,15 @@ export function QuoteCalculator({ commodities }: QuoteCalculatorProps) {
                                 <div className="text-lg font-bold text-slate-900">{formatMoney(gstAmountPerKg)}</div>
                                 <div className="text-[10px] text-muted-foreground">Per Kg</div>
                             </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                            <Button type="button" onClick={addToQuote} className="w-full" variant="secondary">
+                                <Plus className="w-4 h-4 mr-2" /> Add to Quote
+                            </Button>
+                            <Button type="button" variant="default" onClick={generatePDF} title="Download PDF" className="w-full">
+                                <Download className="h-4 w-4 mr-2" /> Generate PDF ({quoteItems.length})
+                            </Button>
                         </div>
 
                         <div className="p-4 bg-primary text-primary-foreground rounded-lg mt-4 shadow-md">
@@ -343,6 +577,48 @@ export function QuoteCalculator({ commodities }: QuoteCalculatorProps) {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Quote Items List */}
+            {quoteItems.length > 0 && (
+                <div className="md:col-span-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Items in Quote Report</CardTitle>
+                            <CardDescription>Client: {clientName || 'Not Selected'}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Commodity</TableHead>
+                                        <TableHead>Variety</TableHead>
+                                        <TableHead>Yield</TableHead>
+                                        <TableHead>Raw Material</TableHead>
+                                        <TableHead className="text-right">Price (Excl. GST)</TableHead>
+                                        <TableHead className="w-[50px]"></TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {quoteItems.map((item) => (
+                                        <TableRow key={item.id}>
+                                            <TableCell className="font-medium">{item.commodityName}</TableCell>
+                                            <TableCell>{item.varietyName}</TableCell>
+                                            <TableCell>{item.yieldPercentage}%</TableCell>
+                                            <TableCell>{formatMoney(item.rawMaterialPrice)}</TableCell>
+                                            <TableCell className="text-right font-bold">{formatMoney(item.finalPriceExclGST)}</TableCell>
+                                            <TableCell>
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeFromQuote(item.id)}>
+                                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </div >
     );
 }

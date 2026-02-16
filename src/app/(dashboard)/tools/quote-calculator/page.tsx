@@ -1,4 +1,5 @@
 import { getCommodities } from "@/app/actions/commodity";
+import { getCompanies } from "@/app/actions/company";
 import { QuoteCalculator } from "@/components/tools/quote-calculator";
 import { Metadata } from "next";
 
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
 
 export default async function QuoteCalculatorPage() {
     const { data: commodities } = await getCommodities();
+    const { data: companies } = await getCompanies({ limit: 1000 }); // Fetch all companies for dropdown
 
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">
@@ -22,7 +24,7 @@ export default async function QuoteCalculatorPage() {
             </div>
 
             <div className="mt-6">
-                <QuoteCalculator commodities={commodities || []} />
+                <QuoteCalculator commodities={commodities || []} companies={companies || []} />
             </div>
         </div>
     );
