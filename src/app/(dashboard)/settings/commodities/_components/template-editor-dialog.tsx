@@ -74,8 +74,8 @@ export function TemplateEditorDialog({ commodityId, initialTemplate, trigger, co
         setLoading(true);
         const template = { sections };
 
-        // Pass undefined for name/yield to trigger partial update
-        const result = await updateCommodity(commodityId, undefined, undefined, template);
+        // Pass undefined for name/yield/wastage to trigger partial update
+        const result = await updateCommodity(commodityId, undefined, undefined, undefined, template);
 
         if (result.success) {
             toast.success("Document template saved successfully");
