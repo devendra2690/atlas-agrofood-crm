@@ -7,10 +7,32 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button"; // For reset if needed
-import { formatCurrency } from "@/lib/utils"; // Assuming this exists, or I will use Intl.NumberFormat
+import { formatCurrency, numberToWords } from "@/lib/utils"; // Assuming this exists, or I will use Intl.NumberFormat
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Download } from 'lucide-react';
+import { Download, Check, ChevronsUpDown, Plus, Trash2 } from 'lucide-react';
+import { cn } from "@/lib/utils";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 
 interface Variety {
     id: string;
@@ -39,30 +61,6 @@ interface QuoteItem {
     finalPriceExclGST: number;
     remarks: string;
 }
-
-import { Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
 
 export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps) {
     // Client State
@@ -181,111 +179,203 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
     };
 
     const generatePDF = async () => {
-        const doc = new jsPDF();
-        const pageWidth = doc.internal.pageSize.width;
-
-        // Load Logo
-        const logoUrl = '/logo.png';
-        const logoImg = new Image();
-        logoImg.src = logoUrl;
-
         try {
-            await new Promise((resolve, reject) => {
-                logoImg.onload = resolve;
-                logoImg.onerror = reject;
+            const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.width;
+
+            // Logo Logic Removed as per user request to resolve file size/corruption
+            // ---------------------------------------------------------------------
+
+            // --- Helper Constants ---
+            const leftMargin = 14;
+            const rightMargin = pageWidth - 14;
+            const startY = 10;
+            let currentY = startY;
+
+            // --- 1. Title ---
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("Quotation", pageWidth / 2, currentY + 5, { align: 'center' });
+            doc.setLineWidth(0.5);
+            doc.line(leftMargin, currentY + 7, rightMargin, currentY + 7);
+            currentY += 15;
+
+            // --- 2. Header Section ---
+            // Company Details
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("Atlas Agrofood", 14, startY + 5); // Moved left since logo is gone
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.text("123, Business Park,\nMumbai, Maharashtra, India.\nGSTIN: 27AAAAA0000A1Z5\nEmail: contact@atlasagrofood.com", 14, startY + 10);
+
+            // Invoice Details (Right Side)
+            doc.text(`Invoice No: PG/Q/${new Date().getFullYear()}/${Math.floor(Math.random() * 1000)}`, rightMargin, startY + 5, { align: 'right' });
+            doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, rightMargin, startY + 10, { align: 'right' });
+            doc.text(`Terms: 100% Advance`, rightMargin, startY + 15, { align: 'right' });
+
+            currentY += 25;
+
+            // Client & Consignee Table
+            autoTable(doc, {
+                startY: currentY,
+                theme: 'grid',
+                body: [
+                    [
+                        { content: `Buyer (Bill To):\n${clientName || 'Cash Client'}\nAddress: [Client Address Here]\nGSTIN: [Client GSTIN]`, styles: { halign: 'left', cellWidth: pageWidth / 2 - 14 } },
+                        { content: `Consignee (Ship To):\n${clientName || 'Same as Buyer'}\n[Ship Address Here]`, styles: { halign: 'left', cellWidth: pageWidth / 2 - 14 } }
+                    ]
+                ],
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 3,
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.1,
+                }
             });
-            doc.addImage(logoImg, 'PNG', 14, 10, 25, 25);
-        } catch (e) {
-            console.warn("Logo not found or failed to load", e);
+
+            // @ts-ignore
+            currentY = doc.lastAutoTable.finalY + 5;
+
+            // --- 3. Items Table ---
+            const tableBody = quoteItems.length > 0 ? quoteItems.map((item, index) => {
+                const quantity = 100 * (item.yieldPercentage / 100);
+                const rateVal = item.finalPriceExclGST / quantity;
+                const cgstRate = 2.5; // Fixed 2.5% CGST (assuming 5% total)
+                const sgstRate = 2.5; // Fixed 2.5% SGST
+
+                return [
+                    index + 1,
+                    `${item.commodityName} - ${item.varietyName}`,
+                    '0804',
+                    quantity.toFixed(2),
+                    formatMoney(rateVal).replace('₹', ''),
+                    'Kg',
+                    `${cgstRate}%`,
+                    `${sgstRate}%`,
+                    formatMoney(item.finalPriceExclGST).replace('₹', '')
+                ];
+            }) : [];
+
+            if (tableBody.length === 0 && selectedCommodityId) {
+                const quantity = 100 * (yieldPercentage / 100);
+                const rateVal = perKgSellingPriceExclGST;
+                const gstRateVal = gstRate;
+
+                tableBody.push([
+                    1,
+                    `${selectedCommodity?.name} - ${selectedCommodity?.varieties.find(v => v.id === selectedVarietyId)?.name || 'Default'}`,
+                    '0804',
+                    quantity.toFixed(2),
+                    formatMoney(rateVal).replace('₹', ''),
+                    'Kg',
+                    `${gstRateVal / 2}%`,
+                    `${gstRateVal / 2}%`,
+                    formatMoney(finalSellingPriceExclGST).replace('₹', '')
+                ]);
+            }
+
+            autoTable(doc, {
+                startY: currentY,
+                theme: 'grid',
+                head: [
+                    [
+                        { content: 'Sr', styles: { halign: 'center' } },
+                        { content: 'Description', styles: { halign: 'center' } },
+                        { content: 'HSN', styles: { halign: 'center' } },
+                        { content: 'Qty', styles: { halign: 'center' } },
+                        { content: 'Rate', styles: { halign: 'center' } },
+                        { content: 'Unit', styles: { halign: 'center' } },
+                        { content: 'CGST', styles: { halign: 'center' } },
+                        { content: 'SGST', styles: { halign: 'center' } },
+                        { content: 'Amount', styles: { halign: 'center' } }
+                    ]
+                ],
+                body: tableBody,
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 2,
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.1,
+                    textColor: [0, 0, 0]
+                },
+                columnStyles: {
+                    0: { cellWidth: 10, halign: 'center' },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 20, halign: 'center' },
+                    3: { cellWidth: 15, halign: 'center' },
+                    4: { cellWidth: 20, halign: 'right' },
+                    5: { cellWidth: 15, halign: 'center' },
+                    6: { cellWidth: 15, halign: 'center' },
+                    7: { cellWidth: 15, halign: 'center' },
+                    8: { cellWidth: 25, halign: 'right' }
+                }
+            });
+
+            // @ts-ignore
+            currentY = doc.lastAutoTable.finalY;
+
+            // --- 4. Totals & Footer ---
+            let totalTaxable = 0;
+            let totalCGST = 0;
+            let totalSGST = 0;
+
+            const itemsToCalc = quoteItems.length > 0 ? quoteItems : (selectedCommodityId ? [{
+                finalPriceExclGST: finalSellingPriceExclGST,
+            }] : []);
+
+            itemsToCalc.forEach((item: any) => {
+                totalTaxable += item.finalPriceExclGST;
+            });
+
+            const gstRateVal = quoteItems.length > 0 ? 5 : gstRate;
+            totalCGST = totalTaxable * ((gstRateVal / 2) / 100);
+            totalSGST = totalTaxable * ((gstRateVal / 2) / 100);
+            const grandTotal = totalTaxable + totalCGST + totalSGST;
+
+            autoTable(doc, {
+                startY: currentY,
+                theme: 'grid',
+                body: [
+                    [{ content: 'Total Taxable', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalTaxable).replace('₹', '')],
+                    [{ content: 'CGST', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalCGST).replace('₹', '')],
+                    [{ content: 'SGST', colSpan: 8, styles: { halign: 'right' } }, formatMoney(totalSGST).replace('₹', '')],
+                    [{ content: 'Total', colSpan: 8, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatMoney(grandTotal).replace('₹', ''), styles: { fontStyle: 'bold', halign: 'right' } }]
+                ],
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 2,
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.1,
+                },
+                columnStyles: {
+                    0: { halign: 'right' },
+                    8: { halign: 'right' }
+                }
+            });
+
+            // @ts-ignore
+            currentY = doc.lastAutoTable.finalY + 10;
+
+            // Amount in Words
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("Amount Chargeable (in words):", leftMargin, currentY);
+            doc.setFont("helvetica", "normal");
+            doc.text(`INR ${numberToWords(Math.round(grandTotal))} Only.`, leftMargin, currentY + 5);
+
+            // Signature
+            doc.text("For Atlas Agrofood", rightMargin, currentY + 15, { align: 'right' });
+            doc.text("Authorized Signatory", rightMargin, currentY + 30, { align: 'right' });
+
+            // Save
+            const safeClientName = (clientName || 'Draft').replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+            doc.save(`Quotation_${safeClientName}_${new Date().toISOString().split('T')[0]}.pdf`);
+
+        } catch (error) {
+            console.error("PDF Generation Error:", error);
+            alert("Failed to generate PDF. Check console for details.");
         }
-
-        // Header
-        doc.setFontSize(20);
-        doc.setTextColor(40, 40, 40);
-        doc.text("Atlas Agrofood", 45, 22);
-
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.text("Quote Rate Calculation Report", 45, 28);
-        doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - 14, 22, { align: 'right' });
-
-        // Line
-        doc.setLineWidth(0.5);
-        doc.setDrawColor(200, 200, 200);
-        doc.line(14, 38, pageWidth - 14, 38);
-
-        // Input Parameters
-        autoTable(doc, {
-            startY: 45,
-            head: [['Input Parameter', 'Value']],
-            body: [
-                ['Commodity', selectedCommodity?.name || '-'],
-                ['Variety', selectedCommodity?.varieties.find(v => v.id === selectedVarietyId)?.name || 'Default'],
-                ['Yield %', `${yieldPercentage}%`],
-                ['Raw Material Price', formatMoney(rawMaterialPrice) + ' / Kg'],
-                ['Batch Duration', `${batchDuration} Hours`],
-                ['Electricity Rate', `${electricityRate} / Unit`],
-                ['Labor', `${numberOfLaborers} @ ${formatMoney(costPerLaborer)}`],
-                ['Overheads (Pkg + Tpt)', formatMoney(packagingCost + transportCost)],
-                ['Margin', `${marginPercentage}%`],
-                ['GST Rate', `${gstRate}%`],
-            ],
-            theme: 'striped',
-            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
-            styles: { fontSize: 9, cellPadding: 3 },
-            alternateRowStyles: { fillColor: [245, 245, 245] }
-        });
-
-        // Cost Analysis
-        autoTable(doc, {
-            //@ts-ignore
-            startY: doc.lastAutoTable.finalY + 10,
-            head: [['Cost Component', 'Value']],
-            body: [
-                ['Raw Material (100kg)', formatMoney(rawMaterialBatchCost)],
-                ['Power', formatMoney(totalPowerCost)],
-                ['Labor', formatMoney(totalLaborCost)],
-                ['Overheads', formatMoney(packagingCost + transportCost)],
-                ['Total Production Cost', formatMoney(totalProductionCost)],
-            ],
-            theme: 'grid',
-            headStyles: { fillColor: [52, 152, 219], textColor: 255, fontStyle: 'bold' },
-            styles: { fontSize: 9, cellPadding: 3 }
-        });
-
-        // Final Quote
-        autoTable(doc, {
-            //@ts-ignore
-            startY: doc.lastAutoTable.finalY + 10,
-            head: [['Metric', 'Value']],
-            body: [
-                ['Output Weight', `${fgWeight.toFixed(2)} Kg`],
-                ['Batch Revenue (Excl. GST)', formatMoney(finalSellingPriceExclGST)],
-                ['Selling Price (Excl. GST)', `${formatMoney(perKgSellingPriceExclGST)} / Kg`],
-                ['GST Amount', `${formatMoney(gstAmountPerKg)} / Kg`],
-                ['Final Landing Price', `${formatMoney(finalLandingPriceInclGST)} / Kg`],
-                ['Final Landing Price (Per Ton)', formatMoney(finalLandingPricePerTon)],
-            ],
-            theme: 'grid',
-            headStyles: { fillColor: [39, 174, 96], textColor: 255, fontStyle: 'bold' }, // Green for money
-            columnStyles: {
-                0: { fontStyle: 'bold' },
-                1: { fontStyle: 'bold', halign: 'right' }
-            },
-            styles: { fontSize: 10, cellPadding: 4 }
-        });
-
-        // Footer
-        const pageCount = doc.getNumberOfPages();
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.text('Generated by Atlas Agrofood CRM', 14, doc.internal.pageSize.height - 10);
-            doc.text(`Page ${i} of ${pageCount}`, pageWidth - 14, doc.internal.pageSize.height - 10, { align: 'right' });
-        }
-
-        doc.save(`Quote_${selectedCommodity?.name || 'Calculation'}_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     return (
