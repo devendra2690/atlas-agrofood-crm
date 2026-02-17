@@ -287,7 +287,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
             doc.text("Atlas Agrofood", 14, startY + 5);
             doc.setFont("helvetica", "normal");
             doc.setFontSize(9);
-            doc.text("123, Business Park,\nMumbai, Maharashtra, India.\nGSTIN: 27AAAAA0000A1Z5\nEmail: contact@atlasagrofood.com", 14, startY + 10);
+            doc.text("SN-115, Plot No -8, Gajanan Colony,\nKhamgaon, District : Buldhana, Maharashtra 444303\nEmail: sales@atlasagrofood.co.in\nPhone: +91 9867630682", 14, startY + 10);
 
             // Invoice Details (Right Side)
             doc.text(`Invoice No: PG/Q/${new Date().getFullYear()}/${Math.floor(Math.random() * 1000)}`, rightMargin, startY + 5, { align: 'right' });
