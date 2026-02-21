@@ -81,6 +81,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
 
     // Mode Toggle
     const [calculationMode, setCalculationMode] = useState<'batch' | 'order'>('batch');
+    const [dryingMethod, setDryingMethod] = useState<'electric' | 'solar'>('electric'); // NEW: Drying Method State
 
     // Canvas Inputs
     const [selectedCommodityId, setSelectedCommodityId] = useState<string>('');
@@ -161,7 +162,8 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
 
         totalLaborCost = numberOfLaborers * costPerLaborer;
         unitsConsumed = batchDuration * POWER_CONSUMPTION_RATE;
-        totalPowerCost = unitsConsumed * electricityRate;
+        // Solar Tunnel = No Electricity Cost
+        totalPowerCost = dryingMethod === 'solar' ? 0 : (unitsConsumed * electricityRate);
 
         totalProductionCost = rawMaterialBatchCost + totalPowerCost + totalLaborCost + packagingCost + transportCost;
 
@@ -183,7 +185,8 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
 
         // Lump Sum Costs are direct inputs
         totalLaborCost = lumpSumLaborCost;
-        totalPowerCost = lumpSumPowerCost;
+        // Solar Tunnel = No Power Cost
+        totalPowerCost = dryingMethod === 'solar' ? 0 : lumpSumPowerCost;
 
         // We use the lump sum state variables directly
         const pkgCost = lumpSumPackagingCost;
@@ -554,6 +557,16 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                             <TabsTrigger value="order">Project (Order Mode)</TabsTrigger>
                         </TabsList>
                     </Tabs>
+
+                    <div className="pt-2">
+                        <Label className="text-sm font-medium mb-2 block">Drying Method</Label>
+                        <Tabs value={dryingMethod} onValueChange={(val) => setDryingMethod(val as 'electric' | 'solar')} className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="electric">Electric Drier</TabsTrigger>
+                                <TabsTrigger value="solar">Solar Tunnel (No Electricity)</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -641,15 +654,17 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                                     placeholder="Hours for 100kg input"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label>Electricity Rate (Per Unit)</Label>
-                                <Input
-                                    type="number"
-                                    value={electricityRate || ''}
-                                    onChange={e => setElectricityRate(Number(e.target.value))}
-                                    placeholder="e.g. 8.5"
-                                />
-                            </div>
+                            {dryingMethod === 'electric' && (
+                                <div className="space-y-2">
+                                    <Label>Electricity Rate (Per Unit)</Label>
+                                    <Input
+                                        type="number"
+                                        value={electricityRate || ''}
+                                        onChange={e => setElectricityRate(Number(e.target.value))}
+                                        placeholder="e.g. 8.5"
+                                    />
+                                </div>
+                            )}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>No. of Laborers</Label>
@@ -720,15 +735,17 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                                         placeholder="Total for Project"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Total Power Cost</Label>
-                                    <Input
-                                        type="number"
-                                        value={lumpSumPowerCost || ''}
-                                        onChange={e => setLumpSumPowerCost(Number(e.target.value))}
-                                        placeholder="Total Power Bill"
-                                    />
-                                </div>
+                                {dryingMethod === 'electric' && (
+                                    <div className="space-y-2">
+                                        <Label>Total Power Cost</Label>
+                                        <Input
+                                            type="number"
+                                            value={lumpSumPowerCost || ''}
+                                            onChange={e => setLumpSumPowerCost(Number(e.target.value))}
+                                            placeholder="Total Power Bill"
+                                        />
+                                    </div>
+                                )}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
