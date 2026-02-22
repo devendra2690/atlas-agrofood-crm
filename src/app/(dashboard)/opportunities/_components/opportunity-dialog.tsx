@@ -22,11 +22,13 @@ import {
 } from "@/components/ui/select";
 import { createOpportunity, updateOpportunity } from "@/app/actions/opportunity";
 import { getCommodityVarieties } from "@/app/actions/commodity";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { OpportunityStatus } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { Combobox } from "@/components/ui/combobox";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 interface Commodity {
     id: string;
@@ -49,6 +51,19 @@ interface OpportunityDialogProps {
     trigger?: React.ReactNode;
 }
 
+export type OpportunityItemData = {
+    localId: string;
+    productName: string;
+    commodityId: string;
+    varietyId: string;
+    varietyFormId: string;
+    targetPrice: string;
+    priceType: "PER_KG" | "PER_MT" | "TOTAL_AMOUNT";
+    quantity: string;
+    procurementQuantity: string;
+    notes: string;
+};
+
 export function OpportunityDialog({ companies, commodities, initialData, open: controlledOpen, onOpenChange: setControlledOpen, trigger }: OpportunityDialogProps) {
     const router = useRouter();
     const [internalOpen, setInternalOpen] = useState(false);
@@ -65,179 +80,154 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
         }
     };
 
+    // Global Opportunity State
     const [companyId, setCompanyId] = useState(initialData?.companyId || "");
-    const [commodityId, setCommodityId] = useState(initialData?.commodityId || "");
-    const [varietyId, setVarietyId] = useState(initialData?.varietyId || "");
-    const [varietyFormId, setVarietyFormId] = useState(initialData?.varietyFormId || ""); // NEW
-    const [varieties, setVarieties] = useState<any[]>([]);
-    const [productName, setProductName] = useState(initialData?.productName || "");
     const [opportunityType, setOpportunityType] = useState<"ONE_TIME" | "RECURRING">(initialData?.type || "ONE_TIME");
+    const [recurringFrequency, setRecurringFrequency] = useState(initialData?.recurringFrequency || "MONTHLY");
+    const [deadline, setDeadline] = useState(initialData?.deadline ? new Date(initialData.deadline).toISOString().split('T')[0] : "");
+    const [status, setStatus] = useState<OpportunityStatus>(initialData?.status || "OPEN");
+    const [notes, setNotes] = useState(initialData?.notes || "");
 
-    // Controlled Quantity & ProcurementQty
-    const [quantity, setQuantity] = useState<string>(initialData?.quantity?.toString() || "");
-    const [procurementQuantity, setProcurementQuantity] = useState<string>(initialData?.procurementQuantity?.toString() || "");
+    // Line Items State
+    const [items, setItems] = useState<OpportunityItemData[]>([]);
+    const [varietiesMap, setVarietiesMap] = useState<Record<string, any[]>>({});
 
-    // Update state when initialData changes or dialog opens
     useEffect(() => {
         if (open) {
             setCompanyId(initialData?.companyId || "");
-            setCommodityId(initialData?.commodityId || "");
-            setVarietyId(initialData?.varietyId || "");
-            setVarietyFormId(initialData?.varietyFormId || ""); // FIX: Load saved form
-            setProductName(initialData?.productName || "");
             setOpportunityType(initialData?.type || "ONE_TIME");
-            setQuantity(initialData?.quantity?.toString() || "");
-            setProcurementQuantity(initialData?.procurementQuantity?.toString() || "");
+            setRecurringFrequency(initialData?.recurringFrequency || "MONTHLY");
+            setDeadline(initialData?.deadline ? new Date(initialData.deadline).toISOString().split('T')[0] : "");
+            setStatus(initialData?.status || "OPEN");
+            setNotes(initialData?.notes || "");
+
+            if (initialData?.items && initialData.items.length > 0) {
+                setItems(initialData.items.map((it: any) => ({
+                    localId: Math.random().toString(),
+                    productName: it.productName || "",
+                    commodityId: it.commodityId || "",
+                    varietyId: it.varietyId || "",
+                    varietyFormId: it.varietyFormId || "",
+                    targetPrice: it.targetPrice?.toString() || "",
+                    priceType: it.priceType || "PER_KG",
+                    quantity: it.quantity?.toString() || "",
+                    procurementQuantity: it.procurementQuantity?.toString() || "",
+                    notes: it.notes || ""
+                })));
+            } else {
+                setItems([{ localId: Math.random().toString(), productName: "", commodityId: "", varietyId: "", varietyFormId: "", targetPrice: "", priceType: "PER_KG", quantity: "", procurementQuantity: "", notes: "" }]);
+            }
         }
     }, [initialData, open]);
 
-    // Fetch varieties when commodity changes
-    useEffect(() => {
-        if (commodityId) {
-            getCommodityVarieties(commodityId).then(res => {
-                if (res.success && res.data) {
-                    setVarieties(res.data);
-                } else {
-                    setVarieties([]);
-                }
-            });
-        } else {
-            setVarieties([]);
-        }
-    }, [commodityId]);
-
-    // Filter available commodities
+    // Filter available commodities globally
     const selectedCompany = companies.find(c => c.id === companyId);
+    const availableCommodities = selectedCompany ? (selectedCompany.commodities || []) : (commodities || []);
 
-    // If company is selected, show ONLY their commodities. 
-    // If no company selected, show ALL commodities (or empty? Let's show all for flexibility until company picked)
-    const availableCommodities = selectedCompany
-        ? (selectedCompany.commodities || [])
-        : (commodities || []);
-
-    // Auto-calculate procurement quantity
     useEffect(() => {
-        if (!quantity || !commodityId) return;
+        const fetchVarieties = async () => {
+            const neededCommodityIds = [...new Set(items.map(i => i.commodityId).filter(Boolean))];
+            const newVarietiesMap = { ...varietiesMap };
+            let updated = false;
 
-        const comm = availableCommodities.find(c => c.id === commodityId);
-        let yieldPerc = comm?.yieldPercentage || 100;
-
-        // Override with variety yield if selected
-        if (varietyId) {
-            const variety = varieties.find(v => v.id === varietyId);
-            if (variety) {
-                // If form selected, use form yield
-                if (varietyFormId) {
-                    const form = variety.forms?.find((f: any) => f.id === varietyFormId);
-                    if (form && form.yieldPercentage) {
-                        yieldPerc = form.yieldPercentage;
-                    } else if (variety.yieldPercentage) {
-                        yieldPerc = variety.yieldPercentage;
+            for (const cId of neededCommodityIds) {
+                if (!newVarietiesMap[cId]) {
+                    const res = await getCommodityVarieties(cId);
+                    if (res.success && res.data) {
+                        newVarietiesMap[cId] = res.data;
+                        updated = true;
                     }
-                } else if (variety.yieldPercentage) {
-                    yieldPerc = variety.yieldPercentage;
+                }
+            }
+            if (updated) setVarietiesMap(newVarietiesMap);
+        };
+        fetchVarieties();
+    }, [items, varietiesMap]);
+
+    const handleItemChange = (index: number, field: keyof OpportunityItemData, value: string) => {
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], [field]: value };
+
+        // Auto-generate product name if commodity changed
+        if (field === 'commodityId') {
+            newItems[index].varietyId = "";
+            newItems[index].varietyFormId = "";
+            const comm = availableCommodities.find(c => c.id === value);
+            if (comm) newItems[index].productName = comm.name;
+        }
+
+        // Auto-calc proc qty
+        if (['quantity', 'commodityId', 'varietyId', 'varietyFormId'].includes(field)) {
+            const it = newItems[index];
+            if (it.quantity && it.commodityId) {
+                let yieldPerc = availableCommodities.find(c => c.id === it.commodityId)?.yieldPercentage || 100;
+                if (it.varietyId && varietiesMap[it.commodityId]) {
+                    const variety = varietiesMap[it.commodityId].find((v: any) => v.id === it.varietyId);
+                    if (variety) {
+                        if (it.varietyFormId && variety.forms) {
+                            const form = variety.forms.find((f: any) => f.id === it.varietyFormId);
+                            if (form?.yieldPercentage) yieldPerc = form.yieldPercentage;
+                            else if (variety.yieldPercentage) yieldPerc = variety.yieldPercentage;
+                        } else if (variety.yieldPercentage) yieldPerc = variety.yieldPercentage;
+                    }
+                }
+                const qtyNum = parseFloat(it.quantity);
+                if (!isNaN(qtyNum)) {
+                    newItems[index].procurementQuantity = (qtyNum * (100 / yieldPerc)).toFixed(2);
                 }
             }
         }
 
-        const qtyNum = parseFloat(quantity);
-        if (!isNaN(qtyNum)) {
-            // Needed = Qty * (100 / Yield)
-            const needed = qtyNum * (100 / yieldPerc);
-            setProcurementQuantity(needed.toFixed(2));
-        }
-    }, [quantity, commodityId, varietyId, varietyFormId, availableCommodities, varieties]);
-
-    const handleCommodityChange = (val: string) => {
-        setCommodityId(val);
-        setVarietyId(""); // Reset variety
-        setVarietyFormId(""); // Reset Form
-        const comm = availableCommodities.find(c => c.id === val);
-        const selectedCompany = companies.find(c => c.id === companyId);
-
-        if (comm) {
-            if (selectedCompany) {
-                setProductName(`${comm.name} - ${selectedCompany.name}`);
-            } else {
-                setProductName(comm.name);
-            }
-        }
+        setItems(newItems);
     };
 
-    async function handleSubmit(formData: FormData) {
+    const addItem = () => setItems([...items, { localId: Math.random().toString(), productName: "", commodityId: "", varietyId: "", varietyFormId: "", targetPrice: "", priceType: "PER_KG", quantity: "", procurementQuantity: "", notes: "" }]);
+    const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index));
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
         setLoading(true);
         try {
-            const productName = formData.get("productName") as string;
-            const targetPriceStr = formData.get("targetPrice") as string;
-            const priceType = formData.get("priceType") as any;
-            // Quantity is controlled state 'quantity' but we can read from formData too
-            const quantityStr = quantity;
-            const procurementQuantityStr = procurementQuantity;
+            if (!companyId) { toast.error("Company is required"); setLoading(false); return; }
+            if (!deadline) { toast.error("Deadline is required"); setLoading(false); return; }
+            if (items.length === 0) { toast.error("At least one item is required"); setLoading(false); return; }
 
-            const deadlineStr = formData.get("deadline") as string;
-            const status = formData.get("status") as OpportunityStatus;
-            const type = formData.get("type") as any;
-            const recurringFrequency = formData.get("recurringFrequency") as any;
-            const notes = formData.get("notes") as string;
-
-            if (!companyId) {
-                toast.error("Company is required");
-                setLoading(false);
-                return;
-            }
-            if (!commodityId) {
-                toast.error("Commodity is required");
-                setLoading(false);
-                return;
-            }
-            if (!productName.trim()) {
-                toast.error("Product name is required");
-                setLoading(false);
-                return;
-            }
-            if (!quantityStr || parseFloat(quantityStr) <= 0) {
-                toast.error("Quantity is required");
-                setLoading(false);
-                return;
-            }
-            if (!procurementQuantityStr || parseFloat(procurementQuantityStr) <= 0) {
-                toast.error("Raw material needed is required");
-                setLoading(false);
-                return;
-            }
-            if (!targetPriceStr || parseFloat(targetPriceStr) <= 0) {
-                toast.error("Target selling price is required");
-                setLoading(false);
-                return;
-            }
-            if (!deadlineStr) {
-                toast.error("Deadline is required");
-                setLoading(false);
-                return;
+            // Validate items
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (!item.commodityId) { toast.error(`Item ${i + 1}: Commodity is required`); setLoading(false); return; }
+                if (!item.productName.trim()) { toast.error(`Item ${i + 1}: Product name is required`); setLoading(false); return; }
+                if (!item.quantity || parseFloat(item.quantity) <= 0) { toast.error(`Item ${i + 1}: Quantity is required`); setLoading(false); return; }
+                if (!item.targetPrice || parseFloat(item.targetPrice) <= 0) { toast.error(`Item ${i + 1}: Target price is required`); setLoading(false); return; }
             }
 
-            const data = {
+            const activeItemsData = items.map(item => ({
+                productName: item.productName,
+                commodityId: item.commodityId,
+                varietyId: item.varietyId || undefined,
+                varietyFormId: item.varietyFormId || undefined,
+                targetPrice: parseFloat(item.targetPrice),
+                priceType: item.priceType,
+                quantity: parseFloat(item.quantity),
+                procurementQuantity: item.procurementQuantity ? parseFloat(item.procurementQuantity) : undefined,
+                notes: item.notes
+            }));
+
+            const payload = {
                 companyId,
-                productName,
-                commodityId: commodityId || undefined,
-                varietyId: varietyId || undefined,
-                varietyFormId: varietyFormId || undefined,
-                targetPrice: targetPriceStr ? parseFloat(targetPriceStr) : undefined,
-                priceType: priceType || "PER_KG",
-                quantity: quantityStr ? parseFloat(quantityStr) : undefined,
-                procurementQuantity: procurementQuantityStr ? parseFloat(procurementQuantityStr) : undefined,
-                deadline: deadlineStr ? new Date(deadlineStr) : undefined,
-                status: status || "OPEN",
-                type: type || "ONE_TIME",
-                recurringFrequency: recurringFrequency || undefined,
-                notes: notes
+                deadline: new Date(deadline),
+                status,
+                type: opportunityType,
+                recurringFrequency: opportunityType === 'RECURRING' ? (recurringFrequency as any) : undefined,
+                notes,
+                items: activeItemsData
             };
 
             let result;
             if (initialData) {
-                result = await updateOpportunity(initialData.id, data);
+                result = await updateOpportunity(initialData.id, payload);
             } else {
-                result = await createOpportunity(data);
+                result = await createOpportunity(payload);
             }
 
             if (result.success) {
@@ -246,14 +236,10 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                 router.refresh();
                 if (!initialData) {
                     setCompanyId("");
-                    setCommodityId("");
-                    setVarietyId("");
-                    setProductName("");
-                    setQuantity("");
-                    setProcurementQuantity("");
+                    setItems([{ localId: Math.random().toString(), productName: "", commodityId: "", varietyId: "", varietyFormId: "", targetPrice: "", priceType: "PER_KG", quantity: "", procurementQuantity: "", notes: "" }]);
                 }
             } else {
-                toast.error(result.error || (initialData ? "Failed to update opportunity" : "Failed to create opportunity"));
+                toast.error(result.error || "Failed to save opportunity");
             }
         } catch (error) {
             console.error(error);
@@ -264,12 +250,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
     }
 
     return (
-        <Dialog open={open} onOpenChange={(val) => {
-            setOpen(val);
-            if (!val && !initialData) {
-                setOpportunityType("ONE_TIME");
-            }
-        }}>
+        <Dialog open={open} onOpenChange={setOpen}>
             {trigger === undefined ? (
                 <DialogTrigger asChild>
                     <Button>
@@ -280,176 +261,31 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
             ) : (
                 trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>
             )}
-            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto w-[90vw]">
                 <DialogHeader>
                     <DialogTitle>{initialData ? "Edit Opportunity" : "Add Opportunity"}</DialogTitle>
                     <DialogDescription>
                         {initialData ? "Update deal details." : "Create a new sales opportunity / deal."}
                     </DialogDescription>
                 </DialogHeader>
-                <form action={handleSubmit}>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="company">Company (Client) <span className="text-red-500">*</span></Label>
-                            <Combobox
-                                options={companies.map(c => ({ label: c.name, value: c.id }))}
-                                value={companyId}
-                                onChange={(val) => {
-                                    setCompanyId(val);
-                                    setCommodityId("");
-                                    setVarietyId("");
-                                    setVarietyFormId(""); // Reset Form
-                                }}
-                                placeholder="Select company..."
-                                searchPlaceholder="Search company..."
-                                emptyMessage="No company found."
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="commodity">Commodity <span className="text-red-500">*</span></Label>
-                            <Combobox
-                                options={availableCommodities.map(c => ({ label: c.name, value: c.id }))}
-                                value={commodityId}
-                                onChange={handleCommodityChange}
-                                placeholder="Select commodity..."
-                                searchPlaceholder="Search commodity..."
-                                emptyMessage="No commodities found"
-                            />
-                        </div>
-
-                        {varieties.length > 0 && (
+                <form onSubmit={handleSubmit} className="space-y-6 py-4">
+                    {/* General Opportunity Info */}
+                    <div className="grid gap-4">
+                        <div className="grid md:grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="variety">Variety (Optional)</Label>
+                                <Label htmlFor="company">Company (Client) <span className="text-red-500">*</span></Label>
                                 <Combobox
-                                    options={varieties.map(v => ({ label: `${v.name} (Yield: ${v.yieldPercentage}%)`, value: v.id }))}
-                                    value={varietyId}
-                                    onChange={setVarietyId}
-                                    placeholder="Select variety..."
-                                    searchPlaceholder="Search variety..."
-                                    emptyMessage="No varieties found"
+                                    options={companies.map(c => ({ label: c.name, value: c.id }))}
+                                    value={companyId}
+                                    onChange={setCompanyId}
+                                    placeholder="Select company..."
+                                    searchPlaceholder="Search company..."
+                                    emptyMessage="No company found."
                                 />
-                            </div>
-                        )}
-
-                        {varietyId && varieties.find(v => v.id === varietyId)?.forms?.length > 0 && (
-                            <div className="grid gap-2">
-                                <Label htmlFor="varietyForm">Form (Optional)</Label>
-                                <Combobox
-                                    options={varieties.find(v => v.id === varietyId)?.forms.map((f: any) => ({
-                                        label: `${f.formName} (Yield: ${f.yieldPercentage}%)`,
-                                        value: f.id
-                                    }))}
-                                    value={varietyFormId}
-                                    onChange={setVarietyFormId}
-                                    placeholder="Select form..."
-                                    searchPlaceholder="Search form..."
-                                    emptyMessage="No forms found"
-                                />
-                            </div>
-                        )}
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="productName">Product Name / Deal Title <span className="text-red-500">*</span></Label>
-                            <Input
-                                id="productName"
-                                name="productName"
-                                placeholder="e.g. Banana Powder"
-                                value={productName}
-                                onChange={(e) => setProductName(e.target.value)}
-                                required
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="type">Type <span className="text-red-500">*</span></Label>
-                                <Select
-                                    name="type"
-                                    value={opportunityType}
-                                    onValueChange={(val) => setOpportunityType(val as any)}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="ONE_TIME">One Time</SelectItem>
-                                        <SelectItem value="RECURRING">Recurring</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            {opportunityType === 'RECURRING' && (
-                                <div className="grid gap-2">
-                                    <Label htmlFor="recurringFrequency">Frequency</Label>
-                                    <Select name="recurringFrequency" defaultValue={initialData?.recurringFrequency || "MONTHLY"}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select frequency" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="WEEKLY">Weekly</SelectItem>
-                                            <SelectItem value="MONTHLY">Monthly</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="quantity">Quantity (MT) <span className="text-red-500">*</span></Label>
-                                <Input
-                                    id="quantity"
-                                    name="quantity"
-                                    type="number"
-                                    value={quantity}
-                                    onChange={(e) => setQuantity(e.target.value)}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="procurementQuantity">Raw Material Needed (MT) <span className="text-red-500">*</span></Label>
-                                <Input
-                                    id="procurementQuantity"
-                                    name="procurementQuantity"
-                                    type="number"
-                                    value={procurementQuantity}
-                                    onChange={(e) => setProcurementQuantity(e.target.value)}
-                                    placeholder={!commodityId ? "Select commodity" : "Auto-calculated"}
-                                />
-                                {commodityId && (
-                                    <p className="text-[10px] text-muted-foreground">
-                                        Yield: {availableCommodities.find(c => c.id === commodityId)?.yieldPercentage || 100}%
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="targetPrice">Target Selling Price (INR) <span className="text-red-500">*</span></Label>
-                                <div className="flex gap-2">
-                                    <Input
-                                        id="targetPrice"
-                                        name="targetPrice"
-                                        type="number"
-                                        step="0.01"
-                                        className="flex-1"
-                                        defaultValue={initialData?.targetPrice}
-                                    />
-                                    <Select name="priceType" defaultValue={initialData?.priceType || "PER_KG"}>
-                                        <SelectTrigger className="w-[110px]">
-                                            <SelectValue placeholder="Unit" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="PER_KG">/ Kg</SelectItem>
-                                            <SelectItem value="PER_MT">/ MT</SelectItem>
-                                            <SelectItem value="TOTAL_AMOUNT">Total</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Status <span className="text-red-500">*</span></Label>
-                                <Select name="status" defaultValue={initialData?.status || "OPEN"}>
+                                <Select value={status} onValueChange={(val: any) => setStatus(val)}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select status" />
                                     </SelectTrigger>
@@ -464,29 +300,199 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                                 </Select>
                             </div>
                         </div>
-                        {/* Deadline Field - Was missing or previously garbled */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="deadline">Deadline <span className="text-red-500">*</span></Label>
-                            <Input
-                                id="deadline"
-                                name="deadline"
-                                type="date"
-                                defaultValue={initialData?.deadline ? new Date(initialData.deadline).toISOString().split('T')[0] : ''}
-                            />
+
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="type">Type <span className="text-red-500">*</span></Label>
+                                <Select
+                                    value={opportunityType}
+                                    onValueChange={(val: any) => setOpportunityType(val)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ONE_TIME">One Time</SelectItem>
+                                        <SelectItem value="RECURRING">Recurring</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {opportunityType === 'RECURRING' && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="recurringFrequency">Frequency</Label>
+                                    <Select value={recurringFrequency} onValueChange={setRecurringFrequency}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select frequency" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="WEEKLY">Weekly</SelectItem>
+                                            <SelectItem value="MONTHLY">Monthly</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                            {opportunityType !== 'RECURRING' && <div></div>}
+                            <div className="grid gap-2">
+                                <Label htmlFor="deadline">Deadline <span className="text-red-500">*</span></Label>
+                                <Input
+                                    id="deadline"
+                                    type="date"
+                                    value={deadline}
+                                    onChange={(e) => setDeadline(e.target.value)}
+                                />
+                            </div>
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="notes">Notes</Label>
-                            <textarea
+                            <Label htmlFor="notes">Global Notes</Label>
+                            <Input
                                 id="notes"
-                                name="notes"
-                                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 placeholder="Additional details..."
-                                defaultValue={initialData?.notes}
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
                             />
                         </div>
                     </div>
+
+                    <Separator />
+
+                    {/* Line Items */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-lg font-semibold">Commodity Items</Label>
+                            <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                                <Plus className="h-4 w-4 mr-2" /> Add Item
+                            </Button>
+                        </div>
+
+                        {items.map((item, index) => {
+                            const availableVarieties = varietiesMap[item.commodityId] || [];
+                            const varietyObj = availableVarieties.find((v: any) => v.id === item.varietyId);
+                            const availableForms = varietyObj?.forms || [];
+
+                            return (
+                                <Card key={item.localId} className="relative overflow-visible">
+                                    {items.length > 1 && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 z-10"
+                                            onClick={() => removeItem(index)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    <CardContent className="p-4 space-y-4">
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <div className="grid gap-2">
+                                                <Label>Commodity <span className="text-red-500">*</span></Label>
+                                                <Combobox
+                                                    options={availableCommodities.map((c: any) => ({ label: c.name, value: c.id }))}
+                                                    value={item.commodityId}
+                                                    onChange={(val) => handleItemChange(index, 'commodityId', val)}
+                                                    placeholder="Select commodity..."
+                                                    searchPlaceholder="Search commodity..."
+                                                    emptyMessage="No commodities found"
+                                                />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label>Product Name / Title <span className="text-red-500">*</span></Label>
+                                                <Input
+                                                    placeholder="e.g. Premium Grade A"
+                                                    value={item.productName}
+                                                    onChange={(e) => handleItemChange(index, 'productName', e.target.value)}
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            {availableVarieties.length > 0 && (
+                                                <div className="grid gap-2">
+                                                    <Label>Variety</Label>
+                                                    <Combobox
+                                                        options={availableVarieties.map((v: any) => ({ label: `${v.name} (Yield: ${v.yieldPercentage}%)`, value: v.id }))}
+                                                        value={item.varietyId}
+                                                        onChange={(val) => handleItemChange(index, 'varietyId', val)}
+                                                        placeholder="Select variety..."
+                                                        searchPlaceholder="Search variety..."
+                                                        emptyMessage="No varieties"
+                                                    />
+                                                </div>
+                                            )}
+                                            {availableForms.length > 0 && (
+                                                <div className="grid gap-2">
+                                                    <Label>Form</Label>
+                                                    <Combobox
+                                                        options={availableForms.map((f: any) => ({ label: `${f.formName} (Yield: ${f.yieldPercentage}%)`, value: f.id }))}
+                                                        value={item.varietyFormId}
+                                                        onChange={(val) => handleItemChange(index, 'varietyFormId', val)}
+                                                        placeholder="Select form..."
+                                                        searchPlaceholder="Search form..."
+                                                        emptyMessage="No forms found"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <div className="grid gap-2">
+                                                <Label>Quantity (MT) <span className="text-red-500">*</span></Label>
+                                                <Input
+                                                    type="number"
+                                                    value={item.quantity}
+                                                    onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label>Raw Material Needed (MT) <span className="text-red-500">*</span></Label>
+                                                <Input
+                                                    type="number"
+                                                    value={item.procurementQuantity}
+                                                    onChange={(e) => handleItemChange(index, 'procurementQuantity', e.target.value)}
+                                                    placeholder="Auto-calculated"
+                                                />
+                                                {item.commodityId && (
+                                                    <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                                                        Auto-calc based on Yield %
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <div className="grid gap-2">
+                                                <Label>Target Price (INR) <span className="text-red-500">*</span></Label>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        className="flex-1"
+                                                        value={item.targetPrice}
+                                                        onChange={(e) => handleItemChange(index, 'targetPrice', e.target.value)}
+                                                    />
+                                                    <Select value={item.priceType} onValueChange={(val: any) => handleItemChange(index, 'priceType', val)}>
+                                                        <SelectTrigger className="w-[110px]">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="PER_KG">/ Kg</SelectItem>
+                                                            <SelectItem value="PER_MT">/ MT</SelectItem>
+                                                            <SelectItem value="TOTAL_AMOUNT">Total</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
+                    </div>
+
                     <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
                         <Button type="submit" disabled={loading}>
                             {loading ? "Saving..." : (initialData ? "Update Opportunity" : "Create Opportunity")}
                         </Button>

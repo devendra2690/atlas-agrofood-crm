@@ -44,7 +44,7 @@ export default async function SalesOrderDetailsPage({ params }: PageProps) {
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight">Order {order.id.slice(0, 8)}</h2>
-                        <p className="text-sm text-muted-foreground mt-1">{order.client.name} - {order.opportunity.productName}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{order.client.name} - {order.opportunity.items?.[0]?.productName || "Product"}</p>
                     </div>
                 </div>
             </div>

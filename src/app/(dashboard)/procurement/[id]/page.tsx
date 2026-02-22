@@ -37,6 +37,23 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
     const isFulfillment = project.name.startsWith("Fulfillment");
     const isSampleProject = project.type === 'SAMPLE';
 
+    // Merge project samples with confirmed/approved samples from linked opportunities
+    const opportunitySamples = project.salesOpportunities.flatMap((opp: any) =>
+        (opp.sampleSubmissions || []).map((sub: any) => {
+            if (!sub.sample) return null;
+            return {
+                ...sub.sample,
+                // Override sample status with submission status so VendorList sees the approval
+                status: sub.status === 'CLIENT_APPROVED' ? 'CLIENT_APPROVED' : sub.sample.status
+            };
+        })
+    ).filter(Boolean);
+
+    const allSamples = [...(project.samples || []), ...opportunitySamples];
+
+    // Deduplicate by ID
+    const uniqueSamples = Array.from(new Map(allSamples.map((s: any) => [s.id, s])).values());
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-4">
@@ -80,7 +97,18 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                 {(() => {
                                     const totalDemand = project.salesOpportunities
                                         .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
-                                        .reduce((sum: number, opp: any) => sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0), 0);
+                                        .reduce((sum: number, opp: any) => {
+                                            const itemsTotal = (opp.items || []).reduce((itemSum: number, item: any) => {
+                                                const hasApprovedSample = opp.sampleSubmissions?.some((sub: any) =>
+                                                    sub.sample?.project?.commodityId === item.commodityId || !item.commodityId
+                                                );
+                                                if (hasApprovedSample) {
+                                                    return itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0);
+                                                }
+                                                return itemSum;
+                                            }, 0);
+                                            return sum + itemsTotal;
+                                        }, 0);
 
                                     const totalProcured = (project.purchaseOrders || [])
                                         .filter((po: any) => po.status !== 'CANCELLED')
@@ -134,7 +162,18 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                         <div className="text-lg font-semibold text-blue-600">
                                             {project.salesOpportunities
                                                 .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
-                                                .reduce((sum: number, opp: any) => sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0), 0).toFixed(2)} MT
+                                                .reduce((sum: number, opp: any) => {
+                                                    const itemsTotal = (opp.items || []).reduce((itemSum: number, item: any) => {
+                                                        const hasApprovedSample = opp.sampleSubmissions?.some((sub: any) =>
+                                                            sub.sample?.project?.commodityId === item.commodityId || !item.commodityId
+                                                        );
+                                                        if (hasApprovedSample) {
+                                                            return itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0);
+                                                        }
+                                                        return itemSum;
+                                                    }, 0);
+                                                    return sum + itemsTotal;
+                                                }, 0).toFixed(2)} MT
                                         </div>
                                         <p className="text-xs text-muted-foreground">Total Demand</p>
                                     </div>
@@ -153,8 +192,30 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                         <User className="h-3 w-3 text-muted-foreground" />
                                                         {opp.company?.name || "Unknown Client"}
                                                     </div>
-                                                    <div className="text-muted-foreground text-xs mt-1 ml-5">
-                                                        {opp.productName} • <span className="font-medium text-slate-700">{opp.procurementQuantity || opp.quantity} MT</span>
+                                                    <div className="mt-2 space-y-1">
+                                                        {(opp.items || [])
+                                                            .filter((item: any) => opp.sampleSubmissions?.some((sub: any) => sub.sample?.project?.commodityId === item.commodityId || !item.commodityId))
+                                                            .map((item: any, idx: number) => {
+                                                                const itemDemand = Number(item.procurementQuantity) || Number(item.quantity) || 0;
+                                                                const itemProcured = (project.purchaseOrders || [])
+                                                                    .filter((po: any) => po.status !== 'CANCELLED' && po.sample?.project?.commodityId === item.commodityId)
+                                                                    .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0);
+                                                                const isFulfilled = itemProcured >= itemDemand;
+
+                                                                return (
+                                                                    <div key={item.id || idx} className="text-muted-foreground text-xs ml-5 flex justify-between items-center">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span>{item.productName || "Product"}</span>
+                                                                            {isFulfilled && (
+                                                                                <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded-md text-[10px] font-medium leading-none whitespace-nowrap">
+                                                                                    Fulfilled
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <span className="font-medium text-slate-700">{itemDemand} MT</span>
+                                                                    </div>
+                                                                );
+                                                            })}
                                                     </div>
                                                 </li>
                                             ))}
@@ -210,33 +271,40 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                             </div>
                                         ) : (
                                             <ul className="space-y-4">
-                                                {project.salesOpportunities.map(opp => (
-                                                    <li key={opp.id} className="border p-4 rounded-lg flex justify-between items-center bg-white">
-                                                        <div>
-                                                            <div className="font-medium text-base">{opp.productName}</div>
-                                                            <div className="text-sm text-muted-foreground">
-                                                                Client: {opp.company.name}
-                                                            </div>
-                                                            <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                                                                {opp.deadline && (
-                                                                    <span className="flex items-center text-xs bg-slate-100 px-2 py-1 rounded">
-                                                                        Delivery: {format(new Date(opp.deadline), "MMM d, yyyy")}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <div className="flex flex-col items-end gap-1">
-                                                                <div className="font-bold flex items-center gap-2">
-                                                                    {opp.quantity ? `${opp.quantity} MT` : '-'}
-                                                                    {opp.procurementQuantity && (
-                                                                        <Badge variant="secondary" className="text-amber-700 bg-amber-50 border-amber-200 ml-2">
-                                                                            Raw: {opp.procurementQuantity} MT
-                                                                        </Badge>
+                                                {project.salesOpportunities.map((opp: any) => (
+                                                    <li key={opp.id} className="border p-4 rounded-lg flex flex-col gap-3 bg-white">
+                                                        <div className="flex justify-between items-start">
+                                                            <div>
+                                                                <div className="font-medium text-base">Order for {opp.company.name}</div>
+                                                                <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                                                                    {opp.deadline && (
+                                                                        <span className="flex items-center text-xs bg-slate-100 px-2 py-1 rounded">
+                                                                            Delivery: {format(new Date(opp.deadline), "MMM d, yyyy")}
+                                                                        </span>
                                                                     )}
                                                                 </div>
+                                                            </div>
+                                                            <div className="text-right">
                                                                 <Badge variant="outline" className="w-fit">{opp.status}</Badge>
                                                             </div>
+                                                        </div>
+                                                        <div className="bg-slate-50 rounded-md p-3 border space-y-2">
+                                                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Required Items</p>
+                                                            {(opp.items || [])
+                                                                .filter((item: any) => opp.sampleSubmissions?.some((sub: any) => sub.sample?.project?.commodityId === item.commodityId || !item.commodityId))
+                                                                .map((item: any, idx: number) => (
+                                                                    <div key={item.id || idx} className="flex justify-between items-center text-sm">
+                                                                        <span className="font-medium text-slate-700">{item.productName || "Product"}</span>
+                                                                        <div className="font-bold flex items-center gap-2">
+                                                                            {item.quantity ? `${item.quantity} MT` : '-'}
+                                                                            {item.procurementQuantity && (
+                                                                                <Badge variant="secondary" className="text-amber-700 bg-amber-50 border-amber-200 ml-2">
+                                                                                    Raw: {item.procurementQuantity} MT
+                                                                                </Badge>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
                                                         </div>
                                                     </li>
                                                 ))}
@@ -271,7 +339,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                     <AddVendorDialog projectId={project.id} />
                                 </CardHeader>
                                 <CardContent>
-                                    <VendorList projectVendors={project.projectVendors} samples={project.samples || []} isFulfillment={isFulfillment} />
+                                    <VendorList projectVendors={project.projectVendors} samples={uniqueSamples} isFulfillment={isFulfillment} project={project} />
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -285,25 +353,11 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                     </CardHeader>
                                     <CardContent className="h-full">
                                         {/* Switched to Board View by default */}
-                                        {(() => {
-                                            // Merge project samples with confirmed/approved samples from linked opportunities
-                                            const opportunitySamples = project.salesOpportunities.flatMap((opp: any) =>
-                                                (opp.sampleSubmissions || []).map((sub: any) => sub.sample)
-                                            ).filter(Boolean);
-
-                                            const allSamples = [...(project.samples || []), ...opportunitySamples];
-
-                                            // Deduplicate by ID
-                                            const uniqueSamples = Array.from(new Map(allSamples.map((s: any) => [s.id, s])).values());
-
-                                            return (
-                                                <SampleBoard
-                                                    initialSamples={uniqueSamples}
-                                                    projectId={project.id}
-                                                    projectVendors={project.projectVendors || []}
-                                                />
-                                            );
-                                        })()}
+                                        <SampleBoard
+                                            initialSamples={uniqueSamples}
+                                            projectId={project.id}
+                                            projectVendors={project.projectVendors || []}
+                                        />
                                     </CardContent>
                                 </Card>
                             </TabsContent>

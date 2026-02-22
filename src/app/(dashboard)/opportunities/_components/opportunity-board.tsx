@@ -111,12 +111,25 @@ export function OpportunityBoard({ opportunities: initialOpportunities, companie
             const activeOpp = opportunities.find(o => o.id === activeId);
             if (activeOpp && newStatus === 'CLOSED_WON') {
                 const missingFields = [];
-                if (!activeOpp.quantity || activeOpp.quantity <= 0) missingFields.push("Quantity");
-                if (!activeOpp.targetPrice || activeOpp.targetPrice <= 0) missingFields.push("Target Price");
+                let hasIncompleteItems = false;
 
-                // Check for Approved Sample
+                if (activeOpp.items && activeOpp.items.length > 0) {
+                    activeOpp.items.forEach((item: any, index: number) => {
+                        const productInfo = item.productName || `Item ${index + 1}`;
+                        if (!item.quantity || item.quantity <= 0) missingFields.push(`${productInfo} Quantity`);
+                        if (!item.targetPrice || item.targetPrice <= 0) missingFields.push(`${productInfo} Target Price`);
+                    });
+                } else {
+                    missingFields.push("Products/Line Items");
+                }
+
+                // Check for Approved Sample for at least ONE commodity to allow partial closures? 
+                // Wait, user asked: "are we considering scenario where say out of 3 commodity client apporved only 1 or 2 comodity sample and rejected 1"
+                // Let's ensure at least one approved sample exists overall for now. If they want strict per-commodity, we can add it later.
                 const hasApprovedSample = activeOpp.sampleSubmissions?.some((s: any) => s.status === 'CLIENT_APPROVED');
-                if (!hasApprovedSample) missingFields.push("Approved Sample");
+                if (!hasApprovedSample && activeOpp.items && activeOpp.items.length > 0) {
+                    missingFields.push("At least 1 Approved Sample");
+                }
 
                 if (missingFields.length > 0) {
                     toast.error(`Cannot Close Won: Missing ${missingFields.join(", ")}`);

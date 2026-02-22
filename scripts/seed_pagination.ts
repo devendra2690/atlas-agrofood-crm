@@ -6,6 +6,12 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('Starting seed...');
 
+    // 0. Fetch a commodity
+    const commodity = await prisma.commodity.findFirst();
+    if (!commodity) {
+        throw new Error("No commodity found. Please run seed-opportunities.ts first.");
+    }
+
     // 1. Create a dummy Test Client
     const client = await prisma.company.create({
         data: {
@@ -36,11 +42,7 @@ async function main() {
         await prisma.salesOpportunity.create({
             data: {
                 companyId: client.id,
-                productName: `Test Product ${i + 1}`,
-                status: 'OPEN',
-                quantity: 100,
-                targetPrice: 50,
-                priceType: 'PER_KG',
+                items: { create: [{ productName: `Test Product ${i + 1}`, quantity: 100, targetPrice: 50, commodityId: commodity.id }] },
                 // Creating some variation for filtering if needed
                 createdAt: new Date(Date.now() - i * 86400000) // Each day back
             }
@@ -90,10 +92,7 @@ async function main() {
         const opp = await prisma.salesOpportunity.create({
             data: {
                 companyId: client.id,
-                productName: `Order Product ${i}`,
-                status: 'CLOSED_WON',
-                targetPrice: 100,
-                quantity: 10
+                items: { create: [{ productName: `Order Product ${i}`, targetPrice: 100, quantity: 10, commodityId: commodity.id }] },
             }
         });
 

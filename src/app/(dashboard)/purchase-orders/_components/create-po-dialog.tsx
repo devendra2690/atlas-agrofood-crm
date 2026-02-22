@@ -21,10 +21,14 @@ import { createManualPurchaseOrder, getProcurementProjects } from "@/app/actions
 export function CreatePurchaseOrderDialog({
     defaultProjectId,
     defaultVendorId,
+    defaultCommodityName,
+    defaultSampleId,
     trigger
 }: {
     defaultProjectId?: string,
     defaultVendorId?: string,
+    defaultCommodityName?: string,
+    defaultSampleId?: string,
     trigger?: React.ReactNode
 }) {
     const [open, setOpen] = useState(false);
@@ -34,6 +38,8 @@ export function CreatePurchaseOrderDialog({
     // Form State
     const [projectId, setProjectId] = useState(defaultProjectId || "");
     const [vendorId, setVendorId] = useState(defaultVendorId || "");
+    const [sampleId, setSampleId] = useState(defaultSampleId || "");
+    const [commodityName, setCommodityName] = useState(defaultCommodityName || "");
     const [amount, setAmount] = useState("");
     const [quantity, setQuantity] = useState("");
     const [rate, setRate] = useState("");
@@ -61,6 +67,18 @@ export function CreatePurchaseOrderDialog({
 
     const vendors = Array.from(vendorMap.values());
 
+    const availableSamples = (() => {
+        if (!selectedProject || !vendorId) return [];
+        const all = [
+            ...(selectedProject.samples || []),
+            ...(selectedProject.salesOpportunities?.flatMap((opp: any) =>
+                opp.sampleSubmissions?.map((sub: any) => sub.sample) || []
+            ) || [])
+        ];
+        const unique = Array.from(new Map(all.filter(Boolean).filter(s => s.vendor?.id === vendorId || s.vendorId === vendorId).map(s => [s.id, s])).values());
+        return unique;
+    })();
+
     useEffect(() => {
         if (open) {
             loadProjects();
@@ -83,6 +101,7 @@ export function CreatePurchaseOrderDialog({
                 vendorId,
                 totalAmount: parseFloat(amount),
                 status: "DRAFT",
+                sampleId: sampleId || undefined,
                 quantity: parseFloat(quantity),
                 quantityUnit: "MT"
             });
@@ -118,7 +137,7 @@ export function CreatePurchaseOrderDialog({
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Create Purchase Order</DialogTitle>
+                    <DialogTitle>Create Purchase Order {commodityName && `(${commodityName})`}</DialogTitle>
                     <DialogDescription>
                         Manually create a purchase order for a project.
                     </DialogDescription>
@@ -132,6 +151,7 @@ export function CreatePurchaseOrderDialog({
                             onChange={(val) => {
                                 setProjectId(val);
                                 setVendorId(""); // Reset vendor when project changes
+                                setSampleId(""); // Reset sample when project changes
                             }}
                             placeholder="Select project..."
                             searchPlaceholder="Search project..."
@@ -144,7 +164,10 @@ export function CreatePurchaseOrderDialog({
                         <Combobox
                             options={vendors.map((v: any) => ({ label: v.name, value: v.id }))}
                             value={vendorId}
-                            onChange={setVendorId}
+                            onChange={(val) => {
+                                setVendorId(val);
+                                setSampleId(""); // Reset sample when vendor changes
+                            }}
                             placeholder={!projectId ? "Select project first" : "Select vendor..."}
                             searchPlaceholder="Search vendor..."
                             emptyMessage="No vendors in this project"
@@ -155,18 +178,53 @@ export function CreatePurchaseOrderDialog({
                             </p>
                         )}
 
+                        {availableSamples.length > 0 && (
+                            <div className="grid gap-2 mt-4">
+                                <Label>Commodity / Item <span className="text-red-500">*</span></Label>
+                                <Combobox
+                                    options={availableSamples.map((s: any) => ({
+                                        label: s?.project?.commodity?.name || s?.id?.substring(0, 8) || 'Unknown Item',
+                                        value: s?.id
+                                    }))}
+                                    value={sampleId}
+                                    onChange={setSampleId}
+                                    placeholder="Select commodity..."
+                                    searchPlaceholder="Search commodity..."
+                                />
+                            </div>
+                        )}
+
                         {(() => {
                             if (!selectedProject || !quantity) return null;
                             const qty = parseFloat(quantity) || 0;
                             if (qty <= 0) return null;
 
+                            const selectedSample = availableSamples.find((s: any) => s.id === sampleId);
+                            const selectedCommodityName = selectedSample?.project?.commodity?.name;
+
                             const totalDemand = selectedProject.salesOpportunities
                                 .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
-                                .reduce((sum: number, opp: any) => sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0), 0);
+                                .reduce((sum: number, opp: any) => {
+                                    if (opp.items && opp.items.length > 0) {
+                                        return sum + opp.items.reduce((itemSum: number, item: any) => {
+                                            if (selectedCommodityName && item.commodity?.name && item.commodity.name !== selectedCommodityName) {
+                                                return itemSum;
+                                            }
+                                            return itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0);
+                                        }, 0);
+                                    }
+                                    return sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0);
+                                }, 0);
 
                             const currentProcured = selectedProject.purchaseOrders
                                 .filter((po: any) => po.status !== 'CANCELLED')
-                                .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0);
+                                .reduce((sum: number, po: any) => {
+                                    const poCommodityName = po.sample?.project?.commodity?.name;
+                                    if (selectedCommodityName && poCommodityName && poCommodityName !== selectedCommodityName) {
+                                        return sum;
+                                    }
+                                    return sum + (Number(po.quantity) || 0);
+                                }, 0);
 
                             const projectedTotal = currentProcured + qty;
 
@@ -233,7 +291,7 @@ export function CreatePurchaseOrderDialog({
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button onClick={handleCreate} disabled={loading || !projectId || !vendorId || !quantity || !amount || !rate}>
+                    <Button onClick={handleCreate} disabled={loading || !projectId || !vendorId || !quantity || !amount || !rate || (availableSamples.length > 0 && !sampleId)}>
                         {loading ? "Creating..." : "Create Order"}
                     </Button>
                 </DialogFooter>

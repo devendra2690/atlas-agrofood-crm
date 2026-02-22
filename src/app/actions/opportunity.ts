@@ -6,21 +6,26 @@ import { OpportunityStatus, TrustLevel } from "@prisma/client";
 import { auth } from "@/auth";
 import { logActivity } from "./audit";
 
-export type OpportunityFormData = {
-    companyId: string;
+export type OpportunityItemData = {
     productName: string;
-    commodityId?: string;
+    commodityId: string;
     varietyId?: string;
-    varietyFormId?: string; // NEW
+    varietyFormId?: string;
     targetPrice?: number;
     priceType?: "PER_KG" | "PER_MT" | "TOTAL_AMOUNT";
     quantity?: number;
+    procurementQuantity?: number;
+    notes?: string;
+};
+
+export type OpportunityFormData = {
+    companyId: string;
     deadline?: Date;
     status?: OpportunityStatus;
     type?: "ONE_TIME" | "RECURRING";
     recurringFrequency?: "WEEKLY" | "MONTHLY";
     notes?: string;
-    procurementQuantity?: number; // Manual override
+    items: OpportunityItemData[];
 };
 
 // Helper: Calculate procurement quantity
@@ -63,13 +68,20 @@ async function calculateProcurementQuantity(commodityId?: string, varietyId?: st
 
 export async function createOpportunity(data: OpportunityFormData) {
     try {
-        const procurementQuantity = await calculateProcurementQuantity(
-            data.commodityId,
-            data.varietyId,
-            data.varietyFormId,
-            data.quantity,
-            data.procurementQuantity
-        );
+        const preparedItems = await Promise.all(data.items.map(async (item) => {
+            const procQty = await calculateProcurementQuantity(
+                item.commodityId,
+                item.varietyId,
+                item.varietyFormId,
+                item.quantity,
+                item.procurementQuantity
+            );
+            return {
+                ...item,
+                procurementQuantity: procQty,
+                priceType: item.priceType || "PER_KG",
+            };
+        }));
 
         const session = await auth();
         let userId = session?.user?.id;
@@ -94,36 +106,26 @@ export async function createOpportunity(data: OpportunityFormData) {
                 createdById: userId,
                 updatedById: userId,
                 companyId: data.companyId,
-                productName: data.productName,
-                commodityId: data.commodityId,
-                varietyId: data.varietyId,
-                varietyFormId: data.varietyFormId,
-                targetPrice: data.targetPrice,
-                priceType: data.priceType || "PER_KG",
-                quantity: data.quantity,
-                procurementQuantity: procurementQuantity,
                 deadline: data.deadline,
                 status: data.status || "OPEN",
                 type: data.type || "ONE_TIME",
                 recurringFrequency: data.recurringFrequency,
                 notes: data.notes,
+                items: {
+                    create: preparedItems
+                }
             },
+            include: { items: true }
         });
 
-        // Sanitize Decimal types
-        const safeOpportunity = {
-            ...opportunity,
-            targetPrice: opportunity.targetPrice?.toNumber(),
-            quantity: opportunity.quantity?.toNumber(),
-            procurementQuantity: opportunity.procurementQuantity?.toNumber(),
-        };
+        const safeOpportunity = sanitizeOpportunity(opportunity);
 
         await logActivity({
             action: "CREATE",
             entityType: "Opportunity",
             entityId: opportunity.id,
-            entityTitle: opportunity.productName,
-            details: `Created opportunity for ${data.productName} - ${data.quantity} units`
+            entityTitle: `Opp for ${data.companyId}`,
+            details: `Created opportunity with ${data.items.length} items`
         });
 
         revalidatePath(`/companies/${data.companyId}`);
@@ -137,13 +139,20 @@ export async function createOpportunity(data: OpportunityFormData) {
 
 export async function updateOpportunity(id: string, data: OpportunityFormData) {
     try {
-        const procurementQuantity = await calculateProcurementQuantity(
-            data.commodityId,
-            data.varietyId,
-            data.varietyFormId,
-            data.quantity,
-            data.procurementQuantity
-        );
+        const preparedItems = await Promise.all((data.items || []).map(async (item) => {
+            const procQty = await calculateProcurementQuantity(
+                item.commodityId,
+                item.varietyId,
+                item.varietyFormId,
+                item.quantity,
+                item.procurementQuantity
+            );
+            return {
+                ...item,
+                procurementQuantity: procQty,
+                priceType: item.priceType || "PER_KG",
+            };
+        }));
 
         const session = await auth();
         let userId = session?.user?.id;
@@ -166,35 +175,26 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
             data: {
                 updatedById: userId,
                 companyId: data.companyId,
-                productName: data.productName,
-                commodityId: data.commodityId,
-                varietyId: data.varietyId,
-                varietyFormId: data.varietyFormId,
-                targetPrice: data.targetPrice,
-                priceType: data.priceType || "PER_KG",
-                quantity: data.quantity,
-                procurementQuantity: procurementQuantity,
                 deadline: data.deadline,
-                status: data.status || "OPEN",
-                type: data.type || "ONE_TIME",
+                status: data.status,
+                type: data.type,
                 recurringFrequency: data.recurringFrequency,
                 notes: data.notes,
+                items: {
+                    deleteMany: {}, // Clean slate
+                    create: preparedItems // Create newly updated items
+                }
             },
+            include: { items: true }
         });
 
-        // Sanitize Decimal types
-        const safeOpportunity = {
-            ...opportunity,
-            targetPrice: opportunity.targetPrice?.toNumber(),
-            quantity: opportunity.quantity?.toNumber(),
-            procurementQuantity: opportunity.procurementQuantity?.toNumber(),
-        };
+        const safeOpportunity = sanitizeOpportunity(opportunity);
 
         await logActivity({
             action: "UPDATE",
             entityType: "Opportunity",
             entityId: id,
-            details: `Updated opportunity: ${data.productName}`
+            details: `Updated opportunity to have ${preparedItems.length} items`
         });
 
         revalidatePath("/opportunities");
@@ -251,7 +251,7 @@ export async function getOpportunities(filters?: {
         if (filters?.query) {
             const search = filters.query.trim();
             where.OR = [
-                { productName: { contains: search, mode: 'insensitive' } },
+                { items: { some: { productName: { contains: search, mode: 'insensitive' } } } },
                 {
                     company: {
                         name: { contains: search, mode: 'insensitive' }
@@ -281,7 +281,7 @@ export async function getOpportunities(filters?: {
         }
 
         if (filters?.commodityId && filters.commodityId !== 'all') {
-            where.commodityId = filters.commodityId;
+            where.items = { some: { commodityId: filters.commodityId } };
         }
 
         if (filters?.location) {
@@ -320,47 +320,53 @@ export async function getOpportunities(filters?: {
             where.company.trustLevel = filters.trustLevel as TrustLevel;
         }
 
+        const oppInclude = {
+            company: true,
+            items: {
+                include: {
+                    commodity: true,
+                    variety: true,
+                    varietyForm: true,
+                }
+            },
+            createdBy: { select: { name: true } },
+            updatedBy: { select: { name: true } },
+            sampleSubmissions: {
+                select: {
+                    id: true,
+                    status: true,
+                    sample: {
+                        select: {
+                            id: true,
+                            priceQuoted: true,
+                            vendor: { select: { name: true } },
+                            project: { select: { name: true, commodity: { select: { name: true } } } }
+                        }
+                    }
+                },
+                orderBy: { createdAt: 'desc' as const }
+            },
+            procurementProject: {
+                select: {
+                    id: true,
+                    status: true,
+                    samples: {
+                        select: {
+                            id: true,
+                            status: true
+                        }
+                    }
+                }
+            }
+        };
+
         const [opportunities, total] = await prisma.$transaction([
             prisma.salesOpportunity.findMany({
                 where,
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit,
-                include: {
-                    company: true,
-                    commodity: true,
-                    variety: true,
-                    varietyForm: true, // NEW
-                    createdBy: { select: { name: true } },
-                    updatedBy: { select: { name: true } },
-                    sampleSubmissions: {
-                        select: {
-                            id: true,
-                            status: true,
-                            sample: {
-                                select: {
-                                    id: true,
-                                    priceQuoted: true,
-                                    vendor: { select: { name: true } }
-                                }
-                            }
-                        },
-                        orderBy: { createdAt: 'desc' }
-                    },
-                    procurementProject: {
-                        select: {
-                            id: true,
-                            status: true,
-                            // Only fetch count or minimal info if possible, avoiding deep sample list
-                            samples: {
-                                select: {
-                                    id: true,
-                                    status: true
-                                }
-                            }
-                        }
-                    }
-                },
+                include: oppInclude,
             }),
             prisma.salesOpportunity.count({ where })
         ]);
@@ -377,26 +383,12 @@ export async function getOpportunities(filters?: {
                 console.log(`DEBUG: Fetching priority opportunity separately`);
                 const priorityOpp = await prisma.salesOpportunity.findUnique({
                     where: { id: filters.priorityId },
-                    include: {
-                        company: true,
-                        commodity: true,
-                        variety: true,
-                        varietyForm: true, // NEW
-                        createdBy: { select: { name: true } },
-                        updatedBy: { select: { name: true } },
-                        sampleSubmissions: {
-                            include: { sample: { include: { vendor: true } } },
-                            orderBy: { createdAt: 'desc' }
-                        },
-                        procurementProject: {
-                            include: { samples: { include: { vendor: true }, orderBy: { receivedDate: 'desc' } } }
-                        }
-                    }
+                    include: oppInclude
                 });
 
                 if (priorityOpp) {
                     console.log(`DEBUG: Found priority opp, prepending`);
-                    finalOpportunities = [priorityOpp, ...opportunities];
+                    finalOpportunities = [priorityOpp as any, ...opportunities];
                 } else {
                     console.log(`DEBUG: Priority opp not found in DB`);
                 }
@@ -421,26 +413,28 @@ export async function getOpportunities(filters?: {
     }
 }
 
-// Helper to ensure all Decimal types are converted to numbers for client components
 function sanitizeOpportunity(opp: any) {
     if (!opp) return null;
     return {
         ...opp,
-        targetPrice: opp.targetPrice && typeof opp.targetPrice.toNumber === 'function' ? opp.targetPrice.toNumber() : opp.targetPrice,
-        quantity: opp.quantity && typeof opp.quantity.toNumber === 'function' ? opp.quantity.toNumber() : opp.quantity,
-        procurementQuantity: opp.procurementQuantity && typeof opp.procurementQuantity.toNumber === 'function' ? opp.procurementQuantity.toNumber() : opp.procurementQuantity,
+        items: opp.items?.map((item: any) => ({
+            ...item,
+            targetPrice: item.targetPrice && typeof item.targetPrice.toNumber === 'function' ? item.targetPrice.toNumber() : item.targetPrice,
+            quantity: item.quantity && typeof item.quantity.toNumber === 'function' ? item.quantity.toNumber() : item.quantity,
+            procurementQuantity: item.procurementQuantity && typeof item.procurementQuantity.toNumber === 'function' ? item.procurementQuantity.toNumber() : item.procurementQuantity,
+        })),
         sampleSubmissions: opp.sampleSubmissions?.map((sub: any) => ({
             ...sub,
             sample: {
                 ...sub.sample,
-                priceQuoted: sub.sample?.priceQuoted && typeof sub.sample.priceQuoted.toNumber === 'function' ? sub.sample.priceQuoted.toNumber() : sub.sample?.priceQuoted
+                priceQuoted: sub.sample?.priceQuoted && typeof sub.sample.priceQuoted.toNumber === 'function' ? sub.sample.priceQuoted.toNumber() : (sub.sample?.priceQuoted || null)
             }
         })),
         procurementProject: opp.procurementProject ? {
             ...opp.procurementProject,
             samples: opp.procurementProject.samples?.map((s: any) => ({
                 ...s,
-                priceQuoted: s.priceQuoted && typeof s.priceQuoted.toNumber === 'function' ? s.priceQuoted.toNumber() : s.priceQuoted
+                priceQuoted: s.priceQuoted && typeof s.priceQuoted.toNumber === 'function' ? s.priceQuoted.toNumber() : (s.priceQuoted || null)
             }))
         } : null
     };
@@ -474,7 +468,16 @@ export async function updateOpportunityStatus(id: string, status: OpportunitySta
         const currentOpp = await prisma.salesOpportunity.findUnique({
             where: { id },
             include: {
-                sampleSubmissions: true
+                sampleSubmissions: {
+                    include: {
+                        sample: {
+                            include: {
+                                project: true
+                            }
+                        }
+                    }
+                },
+                items: true
             }
         });
 
@@ -482,18 +485,43 @@ export async function updateOpportunityStatus(id: string, status: OpportunitySta
             return { success: false, error: "Opportunity not found" };
         }
 
+        const oppItems = currentOpp.items as any[];
+        const oppSamples = currentOpp.sampleSubmissions as any[];
+
         // VALIDATION: Negotiation requires at least one attached sample
         if (status === 'NEGOTIATION') {
-            if (!currentOpp.sampleSubmissions || currentOpp.sampleSubmissions.length === 0) {
+            if (!oppSamples || oppSamples.length === 0) {
                 return { success: false, error: "Cannot move to Negotiation: At least one sample must be attached." };
             }
         }
 
-        // VALIDATION: Closed Won requires at least one Client Approved sample
+        // VALIDATION: Closed Won requires at least one Client Approved sample and valid item prices
         if (status === 'CLOSED_WON') {
-            const hasApprovedSample = currentOpp.sampleSubmissions.some(s => s.status === 'CLIENT_APPROVED');
-            if (!hasApprovedSample) {
-                return { success: false, error: "Cannot Close Won: Must have at least one Client Approved sample." };
+            const missingApproval: string[] = [];
+            oppItems.forEach((item: any) => {
+                const hasApprovedForItem = oppSamples.some(sub =>
+                    sub.status === 'CLIENT_APPROVED' &&
+                    (sub.sample?.project?.commodityId === item.commodityId || !item.commodityId)
+                );
+
+                if (!hasApprovedForItem) {
+                    missingApproval.push(item.productName || 'Unknown Product');
+                }
+            });
+
+            if (missingApproval.length > 0) {
+                return { success: false, error: `Cannot Close Won. Missing CLIENT_APPROVED samples for: ${missingApproval.join(', ')}` };
+            }
+
+            const missingFields: string[] = [];
+            oppItems.forEach((item: any, index: number) => {
+                const productInfo = item.productName || `Item ${index + 1}`;
+                if (!item.quantity || item.quantity.toNumber() <= 0) missingFields.push(`${productInfo} Quantity`);
+                if (!item.targetPrice || item.targetPrice.toNumber() <= 0) missingFields.push(`${productInfo} Target Price`);
+            });
+
+            if (missingFields.length > 0) {
+                return { success: false, error: `Cannot Close Won: Missing ${missingFields.join(", ")}` };
             }
         }
 
@@ -510,7 +538,7 @@ export async function updateOpportunityStatus(id: string, status: OpportunitySta
             action: "STATUS_CHANGE",
             entityType: "Opportunity",
             entityId: opportunity.id,
-            details: `Updated opportunity ${opportunity.productName} status to ${status}`
+            details: `Updated opportunity status to ${status}`
         });
 
         revalidatePath("/opportunities");

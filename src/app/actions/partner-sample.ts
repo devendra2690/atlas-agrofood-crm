@@ -19,7 +19,7 @@ export async function createPartnerSample(data: {
         // 1. Check Opportunity and Existing Project
         const opportunity = await prisma.salesOpportunity.findUnique({
             where: { id: data.opportunityId },
-            include: { procurementProject: true }
+            include: { procurementProject: true, items: true }
         });
 
         if (!opportunity) {
@@ -32,14 +32,14 @@ export async function createPartnerSample(data: {
         if (!projectId) {
             const project = await prisma.procurementProject.create({
                 data: {
-                    name: `Sourcing for ${opportunity.productName}`,
+                    name: `Sourcing for ${opportunity.items?.[0]?.productName || 'Product'}`,
                     type: "SAMPLE", // Or PROJECT, but this implies ad-hoc
                     status: "SOURCING",
                     createdById: session?.user?.id,
                     updatedById: session?.user?.id,
-                    // Link to Commodity if opp has one
-                    commodityId: opportunity.commodityId,
-                    varietyId: opportunity.varietyId
+                    // Link to Commodity if opp has items
+                    commodityId: opportunity.items?.[0]?.commodityId || "",
+                    varietyId: opportunity.items?.[0]?.varietyId
                 }
             });
             projectId = project.id;
@@ -99,7 +99,7 @@ export async function createPartnerSample(data: {
             action: "CREATE",
             entityType: "Sample",
             entityId: sample.id,
-            details: `Collected partner sample for ${opportunity.productName}`
+            details: `Collected partner sample for ${opportunity.items?.[0]?.productName || 'Product'}`
         });
 
         revalidatePath(`/opportunities/${opportunity.id}`);

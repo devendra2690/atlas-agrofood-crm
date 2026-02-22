@@ -96,17 +96,24 @@ export async function getProcurementProjects(filters?: {
                     salesOpportunities: {
                         select: {
                             id: true,
-                            productName: true,
-                            quantity: true,
-                            procurementQuantity: true,
                             status: true,
-                            commodity: true,
-                            variety: true, // NEW
+                            items: {
+                                include: {
+                                    commodity: true,
+                                    variety: true
+                                }
+                            },
                             sampleSubmissions: {
                                 where: { status: 'CLIENT_APPROVED' },
                                 select: {
                                     sample: {
                                         select: {
+                                            id: true,
+                                            project: {
+                                                include: {
+                                                    commodity: true
+                                                }
+                                            },
                                             vendor: {
                                                 include: {
                                                     city: true,
@@ -124,11 +131,26 @@ export async function getProcurementProjects(filters?: {
                         select: {
                             id: true,
                             quantity: true,
-                            status: true
+                            status: true,
+                            sample: {
+                                select: {
+                                    project: {
+                                        include: {
+                                            commodity: true
+                                        }
+                                    }
+                                }
+                            }
                         }
                     },
                     samples: {
                         select: {
+                            id: true,
+                            project: {
+                                include: {
+                                    commodity: true
+                                }
+                            },
                             vendor: {
                                 include: {
                                     city: true,
@@ -145,12 +167,16 @@ export async function getProcurementProjects(filters?: {
 
         const safeProjects = projects.map(p => ({
             ...p,
-            salesOpportunities: p.salesOpportunities.map(opp => ({
+            salesOpportunities: p.salesOpportunities.map((opp: any) => ({
                 ...opp,
-                quantity: opp.quantity?.toNumber() || 0,
-                procurementQuantity: opp.procurementQuantity?.toNumber() || 0
+                items: opp.items?.map((it: any) => ({
+                    ...it,
+                    targetPrice: it.targetPrice?.toNumber() || 0,
+                    quantity: it.quantity?.toNumber() || 0,
+                    procurementQuantity: it.procurementQuantity?.toNumber() || 0
+                }))
             })),
-            purchaseOrders: p.purchaseOrders.map(po => ({
+            purchaseOrders: p.purchaseOrders.map((po: any) => ({
                 ...po,
                 quantity: po.quantity?.toNumber() || 0
             }))
@@ -348,11 +374,18 @@ export async function getProcurementProject(id: string) {
                 salesOpportunities: {
                     include: {
                         company: true,
+                        items: true,
                         sampleSubmissions: {
+                            where: { status: 'CLIENT_APPROVED' },
                             include: {
                                 sample: {
                                     include: {
-                                        vendor: true
+                                        vendor: true,
+                                        project: {
+                                            include: {
+                                                commodity: true
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -366,6 +399,7 @@ export async function getProcurementProject(id: string) {
                             include: {
                                 opportunity: {
                                     include: {
+                                        items: true,
                                         company: true,
                                         sampleSubmissions: {
                                             include: {
@@ -387,7 +421,16 @@ export async function getProcurementProject(id: string) {
                 },
                 purchaseOrders: {
                     include: {
-                        vendor: true
+                        vendor: true,
+                        sample: {
+                            include: {
+                                project: {
+                                    include: {
+                                        commodity: true
+                                    }
+                                }
+                            }
+                        }
                     },
                     orderBy: {
                         createdAt: 'desc'
@@ -403,11 +446,14 @@ export async function getProcurementProject(id: string) {
         // Sanitize decimals
         const safeProject = {
             ...project,
-            salesOpportunities: project.salesOpportunities.map(opp => ({
+            salesOpportunities: project.salesOpportunities.map((opp: any) => ({
                 ...opp,
-                targetPrice: opp.targetPrice?.toNumber(),
-                quantity: opp.quantity?.toNumber(),
-                procurementQuantity: opp.procurementQuantity?.toNumber(), // NEW
+                items: opp.items?.map((it: any) => ({
+                    ...it,
+                    targetPrice: it.targetPrice?.toNumber(),
+                    quantity: it.quantity?.toNumber(),
+                    procurementQuantity: it.procurementQuantity?.toNumber()
+                })),
                 sampleSubmissions: (opp.sampleSubmissions || []).map((sub: any) => ({ // Type cast if needed
                     ...sub,
                     sample: {
@@ -423,9 +469,12 @@ export async function getProcurementProject(id: string) {
                     ...sub,
                     opportunity: {
                         ...sub.opportunity,
-                        targetPrice: sub.opportunity?.targetPrice?.toNumber(),
-                        quantity: sub.opportunity?.quantity?.toNumber(),
-                        procurementQuantity: sub.opportunity?.procurementQuantity?.toNumber(),
+                        items: sub.opportunity?.items?.map((it: any) => ({
+                            ...it,
+                            targetPrice: it.targetPrice?.toNumber(),
+                            quantity: it.quantity?.toNumber(),
+                            procurementQuantity: it.procurementQuantity?.toNumber()
+                        })),
                         sampleSubmissions: (sub.opportunity?.sampleSubmissions || []).map((nestedSub: any) => ({
                             ...nestedSub,
                             sample: {
@@ -439,8 +488,13 @@ export async function getProcurementProject(id: string) {
             purchaseOrders: (project.purchaseOrders || []).map((po: any) => ({
                 ...po,
                 totalAmount: po.totalAmount.toNumber(),
-                quantity: po.quantity?.toNumber()
-            }))
+                quantity: po.quantity?.toNumber(),
+                sample: po.sample ? {
+                    ...po.sample,
+                    priceQuoted: po.sample.priceQuoted?.toNumber()
+                } : undefined
+            })),
+            projectVendors: project.projectVendors
         };
 
         return { success: true, data: safeProject };
@@ -460,16 +514,20 @@ export async function getUnassignedOpportunities() {
                 }
             },
             include: {
-                company: true
+                company: true,
+                items: true
             },
             orderBy: { createdAt: "desc" }
         });
 
-        const safeOpportunities = opportunities.map(opp => ({
+        const safeOpportunities = opportunities.map((opp: any) => ({
             ...opp,
-            targetPrice: opp.targetPrice?.toNumber() || 0,
-            quantity: opp.quantity?.toNumber() || 0,
-            procurementQuantity: opp.procurementQuantity?.toNumber() || 0
+            items: opp.items?.map((it: any) => ({
+                ...it,
+                targetPrice: it.targetPrice?.toNumber() || 0,
+                quantity: it.quantity?.toNumber() || 0,
+                procurementQuantity: it.procurementQuantity?.toNumber() || 0
+            }))
         }));
 
         return { success: true, data: safeOpportunities };
@@ -653,6 +711,7 @@ export async function getPurchaseOrder(id: string) {
                     include: {
                         salesOpportunities: {
                             include: {
+                                items: true,
                                 sampleSubmissions: {
                                     where: { status: 'CLIENT_APPROVED' },
                                     include: { sample: { include: { vendor: true } } },
@@ -685,12 +744,15 @@ export async function getPurchaseOrder(id: string) {
             ...order,
             project: {
                 ...order.project,
-                salesOpportunities: order.project.salesOpportunities.map(opp => ({
+                salesOpportunities: order.project.salesOpportunities.map((opp: any) => ({
                     ...opp,
-                    targetPrice: opp.targetPrice?.toNumber(),
-                    quantity: opp.quantity?.toNumber(),
-                    procurementQuantity: opp.procurementQuantity?.toNumber(),
-                    sampleSubmissions: opp.sampleSubmissions.map(sub => ({
+                    items: opp.items?.map((it: any) => ({
+                        ...it,
+                        targetPrice: it.targetPrice?.toNumber(),
+                        quantity: it.quantity?.toNumber(),
+                        procurementQuantity: it.procurementQuantity?.toNumber()
+                    })),
+                    sampleSubmissions: opp.sampleSubmissions.map((sub: any) => ({
                         ...sub,
                         sample: {
                             ...sub.sample,
@@ -757,7 +819,11 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
             include: {
                 project: {
                     include: {
-                        salesOpportunities: true,
+                        salesOpportunities: {
+                            include: {
+                                items: true
+                            }
+                        },
                         purchaseOrders: true
                     }
                 }
@@ -773,7 +839,12 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
             // 1. Calculate stats
             const totalDemand = project.salesOpportunities
                 .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
-                .reduce((sum: number, opp: any) => sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0), 0);
+                .reduce((sum: number, opp: any) => {
+                    if (opp.items && opp.items.length > 0) {
+                        return sum + opp.items.reduce((itemSum: number, item: any) => itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0), 0);
+                    }
+                    return sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0);
+                }, 0);
 
             const otherProcured = project.purchaseOrders
                 .filter((po: any) => po.id !== id && po.status !== 'CANCELLED')

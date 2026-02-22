@@ -13,7 +13,7 @@ import { getSalesOrderFinancials, getSalesOrderTransactions } from "@/app/action
 import { SalesOrderFinancials } from "../../sales-orders/[id]/_components/sales-order-financials";
 
 interface SalesProfitabilityViewerProps {
-    salesOrders: { id: string; client: { name: string }; opportunity: { productName: string } }[];
+    salesOrders: { id: string; client: { name: string }; opportunity: { items: { productName: string | null }[] } }[];
 }
 
 export function SalesProfitabilityViewer({ salesOrders }: SalesProfitabilityViewerProps) {
@@ -49,7 +49,7 @@ export function SalesProfitabilityViewer({ salesOrders }: SalesProfitabilityView
                         <SelectContent>
                             {salesOrders.map((order) => (
                                 <SelectItem key={order.id} value={order.id}>
-                                    {order.client.name} - {order.opportunity.productName} ({order.id.slice(0, 8)})
+                                    {order.client.name} - {order.opportunity.items?.[0]?.productName || "Product"} ({order.id.slice(0, 8)})
                                 </SelectItem>
                             ))}
                         </SelectContent>

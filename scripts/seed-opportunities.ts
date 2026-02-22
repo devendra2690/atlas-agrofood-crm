@@ -62,12 +62,7 @@ async function main() {
         await prisma.salesOpportunity.create({
             data: {
                 companyId: company.id,
-                productName: `${commodity.name} Request ${i + 1}`,
-                commodityId: commodity.id,
-                targetPrice: 10 + Math.random() * 90, // 10-100
-                priceType: OpportunityPriceType.PER_KG,
-                quantity: 100 + Math.floor(Math.random() * 900), // 100-1000
-                procurementQuantity: 0, // Simplified, strictly we don't need this perfect for pagination test
+                items: { create: [{ productName: `${commodity.name} Request ${i + 1}`, commodityId: commodity.id, targetPrice: 10 + Math.random() * 90, quantity: 100 + Math.floor(Math.random() * 900), procurementQuantity: 0 }] },
                 status: status,
                 createdAt: createdAt, // For date filter
                 deadline: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // +7 days

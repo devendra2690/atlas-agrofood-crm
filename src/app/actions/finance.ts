@@ -112,7 +112,7 @@ export async function getInvoices(filters?: {
                     salesOrder: {
                         include: {
                             client: true,
-                            opportunity: true
+                            opportunity: { include: { items: true } }
                         }
                     },
                     transactions: {
@@ -141,8 +141,11 @@ export async function getInvoices(filters?: {
                 totalAmount: inv.salesOrder.totalAmount.toNumber(),
                 opportunity: {
                     ...inv.salesOrder.opportunity,
-                    targetPrice: inv.salesOrder.opportunity.targetPrice?.toNumber(),
-                    quantity: inv.salesOrder.opportunity.quantity?.toNumber()
+                    items: inv.salesOrder.opportunity.items?.map((it: any) => ({
+                        ...it,
+                        targetPrice: it.targetPrice?.toNumber(),
+                        quantity: it.quantity?.toNumber()
+                    }))
                 }
             },
             transactions: inv.transactions.map((t: any) => ({
@@ -624,7 +627,7 @@ export async function getSalesOrdersForSelection() {
             select: {
                 id: true,
                 client: { select: { name: true } },
-                opportunity: { select: { productName: true } }
+                opportunity: { select: { items: { select: { productName: true } } } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -702,8 +705,8 @@ export async function getProfitabilityAnalytics() {
             include: {
                 salesOrder: {
                     include: {
-                        client: true,
-                        opportunity: { include: { commodity: true } }
+                        "client": true,
+                        "opportunity": { include: { items: { include: { commodity: true } } } }
                     }
                 }
             }
@@ -744,7 +747,7 @@ export async function getProfitabilityAnalytics() {
             customerStats[clientName].margin += margin;
 
             // Group by Product
-            const productName = inv.salesOrder.opportunity.productName || "Unknown Product";
+            const productName = inv.salesOrder.opportunity.items?.[0]?.productName || "Unknown Product";
             if (!productStats[productName]) {
                 productStats[productName] = { name: productName, revenue: 0, costs: 0, margin: 0 };
             }

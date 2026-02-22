@@ -13,6 +13,12 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -78,6 +84,16 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
 
     const [creatingOrder, setCreatingOrder] = useState(false);
 
+    // Group submissions by product name
+    const groupedSubmissions = optimisticSubmissions?.length > 0 ? optimisticSubmissions.reduce((acc: any, sub: any) => {
+        const productName = sub.sample?.project?.commodity?.name || sub.sample?.project?.name || "Sample";
+        if (!acc[productName]) {
+            acc[productName] = [];
+        }
+        acc[productName].push(sub);
+        return acc;
+    }, {} as Record<string, any[]>) : null;
+
     const handleCreateOrder = async () => {
         setCreatingOrder(true);
         const toastId = toast.loading("Creating Sales Order...");
@@ -108,8 +124,10 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
         >
             <Card className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group relative">
                 <CardHeader className="p-3 pb-0 space-y-0">
-                    <CardTitle className="text-sm font-medium leading-none">
-                        {opportunity.productName}
+                    <CardTitle className="text-sm font-medium leading-none truncate">
+                        {opportunity.items && opportunity.items.length > 0
+                            ? (opportunity.items.length === 1 ? opportunity.items[0].productName : `Multiple Items (${opportunity.items.length})`)
+                            : "No Product"}
                     </CardTitle>
                     <div className="text-xs text-muted-foreground pt-1 truncate">
                         {opportunity.company.name}
@@ -118,7 +136,9 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
                 <CardContent className="p-3 pt-2">
                     <div className="flex justify-between items-end">
                         <div className="text-sm font-bold text-green-600">
-                            {opportunity.targetPrice ? `₹${opportunity.targetPrice}` : '-'}
+                            {opportunity.items && opportunity.items.length === 1 && opportunity.items[0].targetPrice
+                                ? `₹${opportunity.items[0].targetPrice}`
+                                : opportunity.items && opportunity.items.length > 1 ? "Multiple Items" : '-'}
                         </div>
                         {opportunity.deadline && (
                             <div className="flex items-center text-[10px] text-muted-foreground">
@@ -129,63 +149,93 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
                     </div>
 
                     {/* Linked Samples Indicator */}
-                    {optimisticSubmissions && optimisticSubmissions.length > 0 && (
-                        <div className="mt-2 pt-2 border-t flex flex-wrap gap-1">
-                            {optimisticSubmissions.map((sub: any) => {
-                                let badgeColor = "bg-blue-50 text-blue-700 border-blue-100";
-                                if (sub.status === "CLIENT_APPROVED") badgeColor = "bg-green-50 text-green-700 border-green-100";
-                                if (sub.status === "CLIENT_REJECTED") badgeColor = "bg-red-50 text-red-700 border-red-100";
-
-                                return (
-                                    <DropdownMenu key={sub.id}>
-                                        <DropdownMenuTrigger asChild>
-                                            <Badge
-                                                variant="secondary"
-                                                className={cn(
-                                                    "text-[10px] px-2 py-1 h-auto font-normal border cursor-pointer hover:opacity-80 transition-all flex items-center justify-between gap-2 w-full max-w-[200px]",
-                                                    badgeColor
-                                                )}
-                                                onClick={(e) => e.stopPropagation()} // Prevent card click
+                    {groupedSubmissions && Object.keys(groupedSubmissions).length > 0 && (
+                        <div className="mt-2 pt-2 border-t" onClick={(e) => e.stopPropagation()}>
+                            <Accordion type="single" collapsible className="w-full space-y-1">
+                                {Object.entries(groupedSubmissions).map(([productName, subs]: [string, any], index) => {
+                                    const approvedCount = subs.filter((s: any) => s.status === 'CLIENT_APPROVED').length;
+                                    return (
+                                        <AccordionItem value={`item-${index}`} key={productName} className="border-0 bg-slate-50/70 border border-slate-100 rounded-lg overflow-hidden shrink-0">
+                                            <AccordionTrigger
+                                                className="py-1.5 px-2 hover:no-underline hover:bg-slate-100 text-xs font-semibold data-[state=open]:bg-slate-100 transition-all group shrink-0"
                                             >
-                                                <div className="flex items-center truncate">
-                                                    <FlaskConical className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                                                    <span className="truncate">{sub.sample?.vendor?.name}</span>
+                                                <div className="flex items-center gap-2 flex-1 text-left pr-2">
+                                                    <FlaskConical className="h-3.5 w-3.5 text-indigo-600 group-hover:text-indigo-700 shrink-0" />
+                                                    <span className="truncate text-slate-800 leading-tight">{productName}</span>
+                                                    <div className="ml-auto flex items-center gap-1 shrink-0">
+                                                        {approvedCount > 0 && (
+                                                            <Badge variant="secondary" className="text-[10px] h-[18px] px-1 min-w-[1.25rem] flex items-center justify-center rounded-full bg-green-100 text-green-700 border border-green-200 leading-none" title="Approved Samples">
+                                                                <Check className="h-2.5 w-2.5 mr-0.5" />
+                                                                {approvedCount}
+                                                            </Badge>
+                                                        )}
+                                                        <Badge variant="secondary" className="text-[10px] h-[18px] px-1.5 min-w-[1.25rem] flex items-center justify-center rounded-full bg-slate-200 text-slate-700 border-0 leading-none" title="Total Samples">
+                                                            {subs.length}
+                                                        </Badge>
+                                                    </div>
                                                 </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent className="pt-1 pb-1.5 px-1.5 bg-slate-50/50">
+                                                <div className="flex flex-col gap-1">
+                                                    {subs.map((sub: any) => {
+                                                        let badgeColor = "bg-white text-blue-700 border-blue-200";
+                                                        if (sub.status === "CLIENT_APPROVED") badgeColor = "bg-green-50 text-green-700 border-green-200";
+                                                        if (sub.status === "CLIENT_REJECTED") badgeColor = "bg-red-50 text-red-700 border-red-200";
 
-                                                {/* Status Indicator / Action Trigger */}
-                                                <div className="flex items-center flex-shrink-0">
-                                                    {sub.status === "CLIENT_APPROVED" && <Check className="h-3 w-3" />}
-                                                    {sub.status === "CLIENT_REJECTED" && <X className="h-3 w-3" />}
-                                                    {!["CLIENT_APPROVED", "CLIENT_REJECTED"].includes(sub.status) && (
-                                                        <Button
-                                                            size="sm"
-                                                            className="h-5 text-[10px] px-2 py-0 font-medium bg-indigo-600 hover:bg-indigo-700 text-white border-0 shadow-sm"
-                                                        >
-                                                            Review
-                                                        </Button>
-                                                    )}
+                                                        return (
+                                                            <DropdownMenu key={sub.id}>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Badge
+                                                                        variant="secondary"
+                                                                        className={cn(
+                                                                            "text-[10px] px-2 py-1.5 h-auto font-normal border cursor-pointer hover:shadow-sm transition-all flex items-center justify-between gap-2 w-full",
+                                                                            badgeColor
+                                                                        )}
+                                                                        onClick={(e) => e.stopPropagation()} // Prevent accordion/card click
+                                                                    >
+                                                                        <div className="flex items-center truncate flex-1 pr-2">
+                                                                            <span className="truncate">{sub.sample?.vendor?.name || "Unknown Provider"}</span>
+                                                                        </div>
+
+                                                                        <div className="flex items-center flex-shrink-0">
+                                                                            {sub.status === "CLIENT_APPROVED" && <Check className="h-3.5 w-3.5 text-green-600" />}
+                                                                            {sub.status === "CLIENT_REJECTED" && <X className="h-3.5 w-3.5 text-red-600" />}
+                                                                            {!["CLIENT_APPROVED", "CLIENT_REJECTED"].includes(sub.status) && (
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    className="h-[22px] text-[10px] px-2.5 py-0 font-medium bg-indigo-600 hover:bg-indigo-700 text-white border-0 shadow-sm rounded-md"
+                                                                                >
+                                                                                    Review
+                                                                                </Button>
+                                                                            )}
+                                                                        </div>
+                                                                    </Badge>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end" className="w-32">
+                                                                    <DropdownMenuItem onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleStatusUpdate(sub.id, "CLIENT_APPROVED");
+                                                                    }}>
+                                                                        <Check className="mr-2 h-4 w-4 text-green-600" />
+                                                                        Approve
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleStatusUpdate(sub.id, "CLIENT_REJECTED");
+                                                                    }}>
+                                                                        <X className="mr-2 h-4 w-4 text-red-600" />
+                                                                        Reject
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        );
+                                                    })}
                                                 </div>
-                                            </Badge>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="start" className="w-32">
-                                            <DropdownMenuItem onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleStatusUpdate(sub.id, "CLIENT_APPROVED");
-                                            }}>
-                                                <Check className="mr-2 h-4 w-4 text-green-600" />
-                                                Approve
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleStatusUpdate(sub.id, "CLIENT_REJECTED");
-                                            }}>
-                                                <X className="mr-2 h-4 w-4 text-red-600" />
-                                                Reject
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                );
-                            })}
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    );
+                                })}
+                            </Accordion>
                         </div>
                     )}
 

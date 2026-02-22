@@ -78,7 +78,7 @@ export async function getDeadlineAlerts(): Promise<{ success: boolean; data: Not
                 status: "OPEN",
                 deadline: { not: null, lte: nextWeek }
             },
-            include: { company: { select: { name: true } } }
+            include: { company: { select: { name: true } }, items: true }
         });
 
         for (const opp of opportunities) {
@@ -88,7 +88,7 @@ export async function getDeadlineAlerts(): Promise<{ success: boolean; data: Not
             alerts.push({
                 id: opp.id,
                 title: isOverdue ? "Opportunity Expired" : "Opportunity Deadline",
-                message: `${opp.company.name} - ${opp.productName}`,
+                message: `${opp.company.name} - ${opp.items?.[0]?.productName || "Product"}`,
                 time: formatDistanceToNow(opp.deadline, { addSuffix: true }),
                 type: isOverdue ? "OVERDUE" : "DUE_SOON",
                 link: `/opportunities?highlight=${opp.id}`,

@@ -14,15 +14,18 @@ export async function createSalesOrder(opportunityId: string) {
             where: { id: opportunityId },
             include: {
                 company: true,
+                items: true,
                 sampleSubmissions: {
                     where: { status: 'CLIENT_APPROVED' },
                     include: {
                         sample: {
-                            include: { vendor: true }
+                            include: {
+                                vendor: true,
+                                project: true
+                            }
                         }
                     },
-                    orderBy: { updatedAt: 'desc' }, // Get latest
-                    take: 1
+                    orderBy: { updatedAt: 'desc' }
                 }
             }
         });
@@ -43,15 +46,26 @@ export async function createSalesOrder(opportunityId: string) {
         }
 
         // 3. Calculate Amounts
-        const price = opportunity.targetPrice?.toNumber() || 0;
-        const qty = opportunity.quantity?.toNumber() || 0;
+        let totalAmount = 0;
+        if (opportunity.items) {
+            for (const item of opportunity.items) {
+                // Only include items that have a matching approved sample
+                const hasApprovedSample = opportunity.sampleSubmissions.some((sub: any) =>
+                    sub.sample?.project?.commodityId === item.commodityId || !item.commodityId
+                );
 
-        let totalAmount = price * qty;
-
-        if (opportunity.priceType === 'PER_KG') {
-            totalAmount = price * (qty * 1000); // Convert MT to Kg
-        } else if (opportunity.priceType === 'TOTAL_AMOUNT') {
-            totalAmount = price;
+                if (hasApprovedSample) {
+                    const price = item.targetPrice?.toNumber() || 0;
+                    const qty = item.quantity?.toNumber() || 0;
+                    if (item.priceType === 'PER_KG') {
+                        totalAmount += price * (qty * 1000); // Convert MT to Kg
+                    } else if (item.priceType === 'TOTAL_AMOUNT') {
+                        totalAmount += price;
+                    } else {
+                        totalAmount += price * qty; // PER_MT or default
+                    }
+                }
+            }
         }
 
         // 4. Create Sales Order (PENDING) - Only create order, no project yet
@@ -155,7 +169,7 @@ export async function getSalesOrders(filters?: {
                 take: limit,
                 include: {
                     client: true,
-                    opportunity: true
+                    opportunity: { include: { items: true } }
                 }
             }),
             prisma.salesOrder.count({ where })
@@ -166,9 +180,12 @@ export async function getSalesOrders(filters?: {
             totalAmount: order.totalAmount.toNumber(),
             opportunity: {
                 ...order.opportunity,
-                targetPrice: order.opportunity.targetPrice?.toNumber(),
-                quantity: order.opportunity.quantity?.toNumber(),
-                procurementQuantity: order.opportunity.procurementQuantity?.toNumber()
+                items: order.opportunity.items?.map((it: any) => ({
+                    ...it,
+                    targetPrice: it.targetPrice?.toNumber(),
+                    quantity: it.quantity?.toNumber(),
+                    procurementQuantity: it.procurementQuantity?.toNumber()
+                }))
             }
         }));
 
@@ -200,6 +217,7 @@ export async function getSalesOrder(id: string) {
                 },
                 opportunity: {
                     include: {
+                        items: true,
                         procurementProject: {
                             include: {
                                 purchaseOrders: {
@@ -214,7 +232,10 @@ export async function getSalesOrder(id: string) {
                         sampleSubmissions: {
                             include: {
                                 sample: {
-                                    include: { vendor: true }
+                                    include: {
+                                        vendor: true,
+                                        project: true
+                                    }
                                 }
                             },
                             orderBy: { createdAt: 'desc' }
@@ -241,12 +262,15 @@ export async function getSalesOrder(id: string) {
             totalAmount: order.totalAmount.toNumber(),
             opportunity: {
                 ...order.opportunity,
-                targetPrice: order.opportunity.targetPrice?.toNumber(),
-                quantity: order.opportunity.quantity?.toNumber(),
-                procurementQuantity: order.opportunity.procurementQuantity?.toNumber(),
+                items: order.opportunity.items?.map((it: any) => ({
+                    ...it,
+                    targetPrice: it.targetPrice?.toNumber(),
+                    quantity: it.quantity?.toNumber(),
+                    procurementQuantity: it.procurementQuantity?.toNumber()
+                })),
                 procurementProject: order.opportunity.procurementProject ? {
                     ...order.opportunity.procurementProject,
-                    purchaseOrders: order.opportunity.procurementProject.purchaseOrders.map(po => ({
+                    purchaseOrders: order.opportunity.procurementProject.purchaseOrders.map((po: any) => ({
                         ...po,
                         totalAmount: po.totalAmount.toNumber(),
                         quantity: po.quantity?.toNumber(),
@@ -256,7 +280,7 @@ export async function getSalesOrder(id: string) {
                         } : null
                     }))
                 } : null,
-                sampleSubmissions: order.opportunity.sampleSubmissions.map(sub => ({
+                sampleSubmissions: order.opportunity.sampleSubmissions.map((sub: any) => ({
                     ...sub,
                     sample: {
                         ...sub.sample,
@@ -351,7 +375,7 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
         if (status === 'DELIVERED' || status === 'COMPLETED') {
             const checkOrder = await prisma.salesOrder.findUnique({
                 where: { id },
-                include: { invoices: true, shipments: true, opportunity: true }
+                include: { invoices: true, shipments: true, opportunity: { include: { items: true } } }
             });
 
             if (!checkOrder) return { success: false, error: "Order not found" };
@@ -363,8 +387,8 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
             }
 
             // 1. Quantity Check
-            const totalShipped = checkOrder.shipments.reduce((sum, s) => sum + (s.quantity?.toNumber() || 0), 0);
-            const orderQty = checkOrder.opportunity.quantity?.toNumber() || 0;
+            const totalShipped = checkOrder.shipments.reduce((sum: any, s: any) => sum + (s.quantity?.toNumber() || 0), 0);
+            const orderQty = checkOrder.opportunity.items?.reduce((sum: any, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0;
             const isFullQty = Math.abs(totalShipped - orderQty) < 0.01;
 
             // 2. Payment Check
@@ -400,6 +424,7 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
                 opportunity: {
                     include: {
                         company: true,
+                        items: true,
                         procurementProject: true, // Check if exists
                         sampleSubmissions: {
                             where: { status: 'CLIENT_APPROVED' },
@@ -428,15 +453,23 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
             const approvedSubmission = order.opportunity.sampleSubmissions[0];
             if (approvedSubmission) {
                 const sample = approvedSubmission.sample;
-                const qty = order.opportunity.quantity?.toNumber() || 0;
+                const orderQty = order.opportunity.items?.reduce((sum: any, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0;
+
+                const hasMultipleItems = order.opportunity.items && order.opportunity.items.length > 1;
+                const firstItem = order.opportunity.items?.[0];
+
+                let projectName = `Fulfillment: Order #${order.id.slice(0, 8)} - ${order.opportunity.company.name}`;
+                if (!hasMultipleItems && firstItem?.productName) {
+                    projectName = `Fulfillment: ${firstItem.productName} - ${order.opportunity.company.name}`;
+                }
 
                 // Create Project
                 const project = await prisma.procurementProject.create({
                     data: {
-                        name: `Fulfillment: ${order.opportunity.productName} - ${order.opportunity.company.name}`,
+                        name: projectName,
                         status: 'SOURCING',
-                        commodityId: order.opportunity.commodityId,
-                        varietyId: order.opportunity.varietyId,
+                        commodityId: hasMultipleItems ? null : (firstItem?.commodityId || null),
+                        varietyId: hasMultipleItems ? null : (firstItem?.varietyId || null),
                         createdById: session?.user?.id,
                         updatedById: session?.user?.id
                     }
@@ -488,13 +521,16 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
                 totalAmount: order.totalAmount.toNumber(),
                 opportunity: {
                     ...order.opportunity,
-                    targetPrice: order.opportunity.targetPrice?.toNumber(),
-                    quantity: order.opportunity.quantity?.toNumber(),
-                    procurementQuantity: order.opportunity.procurementQuantity?.toNumber(),
+                    items: order.opportunity.items?.map((it: any) => ({
+                        ...it,
+                        targetPrice: it.targetPrice?.toNumber(),
+                        quantity: it.quantity?.toNumber(),
+                        procurementQuantity: it.procurementQuantity?.toNumber()
+                    })),
                     procurementProject: order.opportunity.procurementProject ? {
                         ...order.opportunity.procurementProject,
                     } : null,
-                    sampleSubmissions: order.opportunity.sampleSubmissions.map(sub => ({
+                    sampleSubmissions: order.opportunity.sampleSubmissions.map((sub: any) => ({
                         ...sub,
                         sample: {
                             ...sub.sample,

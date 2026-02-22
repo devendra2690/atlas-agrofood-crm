@@ -119,13 +119,28 @@ export function OpportunityList({ opportunities, companies, partners, commoditie
                                 <TableCell className="font-medium">
                                     <div className="flex items-center">
                                         <Briefcase className="mr-2 h-4 w-4 text-slate-500" />
-                                        <div>
-                                            {opp.productName}
-                                            {opp.commodity && (
-                                                <div className="text-xs text-muted-foreground font-normal">
-                                                    {opp.commodity.name}
-                                                    {opp.variety && <span className="ml-1 text-slate-400">({opp.variety.name})</span>}
-                                                </div>
+                                        <div className="truncate max-w-[200px]">
+                                            {opp.items && opp.items.length > 0 ? (
+                                                opp.items.length === 1 ? (
+                                                    <>
+                                                        {opp.items[0].productName}
+                                                        {opp.items[0].commodity && (
+                                                            <div className="text-xs text-muted-foreground font-normal">
+                                                                {opp.items[0].commodity.name}
+                                                                {opp.items[0].variety && <span className="ml-1 text-slate-400">({opp.items[0].variety.name})</span>}
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        Multiple Items ({opp.items.length})
+                                                        <div className="text-xs text-muted-foreground font-normal truncate">
+                                                            {opp.items.map((it: any) => it.productName).join(', ')}
+                                                        </div>
+                                                    </>
+                                                )
+                                            ) : (
+                                                "No Items"
                                             )}
                                         </div>
                                     </div>
@@ -142,27 +157,35 @@ export function OpportunityList({ opportunities, companies, partners, commoditie
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex flex-col text-sm">
-                                        {opp.targetPrice && (
-                                            <span className="flex items-center text-green-600 font-medium">
-                                                <span className="mr-1">₹</span>
-                                                {opp.targetPrice.toString()}
-                                                <span className="text-muted-foreground ml-1 text-xs">{formatPriceUnit(opp.priceType)}</span>
-                                            </span>
-                                        )}
-                                        {opp.quantity && (
-                                            <span className="flex flex-col text-xs mt-1">
-                                                <span className="flex items-center text-muted-foreground">
-                                                    <Package className="h-3 w-3 mr-1" />
-                                                    {opp.quantity.toString()} MT
-                                                </span>
-                                                {opp.procurementQuantity && (
-                                                    <span className="text-[10px] text-amber-700 bg-amber-50 px-1 rounded border border-amber-200 w-fit mt-1" title="Raw Material Needed">
-                                                        Req: {opp.procurementQuantity.toString()} MT
+                                        {opp.items && opp.items.length === 1 ? (
+                                            <>
+                                                {opp.items[0].targetPrice && (
+                                                    <span className="flex items-center text-green-600 font-medium">
+                                                        <span className="mr-1">₹</span>
+                                                        {opp.items[0].targetPrice.toString()}
+                                                        <span className="text-muted-foreground ml-1 text-xs">{formatPriceUnit(opp.items[0].priceType)}</span>
                                                     </span>
                                                 )}
-                                            </span>
+                                                {opp.items[0].quantity && (
+                                                    <span className="flex flex-col text-xs mt-1">
+                                                        <span className="flex items-center text-muted-foreground">
+                                                            <Package className="h-3 w-3 mr-1" />
+                                                            {opp.items[0].quantity.toString()} MT
+                                                        </span>
+                                                        {opp.items[0].procurementQuantity && (
+                                                            <span className="text-[10px] text-amber-700 bg-amber-50 px-1 rounded border border-amber-200 w-fit mt-1" title="Raw Material Needed">
+                                                                Req: {opp.items[0].procurementQuantity.toString()} MT
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                )}
+                                                {!opp.items[0].targetPrice && !opp.items[0].quantity && <span className="text-muted-foreground">-</span>}
+                                            </>
+                                        ) : opp.items && opp.items.length > 1 ? (
+                                            <span className="text-xs text-muted-foreground italic mt-2">See details below</span>
+                                        ) : (
+                                            <span className="text-muted-foreground">-</span>
                                         )}
-                                        {!opp.targetPrice && !opp.quantity && <span className="text-muted-foreground">-</span>}
                                     </div>
                                 </TableCell>
                                 <TableCell>
@@ -228,8 +251,22 @@ export function OpportunityList({ opportunities, companies, partners, commoditie
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className="text-right pt-2">
-                                                        <div className="text-xs text-muted-foreground">ID: <span className="font-mono text-[10px]">{opp.id}</span></div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Line Items</div>
+                                                    <div className="bg-white p-2 rounded-md border space-y-2 max-h-[140px] overflow-y-auto hidden-scrollbar">
+                                                        {opp.items?.map((item: any) => (
+                                                            <div key={item.id} className="text-sm p-2 bg-slate-50 border rounded flex justify-between items-center">
+                                                                <div>
+                                                                    <div className="font-medium">{item.productName}</div>
+                                                                    <div className="text-xs text-muted-foreground">{item.quantity} MT @ ₹{item.targetPrice} {formatPriceUnit(item.priceType)}</div>
+                                                                </div>
+                                                                <div className="text-xs text-right">
+                                                                    <div className="text-amber-700">Req: {item.procurementQuantity} MT</div>
+                                                                    {item.varietyForm && <div className="text-[10px] text-slate-500">{item.varietyForm.formName}</div>}
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </div>
                                             </div>

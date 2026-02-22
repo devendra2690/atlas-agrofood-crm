@@ -5,6 +5,7 @@ async function main() {
     // 1. Find the Opportunity
     const opportunity = await prisma.salesOpportunity.findFirst({
         where: { company: { name: "Test Client Alpha" } },
+        include: { items: true },
         orderBy: { createdAt: 'desc' }
     });
 
@@ -38,9 +39,9 @@ async function main() {
     // 3. Create Procurement Project (Mock Sourcing)
     const project = await prisma.procurementProject.create({
         data: {
-            name: `Sourcing for ${opportunity.productName}`,
+            name: `Sourcing for ${opportunity.items?.[0]?.productName || "Product"}`,
             status: "SOURCING",
-            commodityId: opportunity.commodityId
+            commodityId: opportunity.items?.[0]?.commodityId
         }
     });
     console.log("Created Project:", project.id);

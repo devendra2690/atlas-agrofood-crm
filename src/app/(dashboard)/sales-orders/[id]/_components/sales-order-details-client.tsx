@@ -134,31 +134,48 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                             <CardTitle>Order Information</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-3 gap-4 pb-4 border-b">
                                 <div>
                                     <p className="text-sm font-medium text-slate-500">Client</p>
                                     <p className="text-lg font-semibold">{order.client.name}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-slate-500">Product</p>
-                                    <p className="text-lg font-semibold">{order.opportunity.productName}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-slate-500">Quantity</p>
-                                    <p className="text-lg">{order.opportunity.quantity} MT</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-slate-500">Target Selling Price</p>
-                                    <p className="text-lg font-mono">₹{order.opportunity.targetPrice?.toLocaleString() ?? '-'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-slate-500">Potential Opportunity Value</p>
+                                    <p className="text-sm font-medium text-slate-500">Total Value</p>
                                     <p className="text-lg font-mono font-bold">₹{order.totalAmount.toLocaleString()}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-slate-500">Created At</p>
-                                    <p>{format(new Date(order.createdAt), "PPP")}</p>
+                                    <p className="text-lg">{format(new Date(order.createdAt), "PPP")}</p>
                                 </div>
+                            </div>
+
+                            <div className="space-y-4 pt-2">
+                                <p className="text-sm font-medium text-slate-500">Order Items</p>
+                                {order.opportunity.items?.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {order.opportunity.items
+                                            .filter((item: any) =>
+                                                order.approvedSamples && order.approvedSamples.some((sub: any) =>
+                                                    sub.project?.commodityId === item.commodityId || !item.commodityId
+                                                )
+                                            )
+                                            .map((item: any, idx: number) => {
+                                                return (
+                                                    <div key={item.id || idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border">
+                                                        <div>
+                                                            <p className="font-semibold text-slate-800">{item.productName || "Unknown Item"}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="font-mono text-slate-700">₹{item.targetPrice?.toLocaleString() || '-'} <span className="text-xs text-slate-500 ml-1">/{item.priceType === 'PER_MT' ? 'MT' : item.priceType === 'PER_KG' ? 'KG' : 'Total'}</span></p>
+                                                            <p className="text-sm font-medium text-blue-600 mt-1">{item.quantity} MT</p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No items found.</p>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

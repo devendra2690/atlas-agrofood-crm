@@ -43,7 +43,7 @@ async function getSalesStats() {
     // 1. Total Revenue (Closed Won Opportunities)
     const wonOpportunities = await prisma.salesOpportunity.findMany({
         where: { status: 'CLOSED_WON' },
-        select: { procurementQuantity: true, targetPrice: true, quantity: true } // Assuming targetPrice is the sale price per unit? Or should we use SalesOrder?
+        select: { id: true }
         // Actually, Sales Orders are the source of truth for "Sales Revenue".
     });
 

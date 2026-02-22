@@ -417,7 +417,8 @@ export async function getCompany(id: string) {
                     }
                 },
                 salesOpportunities: {
-                    orderBy: { createdAt: 'desc' }
+                    orderBy: { createdAt: 'desc' },
+                    include: { items: true }
                 },
                 projectVendors: {
                     include: {
@@ -446,9 +447,12 @@ export async function getCompany(id: string) {
             ...company,
             salesOpportunities: company.salesOpportunities.map(opp => ({
                 ...opp,
-                targetPrice: opp.targetPrice?.toNumber(),
-                quantity: opp.quantity?.toNumber(),
-                procurementQuantity: opp.procurementQuantity?.toNumber(),
+                items: opp.items?.map((it: any) => ({
+                    ...it,
+                    targetPrice: it.targetPrice?.toNumber(),
+                    quantity: it.quantity?.toNumber(),
+                    procurementQuantity: it.procurementQuantity?.toNumber(),
+                }))
             }))
         };
 

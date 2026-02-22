@@ -43,18 +43,18 @@ export async function searchGlobal(query: string): Promise<SearchResult[]> {
     const opportunities = await prisma.salesOpportunity.findMany({
         where: {
             OR: [
-                { productName: { contains: query, mode: "insensitive" } },
+                { items: { some: { productName: { contains: query, mode: "insensitive" } } } },
                 { company: { name: { contains: query, mode: "insensitive" } } }
             ]
         },
         take: 3,
-        include: { company: { select: { name: true } } }
+        include: { company: { select: { name: true } }, items: true }
     });
 
-    opportunities.forEach(o => results.push({
+    opportunities.forEach((o: any) => results.push({
         id: o.id,
         type: "Opportunity",
-        title: o.productName,
+        title: o.items?.[0]?.productName || "Multiple Items",
         subtitle: `Opp with ${o.company.name}`,
         url: `/opportunities?highlight=${o.id}` // Use deep link if on same page, or redirect
         // Ideally should support direct page or filters. For now, opportunities list is best.

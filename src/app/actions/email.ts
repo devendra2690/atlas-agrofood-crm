@@ -15,10 +15,7 @@ export async function sendOrderConfirmationEmail(orderId: string) {
             where: { id: orderId },
             include: {
                 client: true,
-                opportunity: true,
-                // In a real app, you'd fetch line items. 
-                // For now, let's assume the opportunity IS the item or we have items relation.
-                // Based on schema, we don't have explicit line items table yet, usually tied to Opportunity product.
+                opportunity: { include: { items: true } }
             }
         });
 
@@ -34,9 +31,9 @@ export async function sendOrderConfirmationEmail(orderId: string) {
             orderDate: order.createdAt.toLocaleDateString(),
             items: [
                 {
-                    product: order.opportunity.productName,
-                    quantity: Number(order.opportunity.quantity || 1),
-                    price: Number(order.opportunity.targetPrice || 0)
+                    product: order.opportunity.items?.[0]?.productName || "Unknown",
+                    quantity: Number(order.opportunity.items?.[0]?.quantity || 1),
+                    price: Number(order.opportunity.items?.[0]?.targetPrice || 0)
                 }
             ]
         });

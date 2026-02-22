@@ -14,7 +14,7 @@ import {
     useDroppable,
     useDraggable,
 } from "@dnd-kit/core";
-import { Shipment, PurchaseOrder, Company, ProcurementProject, SalesOrder, SalesOpportunity } from "@prisma/client";
+import { Shipment, PurchaseOrder, Company, ProcurementProject, SalesOrder, SalesOpportunity, SalesOpportunityItem } from "@prisma/client";
 import { updateShipmentStatus } from "@/app/actions/logistics";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,7 @@ type ShipmentWithRelations = Shipment & {
     }) | null;
     salesOrder?: (SalesOrder & {
         client: Company;
-        opportunity: SalesOpportunity;
+        opportunity: SalesOpportunity & { items: SalesOpportunityItem[] };
     }) | null;
 };
 
@@ -247,7 +247,7 @@ function ShipmentCard({ shipment, isOverlay }: { shipment: ShipmentWithRelations
     const projectOrProductLabel = isPO ? "Project" : "Product";
     const projectOrProductValue = isPO
         ? (shipment.purchaseOrder?.project?.name || "N/A")
-        : (shipment.salesOrder?.opportunity?.productName || "Product"); // schema doesn't have productName directly on opp? need check. opp usually has product name.
+        : (shipment.salesOrder?.opportunity?.items?.[0]?.productName || "Product");
 
     // Just in case schema check: SalesOrder -> Opportunity. 
     // Opportunity usually has 'title' or 'product' field? 
@@ -268,7 +268,7 @@ function ShipmentCard({ shipment, isOverlay }: { shipment: ShipmentWithRelations
     const secondaryLabel = isPO ? "Project:" : "Opp:";
     const secondaryValue = isPO
         ? (shipment.purchaseOrder?.project?.name)
-        : (shipment.salesOrder?.opportunity?.productName || "Sales Deal");
+        : (shipment.salesOrder?.opportunity?.items?.[0]?.productName || "Sales Deal");
 
     return (
         <Card className={`shadow-sm ${isOverlay ? 'shadow-xl bg-white scale-105' : ''}`}>

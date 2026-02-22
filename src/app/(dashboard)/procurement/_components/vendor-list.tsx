@@ -9,9 +9,10 @@ interface VendorListProps {
     projectVendors: any[];
     samples?: any[];
     isFulfillment?: boolean;
+    project?: any; // Add project prop
 }
 
-export function VendorList({ projectVendors, samples = [], isFulfillment = false }: VendorListProps) {
+export function VendorList({ projectVendors, samples = [], isFulfillment = false, project }: VendorListProps) {
     if (projectVendors.length === 0) {
         return (
             <div className="text-center py-8 text-muted-foreground">
@@ -28,7 +29,8 @@ export function VendorList({ projectVendors, samples = [], isFulfillment = false
                 // OR if there is an approved sample for this vendor linked to the Opportunity (if we had that context here, but we rely on passed samples or projectVendors logic)
                 // Actually, for Fulfillment, we rely on `samples` prop which should contain relevant samples.
 
-                const existingSample = samples.find(s => s.vendorId === vendor.id);
+                const vendorSamples = samples.filter(s => s.vendorId === vendor.id);
+                const approvedSamples = vendorSamples.filter(s => s.status === 'CLIENT_APPROVED' || s.status === 'Result_APPROVED_INTERNAL');
 
                 return (
                     <li key={pv.id} className="border p-4 rounded-lg flex items-center justify-between">
@@ -53,39 +55,80 @@ export function VendorList({ projectVendors, samples = [], isFulfillment = false
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            {existingSample && (
-                                <div className="flex flex-col items-end gap-1 mr-2">
-                                    <Badge
-                                        variant="outline"
-                                        className={`flex items-center gap-1 border-blue-200 text-blue-700 bg-blue-50 ${existingSample.status === 'CLIENT_APPROVED' || existingSample.status === 'Result_APPROVED_INTERNAL' ? 'border-green-200 text-green-700 bg-green-50' : ''}`}
-                                    >
-                                        <TestTube className="h-3 w-3" />
-                                        {existingSample.status === 'CLIENT_APPROVED' ? 'Approved' : existingSample.status}
-                                    </Badge>
+                        <div className="flex flex-col gap-2">
+                            {isFulfillment ? (
+                                approvedSamples.length > 0 ? (
+                                    approvedSamples.map(sample => {
+                                        const commodityName = sample.project?.commodity?.name || 'Item';
+                                        const commodityId = sample.project?.commodityId;
+
+                                        let isFulfilled = false;
+                                        if (project && project.salesOpportunities && commodityId) {
+                                            const itemDemand = project.salesOpportunities
+                                                .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
+                                                .reduce((sum: number, opp: any) => {
+                                                    const itemsTotal = (opp.items || [])
+                                                        .filter((item: any) => item.commodityId === commodityId)
+                                                        .reduce((itemSum: number, item: any) => itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0), 0);
+                                                    return sum + itemsTotal;
+                                                }, 0);
+
+                                            const itemProcured = (project.purchaseOrders || [])
+                                                .filter((po: any) => po.status !== 'CANCELLED' && po.sample?.project?.commodityId === commodityId)
+                                                .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0);
+
+                                            isFulfilled = itemDemand > 0 && itemProcured >= itemDemand;
+                                        }
+
+                                        return (
+                                            <div key={sample.id} className="flex items-center gap-2 justify-end">
+                                                <span className="text-sm font-medium text-slate-700">{commodityName}</span>
+                                                <Badge
+                                                    variant="outline"
+                                                    className="flex items-center gap-1 border-green-200 text-green-700 bg-green-50"
+                                                >
+                                                    <TestTube className="h-3 w-3" />
+                                                    Approved
+                                                </Badge>
+                                                <CreatePurchaseOrderDialog
+                                                    defaultProjectId={pv.projectId}
+                                                    defaultVendorId={vendor.id}
+                                                    defaultCommodityName={commodityName}
+                                                    defaultSampleId={sample.id}
+                                                    trigger={
+                                                        <Button size="sm" variant="outline" className="gap-2 shrink-0" disabled={isFulfilled}>
+                                                            <ShoppingCart className="h-4 w-4" />
+                                                            {isFulfilled ? "Fulfilled" : "Order"}
+                                                        </Button>
+                                                    }
+                                                />
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="text-sm text-muted-foreground mr-2 text-right">No approved items</div>
+                                )
+                            ) : (
+                                <div className="flex items-center gap-2 justify-end">
+                                    {vendorSamples.length > 0 && (
+                                        <div className="flex flex-col items-end gap-1 mr-2">
+                                            <Badge
+                                                variant="outline"
+                                                className={`flex items-center gap-1 border-blue-200 text-blue-700 bg-blue-50 ${vendorSamples[0].status === 'CLIENT_APPROVED' || vendorSamples[0].status === 'Result_APPROVED_INTERNAL' ? 'border-green-200 text-green-700 bg-green-50' : ''}`}
+                                            >
+                                                <TestTube className="h-3 w-3" />
+                                                {vendorSamples[0].status === 'CLIENT_APPROVED' ? 'Approved' : vendorSamples[0].status}
+                                            </Badge>
+                                        </div>
+                                    )}
+                                    {!vendorSamples.length && (
+                                        <RequestSampleDialog
+                                            projectId={pv.projectId}
+                                            vendorId={vendor.id}
+                                            vendorName={vendor.name}
+                                        />
+                                    )}
                                 </div>
-                            )}
-
-                            {/* Always allow PO creation for listed vendors, especially for Fulfillment */}
-                            {isFulfillment && (
-                                <CreatePurchaseOrderDialog
-                                    defaultProjectId={pv.projectId}
-                                    defaultVendorId={vendor.id}
-                                    trigger={
-                                        <Button size="sm" variant="outline" className="gap-2">
-                                            <ShoppingCart className="h-4 w-4" />
-                                            Order
-                                        </Button>
-                                    }
-                                />
-                            )}
-
-                            {!existingSample && !isFulfillment && (
-                                <RequestSampleDialog
-                                    projectId={pv.projectId}
-                                    vendorId={vendor.id}
-                                    vendorName={vendor.name}
-                                />
                             )}
                         </div>
                     </li>

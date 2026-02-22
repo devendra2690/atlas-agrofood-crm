@@ -54,8 +54,7 @@ async function main() {
     const opportunity = await prisma.salesOpportunity.create({
         data: {
             companyId: client.id,
-            productName: "Finance Seed Product",
-            quantity: 1000,
+            items: { create: [{ productName: "Finance Seed Product", quantity: 1000, commodityId: commodity!.id }] },
             status: "CLOSED_WON",
             createdById: userId,
             updatedById: userId

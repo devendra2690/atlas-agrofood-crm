@@ -40,7 +40,7 @@ export async function createShipment(data: ShipmentData) {
                 include: {
                     invoices: true,
                     shipments: true,
-                    opportunity: true
+                    opportunity: { include: { items: true } }
                 }
             });
 
@@ -55,11 +55,10 @@ export async function createShipment(data: ShipmentData) {
             if (!data.quantity) return { success: false, error: "Shipment Quantity is required." };
 
             // QUANTITY VALIDATION
-            // QUANTITY VALIDATION
             if (data.quantity) {
-                const totalQuantity = salesOrder.opportunity?.quantity?.toNumber() || 0;
+                const totalQuantity = salesOrder.opportunity?.items?.reduce((sum: any, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0;
 
-                const currentShipped = salesOrder.shipments.reduce((sum, s) => sum + (s.quantity?.toNumber() || 0), 0);
+                const currentShipped = salesOrder.shipments.reduce((sum: any, s: any) => sum + (s.quantity?.toNumber() || 0), 0);
                 const newTotal = currentShipped + data.quantity;
 
                 // Tolerance for floating point?
@@ -249,14 +248,14 @@ export async function createGRN(data: GRNData) {
                 where: { id: po.projectId },
                 include: {
                     purchaseOrders: true,
-                    salesOpportunities: true
+                    salesOpportunities: { include: { items: true } }
                 }
             });
 
             if (project) {
                 const totalDemand = project.salesOpportunities
-                    .filter(opp => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
-                    .reduce((sum, opp) => sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0), 0);
+                    .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
+                    .reduce((sum: any, opp: any) => sum + (opp.items?.reduce((s: any, it: any) => s + (Number(it.procurementQuantity) || Number(it.quantity) || 0), 0) || 0), 0);
 
                 const totalSupply = project.purchaseOrders
                     .filter(p => p.status === 'RECEIVED') // Only count receieved now? Or all active? usually all active.
@@ -332,7 +331,7 @@ export async function getShipments(filters?: {
                     salesOrder: {
                         include: {
                             client: true,
-                            opportunity: true
+                            opportunity: { include: { items: true } }
                         }
                     }
                 }
@@ -354,9 +353,12 @@ export async function getShipments(filters?: {
                 totalAmount: s.salesOrder.totalAmount.toNumber(),
                 opportunity: {
                     ...s.salesOrder.opportunity,
-                    quantity: s.salesOrder.opportunity.quantity?.toNumber(),
-                    targetPrice: s.salesOrder.opportunity.targetPrice?.toNumber(),
-                    procurementQuantity: s.salesOrder.opportunity.procurementQuantity?.toNumber()
+                    items: s.salesOrder.opportunity.items?.map((it: any) => ({
+                        ...it,
+                        quantity: it.quantity?.toNumber(),
+                        targetPrice: it.targetPrice?.toNumber(),
+                        procurementQuantity: it.procurementQuantity?.toNumber()
+                    }))
                 }
             } : null
         }));

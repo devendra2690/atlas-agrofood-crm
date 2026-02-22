@@ -321,7 +321,7 @@ model Commodity {
    yieldPercentage Float @default(100.0) // Percentage yield (e.g. 25.0 for 25%)
    wastagePercentage Float @default(0.0) // Percentage wastage
    companies         Company[]
-   salesOpportunities SalesOpportunity[]
+   salesOpportunityItems SalesOpportunityItem[]
    procurementProjects ProcurementProject[]
    varieties         CommodityVariety[] // NEW
    documentTemplate  Json?     // Stores { sections: [...] } for document generation
@@ -337,7 +337,7 @@ model Commodity {
    
    commodity   Commodity @relation(fields: [commodityId], references: [id])
    vendorMappings VendorVariety[]
-   salesOpportunities SalesOpportunity[] // Relation
+   salesOpportunityItems SalesOpportunityItem[] // Relation
    procurementProjects ProcurementProject[] // Relation
    forms             VarietyForm[]      // NEW
    
@@ -352,7 +352,7 @@ model Commodity {
    wastagePercentage Float            @default(0.0)
    
    variety           CommodityVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
-   salesOpportunities SalesOpportunity[]
+   salesOpportunityItems SalesOpportunityItem[]
 
    @@unique([varietyId, formName])
  }
@@ -451,11 +451,6 @@ enum OpportunityPriceType {
 model SalesOpportunity {
   id                 String            @id @default(uuid())
   companyId          String
-  productName        String
-  targetPrice        Decimal?
-  priceType          OpportunityPriceType @default(PER_KG)
-  quantity           Decimal?
-  procurementQuantity Decimal?       // Calculated raw material needed based on yield
   deadline           DateTime?
   status             OpportunityStatus @default(OPEN)
   type               OpportunityType   @default(ONE_TIME)
@@ -469,12 +464,8 @@ model SalesOpportunity {
 
   company            Company             @relation(fields: [companyId], references: [id])
   procurementProject ProcurementProject? @relation(fields: [procurementProjectId], references: [id])
-  commodity          Commodity?          @relation(fields: [commodityId], references: [id])
-  commodityId        String?
-  variety            CommodityVariety?   @relation(fields: [varietyId], references: [id])
-  varietyId          String?
-  varietyForm        VarietyForm?        @relation(fields: [varietyFormId], references: [id])
-  varietyFormId      String?
+  
+  items              SalesOpportunityItem[]
   salesOrders        SalesOrder[]
   sampleSubmissions  SampleSubmission[]
 
@@ -484,10 +475,38 @@ model SalesOpportunity {
   updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
 
   @@index([companyId])
-  @@index([commodityId])
   @@index([procurementProjectId])
   @@index([createdAt])
   @@index([status])
+}
+
+model SalesOpportunityItem {
+  id                 String            @id @default(uuid())
+  opportunityId      String
+
+  productName        String?           // E.g., Combined string or manual override
+  targetPrice        Decimal?
+  priceType          OpportunityPriceType @default(PER_KG)
+  quantity           Decimal?
+  procurementQuantity Decimal?       // Calculated raw material needed based on yield
+  notes              String?
+
+  opportunity        SalesOpportunity  @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  
+  commodityId        String
+  commodity          Commodity         @relation(fields: [commodityId], references: [id])
+  
+  varietyId          String?
+  variety            CommodityVariety? @relation(fields: [varietyId], references: [id])
+  
+  varietyFormId      String?
+  varietyForm        VarietyForm?      @relation(fields: [varietyFormId], references: [id])
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([opportunityId])
+  @@index([commodityId])
 }
 
 enum ProcurementType {

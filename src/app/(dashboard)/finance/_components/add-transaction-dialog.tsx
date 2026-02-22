@@ -25,7 +25,7 @@ import { Plus, Minus } from "lucide-react";
 
 interface AddTransactionDialogProps {
     type: 'CREDIT' | 'DEBIT';
-    salesOrders?: { id: string; client: { name: string }; opportunity: { productName: string } }[];
+    salesOrders?: { id: string; client: { name: string }; opportunity: { items: { productName: string | null }[] } }[];
 }
 
 export function AddTransactionDialog({ type, salesOrders = [] }: AddTransactionDialogProps) {
@@ -161,7 +161,7 @@ export function AddTransactionDialog({ type, salesOrders = [] }: AddTransactionD
                                 options={[
                                     { label: `None (General ${type === 'CREDIT' ? 'Income' : 'Expense'})`, value: "none" },
                                     ...salesOrders.map(order => ({
-                                        label: `${order.client.name} - ${order.opportunity.productName} (${order.id.slice(0, 8)})`,
+                                        label: `${order.client.name} - ${order.opportunity.items?.[0]?.productName || "Product"} (${order.id.slice(0, 8)})`,
                                         value: order.id
                                     }))
                                 ]}
