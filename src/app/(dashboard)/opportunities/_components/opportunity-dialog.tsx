@@ -120,9 +120,8 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
         }
     }, [initialData, open]);
 
-    // Filter available commodities globally
-    const selectedCompany = companies.find(c => c.id === companyId);
-    const availableCommodities = selectedCompany ? (selectedCompany.commodities || []) : (commodities || []);
+    // The user requested to see ALL commodities dynamically
+    const availableCommodities = commodities || [];
 
     useEffect(() => {
         const fetchVarieties = async () => {

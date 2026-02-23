@@ -101,6 +101,19 @@ export async function createOpportunity(data: OpportunityFormData) {
             userId = admin?.id;
         }
 
+        // Auto-link any newly selected commodities to the company
+        const distinctCommodityIds = [...new Set(preparedItems.map(i => i.commodityId))];
+        if (distinctCommodityIds.length > 0) {
+            await prisma.company.update({
+                where: { id: data.companyId },
+                data: {
+                    commodities: {
+                        connect: distinctCommodityIds.map(id => ({ id }))
+                    }
+                }
+            });
+        }
+
         const opportunity = await prisma.salesOpportunity.create({
             data: {
                 createdById: userId,
@@ -168,6 +181,19 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
         if (!userId) {
             const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
             userId = admin?.id;
+        }
+
+        // Auto-link any newly selected commodities to the company
+        const distinctCommodityIds = [...new Set(preparedItems.map(i => i.commodityId))];
+        if (distinctCommodityIds.length > 0) {
+            await prisma.company.update({
+                where: { id: data.companyId },
+                data: {
+                    commodities: {
+                        connect: distinctCommodityIds.map(id => ({ id }))
+                    }
+                }
+            });
         }
 
         const opportunity = await prisma.salesOpportunity.update({
