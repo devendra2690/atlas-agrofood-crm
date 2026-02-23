@@ -85,6 +85,7 @@ const sidebarItems = [
         title: "Tools",
         items: [
             { name: "Quote Calculator", href: "/tools/quote-calculator", icon: Calculator },
+            { name: "Pricing Engine", href: "/tools/pricing-engine", icon: Activity },
         ]
     },
 ];
