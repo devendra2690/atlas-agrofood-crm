@@ -88,6 +88,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
     const [deadline, setDeadline] = useState(initialData?.deadline ? new Date(initialData.deadline).toISOString().split('T')[0] : "");
     const [status, setStatus] = useState<OpportunityStatus>(initialData?.status || "OPEN");
     const [notes, setNotes] = useState(initialData?.notes || "");
+    const [electricityRate, setElectricityRate] = useState("8.50"); // Buldhana default
 
     // Line Items State
     const [items, setItems] = useState<OpportunityItemData[]>([]);
@@ -349,14 +350,29 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                             </div>
                         </div>
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="notes">Global Notes</Label>
-                            <Input
-                                id="notes"
-                                placeholder="Additional details..."
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                            />
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="notes">Global Notes</Label>
+                                <Input
+                                    id="notes"
+                                    placeholder="Additional details..."
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="elecRate">Electricity Rate (₹ / KWh)</Label>
+                                <Input
+                                    id="elecRate"
+                                    type="number"
+                                    step="0.1"
+                                    value={electricityRate}
+                                    onChange={(e) => setElectricityRate(e.target.value)}
+                                />
+                                <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                                    Factory unit cost for processing
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -372,10 +388,20 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                         </div>
 
                         {items.map((item, index) => {
-                            const commodityObj = availableCommodities.find(c => c.id === item.commodityId);
+                            const commodityObj = availableCommodities.find(c => c.id === item.commodityId) as any;
                             const availableVarieties = varietiesMap[item.commodityId] || [];
                             const varietyObj = availableVarieties.find((v: any) => v.id === item.varietyId);
                             const availableForms = item.varietyId ? (varietyObj?.forms || []) : (commodityObj?.forms || []);
+                            const formObj = availableForms.find((f: any) => f.id === item.varietyFormId);
+
+                            // Energy Calculation
+                            const baseUnits = commodityObj?.baseBatchElectricityUnits || 0;
+                            const formMultiplier = formObj?.formElectricityMultiplier || 0;
+                            const finishedQtyKG = (parseFloat(item.quantity) || 0) * 1000;
+                            const grindingUnits = finishedQtyKG * formMultiplier;
+                            const totalEnergyUnits = baseUnits + grindingUnits;
+                            const elecRateVal = parseFloat(electricityRate) || 8.50;
+                            const estEnergyCost = totalEnergyUnits * elecRateVal;
 
                             return (
                                 <Card key={item.localId} className="relative overflow-visible">
@@ -491,6 +517,25 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                                                     </Select>
                                                 </div>
                                             </div>
+                                            {item.commodityId && (
+                                                <div className="grid gap-2 border rounded p-2 bg-slate-50 text-sm">
+                                                    <Label className="text-blue-700 font-semibold mb-1">Energy Profile Estimate</Label>
+                                                    <div className="flex justify-between text-muted-foreground text-xs">
+                                                        <span>Base Units (Category):</span>
+                                                        <span>{baseUnits.toLocaleString()} KWh</span>
+                                                    </div>
+                                                    {formMultiplier > 0 && (
+                                                        <div className="flex justify-between text-muted-foreground text-xs">
+                                                            <span>Grinding ({formMultiplier} x {finishedQtyKG.toLocaleString()}kg):</span>
+                                                            <span>{grindingUnits.toLocaleString()} KWh</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex justify-between font-medium text-slate-700 text-xs border-t pt-1 mt-1">
+                                                        <span>Est. Electricity Cost:</span>
+                                                        <span>₹ {estEnergyCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </CardContent>
                                 </Card>

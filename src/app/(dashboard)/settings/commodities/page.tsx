@@ -8,10 +8,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Trash2, Plus, Loader2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { ManageVarietiesDialog } from './_components/manage-varieties-dialog';
 import { EditCommodityDialog } from './_components/edit-commodity-dialog';
 import { TemplateEditorDialog } from './_components/template-editor-dialog';
 import { CommodityConfigDialog } from './_components/commodity-config-dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type Commodity = {
     id: string;
@@ -25,6 +38,7 @@ export default function CommoditiesPage() {
     const [newCommodity, setNewCommodity] = useState('');
     const [newYield, setNewYield] = useState('100'); // Default 100%
     const [newWastage, setNewWastage] = useState('0');
+    const [newCategory, setNewCategory] = useState('Other');
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -56,7 +70,8 @@ export default function CommoditiesPage() {
         const result = await createCommodity(
             newCommodity,
             isNaN(yieldVal) ? 100 : yieldVal,
-            isNaN(wastageVal) ? 0 : wastageVal
+            isNaN(wastageVal) ? 0 : wastageVal,
+            newCategory
         );
 
         if (result.success && result.data) {
@@ -72,8 +87,6 @@ export default function CommoditiesPage() {
     }
 
     async function handleDelete(id: string) {
-        if (!confirm("Are you sure you want to delete this commodity?")) return;
-
         const result = await deleteCommodity(id);
         if (result.success) {
             toast.success("Commodity deleted");
@@ -100,7 +113,7 @@ export default function CommoditiesPage() {
                 <CardContent>
                     <div className="flex gap-4 items-end">
                         <div className="grid gap-2 flex-1">
-                            <label className="text-sm font-medium">Name</label>
+                            <Label className="text-sm font-medium">Name</Label>
                             <Input
                                 placeholder="e.g. Banana Powder"
                                 value={newCommodity}
@@ -117,7 +130,21 @@ export default function CommoditiesPage() {
                             />
                         </div>
                         <div className="grid gap-2 w-[120px]">
-                            <label className="text-sm font-medium">Yield %</label>
+                            <Label className="text-sm font-medium">Category</Label>
+                            <Select value={newCategory} onValueChange={setNewCategory}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Other">Other</SelectItem>
+                                    <SelectItem value="Fruit">Fruit</SelectItem>
+                                    <SelectItem value="Leafy">Leafy</SelectItem>
+                                    <SelectItem value="Bulb">Bulb</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2 w-[100px]">
+                            <Label className="text-sm font-medium">Yield %</Label>
                             <Input
                                 type="number"
                                 placeholder="100"
@@ -126,8 +153,8 @@ export default function CommoditiesPage() {
                                 onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
                             />
                         </div>
-                        <div className="grid gap-2 w-[120px]">
-                            <label className="text-sm font-medium">Wastage %</label>
+                        <div className="grid gap-2 w-[100px]">
+                            <Label className="text-sm font-medium">Wastage %</Label>
                             <Input
                                 type="number"
                                 placeholder="0"
@@ -176,6 +203,9 @@ export default function CommoditiesPage() {
                                                 <span className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">
                                                     Wastage: {commodity.wastagePercentage || 0}%
                                                 </span>
+                                                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded font-semibold border border-blue-100" title="Energy Profile">
+                                                    {commodity.category || 'Other'} ({commodity.baseBatchElectricityUnits || 0} Units)
+                                                </span>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -209,9 +239,34 @@ export default function CommoditiesPage() {
                                                 commodity={commodity}
                                                 onSuccess={loadCommodities}
                                             />
-                                            <Button variant="ghost" size="sm" onClick={() => handleDelete(commodity.id)}>
-                                                <Trash2 className="h-4 w-4 text-red-500" />
-                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="sm">
+                                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This action cannot be undone. This will permanently delete the commodity
+                                                            and all of its associated setup data.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDelete(commodity.id);
+                                                            }}
+                                                            className="bg-red-600 hover:bg-red-700 text-white"
+                                                        >
+                                                            Delete
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         </div>
                                     </div>
                                 ))

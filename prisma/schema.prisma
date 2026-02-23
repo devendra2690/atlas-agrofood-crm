@@ -326,6 +326,8 @@ model City {
 model Commodity {
    id        String    @id @default(uuid())
    name      String    @unique
+   category  String?
+   baseBatchElectricityUnits Float @default(0.0)
    yieldPercentage Float @default(100.0) // Percentage yield (e.g. 25.0 for 25%)
    wastagePercentage Float @default(0.0) // Percentage wastage
    companies         Company[]
@@ -374,6 +376,7 @@ model Commodity {
    formName          String
    yieldPercentage   Float            @default(100.0)
    wastagePercentage Float            @default(0.0)
+   formElectricityMultiplier Float    @default(0.0)
    
    salesOpportunityItems SalesOpportunityItem[]
 

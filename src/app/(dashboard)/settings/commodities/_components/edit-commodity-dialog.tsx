@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Pencil } from "lucide-react";
 import { updateCommodity } from "@/app/actions/commodity";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface EditCommodityDialogProps {
     commodity: {
@@ -15,6 +16,8 @@ interface EditCommodityDialogProps {
         name: string;
         yieldPercentage: number;
         wastagePercentage: number;
+        category?: string;
+        baseBatchElectricityUnits?: number;
     };
     onSuccess: () => void;
 }
@@ -25,6 +28,8 @@ export function EditCommodityDialog({ commodity, onSuccess }: EditCommodityDialo
     const [name, setName] = useState(commodity.name);
     const [yieldPercentage, setYieldPercentage] = useState(commodity.yieldPercentage.toString());
     const [wastagePercentage, setWastagePercentage] = useState((commodity.wastagePercentage || 0).toString());
+    const [category, setCategory] = useState(commodity.category || "Other");
+    const [electricityUnits, setElectricityUnits] = useState((commodity.baseBatchElectricityUnits || 0).toString());
     const [loading, setLoading] = useState(false);
 
     const handleUpdate = async () => {
@@ -35,8 +40,9 @@ export function EditCommodityDialog({ commodity, onSuccess }: EditCommodityDialo
         const wastageVal = parseFloat(wastagePercentage);
         const finalYield = isNaN(yieldVal) ? 0 : yieldVal;
         const finalWastage = isNaN(wastageVal) ? 0 : wastageVal;
+        const finalUnits = parseFloat(electricityUnits) || 0;
 
-        const result = await updateCommodity(commodity.id, name, finalYield, finalWastage);
+        const result = await updateCommodity(commodity.id, name, finalYield, finalWastage, undefined, category, finalUnits);
 
         if (result.success) {
             toast.success("Commodity updated");
@@ -96,6 +102,36 @@ export function EditCommodityDialog({ commodity, onSuccess }: EditCommodityDialo
                             type="number"
                             value={wastagePercentage}
                             onChange={(e) => setWastagePercentage(e.target.value)}
+                            className="col-span-3"
+                        />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right text-xs">
+                            Category
+                        </Label>
+                        <div className="col-span-3">
+                            <Select value={category} onValueChange={setCategory}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Other">Other</SelectItem>
+                                    <SelectItem value="Fruit">Fruit</SelectItem>
+                                    <SelectItem value="Leafy">Leafy</SelectItem>
+                                    <SelectItem value="Bulb">Bulb</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="energy" className="text-right text-xs" title="Base Batch Electricity Units">
+                            Base Energy (KWh)
+                        </Label>
+                        <Input
+                            id="energy"
+                            type="number"
+                            value={electricityUnits}
+                            onChange={(e) => setElectricityUnits(e.target.value)}
                             className="col-span-3"
                         />
                     </div>

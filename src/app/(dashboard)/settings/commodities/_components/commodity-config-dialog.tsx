@@ -33,6 +33,7 @@ export function CommodityConfigDialog({ open, onOpenChange, commodity, onSuccess
 
     const [newYield, setNewYield] = useState(effectiveYield.toString());
     const [newWastage, setNewWastage] = useState(effectiveWastage.toString());
+    const [newMultiplier, setNewMultiplier] = useState("0");
     const [creating, setCreating] = useState(false);
 
     const FORM_OPTIONS = ["Powder", "Flakes", "Chips", "Granules", "Paste", "Dehydrated"];
@@ -47,7 +48,8 @@ export function CommodityConfigDialog({ open, onOpenChange, commodity, onSuccess
             commodity.id,
             newFormName,
             parseFloat(newYield) || 100,
-            parseFloat(newWastage) || 0
+            parseFloat(newWastage) || 0,
+            parseFloat(newMultiplier) || 0
         );
 
         if (res.success) {
@@ -55,6 +57,7 @@ export function CommodityConfigDialog({ open, onOpenChange, commodity, onSuccess
             setNewFormName("");
             setNewYield(effectiveYield.toString());
             setNewWastage(effectiveWastage.toString());
+            setNewMultiplier("0");
             onSuccess();
         } else {
             toast.error("Failed to add form");
@@ -105,7 +108,7 @@ export function CommodityConfigDialog({ open, onOpenChange, commodity, onSuccess
                             </Select>
                         </div>
                         {/* ... existing yield/wastage inputs ... */}
-                        <div className="col-span-3">
+                        <div className="col-span-2">
                             <Label className="text-xs mb-1 block">Yield %</Label>
                             <Input
                                 type="number"
@@ -113,7 +116,7 @@ export function CommodityConfigDialog({ open, onOpenChange, commodity, onSuccess
                                 onChange={(e) => setNewYield(e.target.value)}
                             />
                         </div>
-                        <div className="col-span-3">
+                        <div className="col-span-2">
                             <Label className="text-xs mb-1 block">Wastage %</Label>
                             <Input
                                 type="number"
@@ -121,7 +124,17 @@ export function CommodityConfigDialog({ open, onOpenChange, commodity, onSuccess
                                 onChange={(e) => setNewWastage(e.target.value)}
                             />
                         </div>
-                        <div className="col-span-1">
+                        <div className="col-span-2">
+                            <Label className="text-xs mb-1 block whitespace-nowrap overflow-hidden text-ellipsis" title="Energy Multiplier">KWh / Kg</Label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.1"
+                                value={newMultiplier}
+                                onChange={(e) => setNewMultiplier(e.target.value)}
+                            />
+                        </div>
+                        <div className="col-span-1 border-l pl-2 mt-auto">
                             <Button onClick={handleCreate} disabled={creating || !newFormName.trim()} size="icon">
                                 {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                             </Button>
@@ -137,14 +150,17 @@ export function CommodityConfigDialog({ open, onOpenChange, commodity, onSuccess
                         ) : (
                             formsList.map((form) => (
                                 <div key={form.id} className="grid grid-cols-12 gap-2 items-center bg-slate-50 p-2 rounded border">
-                                    <div className="col-span-5 font-medium text-sm">{form.formName}</div>
+                                    <div className="col-span-4 font-medium text-sm">{form.formName}</div>
                                     <div className="col-span-3 text-sm text-muted-foreground">
                                         Yield: {form.yieldPercentage > 0 ? form.yieldPercentage : effectiveYield}%
                                         {form.yieldPercentage === 0 && <span className="text-[10px] ml-1 text-slate-400">(Inherited)</span>}
                                     </div>
-                                    <div className="col-span-3 text-sm text-muted-foreground">
+                                    <div className="col-span-2 text-sm text-muted-foreground">
                                         Wastage: {form.wastagePercentage > 0 ? form.wastagePercentage : effectiveWastage}%
                                         {form.wastagePercentage === 0 && <span className="text-[10px] ml-1 text-slate-400">(Inherited)</span>}
+                                    </div>
+                                    <div className="col-span-2 text-sm font-semibold text-blue-600">
+                                        {(form.formElectricityMultiplier || 0) > 0 ? `+${form.formElectricityMultiplier} KWh` : ''}
                                     </div>
                                     <div className="col-span-1 text-right">
                                         <Button

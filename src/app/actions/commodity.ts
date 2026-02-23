@@ -23,13 +23,25 @@ export async function getCommodities() {
 }
 
 
-export async function createCommodity(name: string, yieldPercentage: number = 100, wastagePercentage: number = 0) {
+export async function createCommodity(name: string, yieldPercentage: number = 100, wastagePercentage: number = 0, category?: string, baseBatchElectricityUnits?: number) {
     try {
+        let finalUnits = baseBatchElectricityUnits || 0;
+
+        // Apply automatic defaults based on Category if units not explicitly provided
+        if (!baseBatchElectricityUnits && category) {
+            const cat = category.trim().toLowerCase();
+            if (cat === 'leafy') finalUnits = 70;
+            else if (cat === 'bulb') finalUnits = 115;
+            else if (cat === 'fruit') finalUnits = 220;
+        }
+
         const commodity = await prisma.commodity.create({
             data: {
                 name,
                 yieldPercentage,
-                wastagePercentage
+                wastagePercentage,
+                category,
+                baseBatchElectricityUnits: finalUnits
             }
         });
         await logActivity({
@@ -45,7 +57,7 @@ export async function createCommodity(name: string, yieldPercentage: number = 10
     }
 }
 
-export async function updateCommodity(id: string, name?: string, yieldPercentage?: number, wastagePercentage?: number, documentTemplate?: any) {
+export async function updateCommodity(id: string, name?: string, yieldPercentage?: number, wastagePercentage?: number, documentTemplate?: any, category?: string, baseBatchElectricityUnits?: number) {
     try {
         const updateData: any = {};
 
@@ -53,6 +65,8 @@ export async function updateCommodity(id: string, name?: string, yieldPercentage
         if (yieldPercentage !== undefined) updateData.yieldPercentage = yieldPercentage;
         if (wastagePercentage !== undefined) updateData.wastagePercentage = wastagePercentage;
         if (documentTemplate !== undefined) updateData.documentTemplate = documentTemplate;
+        if (category !== undefined) updateData.category = category;
+        if (baseBatchElectricityUnits !== undefined) updateData.baseBatchElectricityUnits = baseBatchElectricityUnits;
 
         const commodity = await prisma.commodity.update({
             where: { id },
@@ -186,14 +200,20 @@ export async function deleteCommodityVariety(id: string) {
 
 // Form Actions
 
-export async function addCommodityForm(commodityId: string, formName: string, yieldPercentage: number, wastagePercentage: number) {
+export async function addCommodityForm(commodityId: string, formName: string, yieldPercentage: number, wastagePercentage: number, formElectricityMultiplier?: number) {
     try {
+        let multiplier = formElectricityMultiplier || 0.0;
+        if (!formElectricityMultiplier && formName.toLowerCase().includes('powder')) {
+            multiplier = 0.1;
+        }
+
         const form = await prisma.varietyForm.create({
             data: {
                 commodityId,
                 formName,
                 yieldPercentage,
-                wastagePercentage
+                wastagePercentage,
+                formElectricityMultiplier: multiplier
             }
         });
         return { success: true, data: form };
@@ -203,14 +223,20 @@ export async function addCommodityForm(commodityId: string, formName: string, yi
     }
 }
 
-export async function addVarietyForm(varietyId: string, formName: string, yieldPercentage: number, wastagePercentage: number) {
+export async function addVarietyForm(varietyId: string, formName: string, yieldPercentage: number, wastagePercentage: number, formElectricityMultiplier?: number) {
     try {
+        let multiplier = formElectricityMultiplier || 0.0;
+        if (!formElectricityMultiplier && formName.toLowerCase().includes('powder')) {
+            multiplier = 0.1;
+        }
+
         const form = await prisma.varietyForm.create({
             data: {
                 varietyId,
                 formName,
                 yieldPercentage,
-                wastagePercentage
+                wastagePercentage,
+                formElectricityMultiplier: multiplier
             }
         });
         return { success: true, data: form };
@@ -220,12 +246,18 @@ export async function addVarietyForm(varietyId: string, formName: string, yieldP
     }
 }
 
-export async function updateVarietyForm(id: string, formName?: string, yieldPercentage?: number, wastagePercentage?: number) {
+export async function updateVarietyForm(id: string, formName?: string, yieldPercentage?: number, wastagePercentage?: number, formElectricityMultiplier?: number) {
     try {
         const updateData: any = {};
-        if (formName !== undefined) updateData.formName = formName;
+        if (formName !== undefined) {
+            updateData.formName = formName;
+            if (formElectricityMultiplier === undefined && formName.toLowerCase().includes('powder')) {
+                updateData.formElectricityMultiplier = 0.1;
+            }
+        }
         if (yieldPercentage !== undefined) updateData.yieldPercentage = yieldPercentage;
         if (wastagePercentage !== undefined) updateData.wastagePercentage = wastagePercentage;
+        if (formElectricityMultiplier !== undefined) updateData.formElectricityMultiplier = formElectricityMultiplier;
 
         const form = await prisma.varietyForm.update({
             where: { id },
