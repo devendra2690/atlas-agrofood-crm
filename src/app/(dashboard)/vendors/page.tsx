@@ -47,8 +47,8 @@ export default async function VendorsPage({
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <ExportButton isVendor />
-                    <ImportDialog isVendor />
+                    <ExportButton category="VENDOR" />
+                    <ImportDialog category="VENDOR" />
                     <CompanyDialog
                         defaultType="VENDOR"
                         initialCommodities={commodities || []}

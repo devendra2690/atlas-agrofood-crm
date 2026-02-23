@@ -19,8 +19,9 @@ export async function GET(request: Request) {
         let dataRows: any[] = [];
 
         const isVendorView = requestedType === "vendor";
-        const targetTypes = isVendorView ? ["VENDOR"] : ["CLIENT", "PROSPECT"];
-        const sheetTitle = isVendorView ? "Vendors" : "Clients & Prospects";
+        const isPartnerView = requestedType === "partner";
+        const targetTypes = isVendorView ? ["VENDOR"] : isPartnerView ? ["PARTNER"] : ["CLIENT", "PROSPECT"];
+        const sheetTitle = isVendorView ? "Vendors" : isPartnerView ? "Partners" : "Clients & Prospects";
 
         if (!templateOnly) {
             // Fetch existing records
@@ -61,8 +62,8 @@ export async function GET(request: Request) {
             dataRows = [
                 {
                     "System ID (Do Not Modify)": "",
-                    "Company Name*": isVendorView ? "Example Logistics Vendor (Required)" : "Example Corp (Required)",
-                    "Type*": isVendorView ? "VENDOR" : "CLIENT", // or PROSPECT
+                    "Company Name*": isVendorView ? "Example Logistics Vendor (Required)" : isPartnerView ? "Example Supply Partner (Required)" : "Example Corp (Required)",
+                    "Type*": isVendorView ? "VENDOR" : isPartnerView ? "PARTNER" : "CLIENT", // or PROSPECT
                     "Phone*": "+1234567890",
                     "Email": "info@example.com",
                     "Website": "www.example.com",
@@ -99,7 +100,7 @@ export async function GET(request: Request) {
         // Generate buffer
         const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 
-        const filename = isVendorView ? "Vendor_Data.xlsx" : "Client_Prospect_Data.xlsx";
+        const filename = isVendorView ? "Vendor_Data.xlsx" : isPartnerView ? "Partner_Data.xlsx" : "Client_Prospect_Data.xlsx";
 
         // Set headers for download
         const headers = new Headers();

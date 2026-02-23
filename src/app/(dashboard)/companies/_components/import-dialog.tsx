@@ -18,10 +18,10 @@ import { importCompanies } from "@/app/actions/import";
 import { ImportResult } from "@/app/actions/import";
 
 interface ImportDialogProps {
-    isVendor?: boolean;
+    category?: "CLIENT" | "VENDOR" | "PARTNER";
 }
 
-export function ImportDialog({ isVendor = false }: ImportDialogProps) {
+export function ImportDialog({ category = "CLIENT" }: ImportDialogProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [file, setFile] = useState<File | null>(null);
@@ -66,7 +66,7 @@ export function ImportDialog({ isVendor = false }: ImportDialogProps) {
             rows = JSON.parse(JSON.stringify(rows));
 
             // Call server action with context type validation
-            const requiredType = isVendor ? "VENDOR" : "CLIENT_PROSPECT";
+            const requiredType = category === "VENDOR" ? "VENDOR" : category === "PARTNER" ? "PARTNER" : "CLIENT_PROSPECT";
             const result = await importCompanies(rows, requiredType);
 
             if (result.success) {
@@ -115,7 +115,7 @@ export function ImportDialog({ isVendor = false }: ImportDialogProps) {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>{isVendor ? "Import Vendors" : "Import Clients & Prospects"}</DialogTitle>
+                    <DialogTitle>{category === "VENDOR" ? "Import Vendors" : category === "PARTNER" ? "Import Partners" : "Import Clients & Prospects"}</DialogTitle>
                     <DialogDescription>
                         Upload a populated template `.xlsx` file to bulk insert records. Need the template? Use the Export button first.
                     </DialogDescription>

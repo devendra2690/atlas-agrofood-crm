@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { CompanyDialog } from "../companies/_components/company-dialog";
+import { ExportButton } from "../companies/_components/export-button";
+import { ImportDialog } from "../companies/_components/import-dialog";
 import { VendorFilters } from "../vendors/_components/vendor-filters"; // Reuse Filters
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { getCountries } from "@/app/actions/location";
@@ -51,6 +53,8 @@ export default async function PartnersPage({
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    <ExportButton category="PARTNER" />
+                    <ImportDialog category="PARTNER" />
                     <CompanyDialog
                         defaultType={"PARTNER" as any}
                         initialCommodities={commodities || []}

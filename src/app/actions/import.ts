@@ -12,7 +12,7 @@ export type ImportResult = {
     errors: { row: number; reason: string }[];
 };
 
-export async function importCompanies(rows: any[], requireType?: "VENDOR" | "CLIENT_PROSPECT"): Promise<ImportResult> {
+export async function importCompanies(rows: any[], requireType?: "VENDOR" | "PARTNER" | "CLIENT_PROSPECT"): Promise<ImportResult> {
     const result: ImportResult = {
         success: false,
         importedCount: 0,
@@ -70,6 +70,10 @@ export async function importCompanies(rows: any[], requireType?: "VENDOR" | "CLI
             // Enforce context-based type restrictions (e.g. uploading a VENDOR on the Clients page)
             if (requireType === "VENDOR" && type !== "VENDOR") {
                 result.errors.push({ row: rowNumber, reason: `[${name}] This portal only accepts Vendors. Found Type "${type}".` });
+                continue;
+            }
+            if (requireType === "PARTNER" && type !== "PARTNER") {
+                result.errors.push({ row: rowNumber, reason: `[${name}] This portal only accepts Partners. Found Type "${type}".` });
                 continue;
             }
             if (requireType === "CLIENT_PROSPECT" && type !== "CLIENT" && type !== "PROSPECT") {
