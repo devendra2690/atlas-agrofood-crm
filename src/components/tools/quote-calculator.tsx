@@ -8,9 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { numberToWords } from "@/lib/utils";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { generateQuotationPDF } from "@/lib/pdf-generator";
 import { Download, Check, ChevronsUpDown, Plus, Trash2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import {
@@ -97,7 +95,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
     const [costPerLaborer, setCostPerLaborer] = useState<number>(0);
     const [packagingCost, setPackagingCost] = useState<number>(0);
     const [transportCost, setTransportCost] = useState<number>(0);
-    const [electricityRate, setElectricityRate] = useState<number>(8.5); // Default 8.5
+    const [electricityRate, setElectricityRate] = useState<number>(8.32); // Default 8.32 (Buldhana Rate)
 
     // --- ORDER MODE INPUTS ---
     const [targetOrderQty, setTargetOrderQty] = useState<number>(1000); // Default 1 ton
@@ -160,7 +158,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
         fgWeight = 100 * (yieldPercentage / 100); // Output from 100kg Input
         rawMaterialBatchCost = rawMaterialPrice * 100; // Cost for 100kg Input
 
-        totalLaborCost = numberOfLaborers * costPerLaborer;
+        totalLaborCost = (numberOfLaborers * costPerLaborer) * (dryingMethod === 'solar' ? 1.5 : 1);
         unitsConsumed = batchDuration * POWER_CONSUMPTION_RATE;
         // Solar Tunnel = No Electricity Cost
         totalPowerCost = dryingMethod === 'solar' ? 0 : (unitsConsumed * electricityRate);
@@ -184,7 +182,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
         rawMaterialBatchCost = rmNeeded * rawMaterialPrice; // Total RM Cost for Order
 
         // Lump Sum Costs are direct inputs
-        totalLaborCost = lumpSumLaborCost;
+        totalLaborCost = lumpSumLaborCost * (dryingMethod === 'solar' ? 1.5 : 1);
         // Solar Tunnel = No Power Cost
         totalPowerCost = dryingMethod === 'solar' ? 0 : lumpSumPowerCost;
 
@@ -266,85 +264,7 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
 
     const generatePDF = async () => {
         try {
-            const doc = new jsPDF();
-            const pageWidth = doc.internal.pageSize.width;
-
-            // --- Helper Constants ---
-            const leftMargin = 14;
-            const rightMargin = pageWidth - 14;
-            const startY = 10;
-            let currentY = startY;
-
-            // --- 1. Title ---
-            doc.setFontSize(14);
-            doc.setFont("helvetica", "bold");
-            doc.text("Quotation", pageWidth / 2, currentY + 5, { align: 'center' });
-            doc.setLineWidth(0.5);
-            doc.line(leftMargin, currentY + 7, rightMargin, currentY + 7);
-            currentY += 15;
-
-            // --- 2. Header Section ---
-            // Company Details
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "bold");
-            doc.text("Atlas Agrofood", 14, startY + 5);
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(9);
-            doc.text("SN-115, Plot No -8, Gajanan Colony,\nKhamgaon, District : Buldhana, Maharashtra 444303\nEmail: sales@atlasagrofood.co.in\nPhone: +91 9867630682", 14, startY + 10);
-
-            // Invoice Details (Right Side)
-            doc.text(`Invoice No: PG/Q/${new Date().getFullYear()}/${Math.floor(Math.random() * 1000)}`, rightMargin, startY + 5, { align: 'right' });
-            doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, rightMargin, startY + 10, { align: 'right' });
-            doc.text(`Terms: 100% Advance`, rightMargin, startY + 15, { align: 'right' });
-
-            currentY += 25;
-
-            // Prepare Client Details
-            let clientAddress = "-";
-            let clientGSTIN = "-";
-
-            // Try to match clientName with a company in the list
-            const matchedCompany = companies.find(c => c.name === clientName);
-            if (matchedCompany) {
-                // Construct Address from City/State/Country
-                const parts = [];
-                if (matchedCompany.city?.name) parts.push(matchedCompany.city.name);
-                if (matchedCompany.state?.name) parts.push(matchedCompany.state.name);
-                if (matchedCompany.country?.name) parts.push(matchedCompany.country.name);
-
-                if (parts.length > 0) {
-                    clientAddress = parts.join(", ");
-                }
-            }
-
-            // Client & Consignee Table
-            autoTable(doc, {
-                startY: currentY,
-                theme: 'grid',
-                body: [
-                    [
-                        { content: `Buyer (Bill To):\n${clientName || 'Cash Client'}\nAddress: ${clientAddress}\nGSTIN: ${clientGSTIN}`, styles: { halign: 'left', cellWidth: pageWidth / 2 - 14 } },
-                        { content: `Consignee (Ship To):\n${clientName || 'Same as Buyer'}\nAddress: ${clientAddress}`, styles: { halign: 'left', cellWidth: pageWidth / 2 - 14 } }
-                    ]
-                ],
-                styles: {
-                    fontSize: 9,
-                    cellPadding: 3,
-                    lineColor: [0, 0, 0],
-                    lineWidth: 0.1,
-                }
-            });
-
-            // @ts-ignore
-            currentY = doc.lastAutoTable.finalY + 5;
-
-            // --- 3. Items & Totals Table ---
-
-            // Calculate Totals First
-            let totalTaxable = 0;
-            let totalCGST = 0;
-            let totalSGST = 0;
-
+            // Calculate Item Array
             const itemsToCalc = quoteItems.length > 0 ? quoteItems : (selectedCommodityId ? [{
                 finalPriceExclGST: perKgSellingPriceExclGST,
                 yieldPercentage: yieldPercentage,
@@ -355,38 +275,19 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                 varietyName: selectedVariety?.name
             }] : []);
 
-            itemsToCalc.forEach((item: any) => {
-                const quantity = item.quantity;
-                const unit = item.unit || 'Kg';
-                const ratePerKg = item.finalPriceExclGST;
+            if (itemsToCalc.length === 0) return;
 
-                const multiplier = unit === 'Ton' ? 1000 : 1;
-                const displayRate = ratePerKg * multiplier;
-                const lineAmount = quantity * displayRate;
+            // Try to match clientName with a company in the list
+            const matchedCompany = companies.find(c => c.name === clientName);
+            let phone = "";
+            let email = ""; // Not strictly in the table, but good to have if needed by PDF later
 
-                totalTaxable += lineAmount;
-            });
+            if (matchedCompany) {
+                // Could fetch phone from matchedCompany if the schema has it exposed to this component. 
+                // Currently companies prop might just be name/ids.  
+            }
 
-            const gstRateVal = quoteItems.length > 0 ? 5 : gstRate; // Fixed to 5% or dynamic? Using dynamic if single, else 5%
-            totalCGST = totalTaxable * ((gstRateVal / 2) / 100);
-            totalSGST = totalTaxable * ((gstRateVal / 2) / 100);
-            const grandTotal = totalTaxable + totalCGST + totalSGST;
-
-            // Build Table Body
-            let tableBody = [];
-
-            const buildRow = (item: any, index: number) => {
-                const qty = item.quantity;
-                const unit = item.unit || 'Kg';
-                const ratePerKg = item.finalPriceExclGST;
-
-                const multiplier = unit === 'Ton' ? 1000 : 1;
-                const displayRate = ratePerKg * multiplier;
-                const lineAmount = qty * displayRate;
-
-                const cgstRate = 2.5;
-                const sgstRate = 2.5;
-
+            const pdfItems = itemsToCalc.map((item: any) => {
                 let desc = item.isSingleItem
                     ? `${selectedCommodity?.name} - ${selectedVariety?.name || 'Default'}`
                     : `${item.commodityName} - ${item.varietyName}`;
@@ -400,89 +301,30 @@ export function QuoteCalculator({ commodities, companies }: QuoteCalculatorProps
                     }
                 }
 
-                return [
-                    index + 1,
-                    desc,
-                    '0804', // HSN
-                    `${qty.toFixed(2)} ${unit}`, // Qty merged with Unit
-                    formatMoney(displayRate).replace('₹', ''), // Rate
-                    `${cgstRate}%`,
-                    `${sgstRate}%`,
-                    formatMoney(lineAmount).replace('₹', '')
-                ];
-            };
+                // For simplicity, we create the 4 tiers relative to the calculated base price for THIS item.
+                // In exact legacy behavior, it just printed one row per item. But the new requirement is "tiered pricing tables".
+                // Since this calculator calculates a specific base cost, we will generate tiers off that.
+                const baseCost = item.finalPriceExclGST;
 
-            if (quoteItems.length > 0) {
-                tableBody = quoteItems.map((item, index) => buildRow(item, index));
-            } else if (selectedCommodityId) {
-                const item = itemsToCalc[0];
-                tableBody.push(buildRow(item, 0));
-            }
-
-            tableBody.push(
-                // @ts-ignore
-                [{ content: 'Total Taxable', colSpan: 7, styles: { halign: 'right' } }, formatMoney(totalTaxable).replace('₹', '')],
-                // @ts-ignore
-                [{ content: 'CGST', colSpan: 7, styles: { halign: 'right' } }, formatMoney(totalCGST).replace('₹', '')],
-                // @ts-ignore
-                [{ content: 'SGST', colSpan: 7, styles: { halign: 'right' } }, formatMoney(totalSGST).replace('₹', '')],
-                // @ts-ignore
-                [{ content: 'Total', colSpan: 7, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatMoney(grandTotal).replace('₹', ''), styles: { fontStyle: 'bold', halign: 'right' } }]
-            );
-
-            autoTable(doc, {
-                startY: currentY,
-                theme: 'grid',
-                head: [
-                    [
-                        { content: 'Sr', styles: { halign: 'center', valign: 'middle' } },
-                        { content: 'Description', styles: { halign: 'left', valign: 'middle' } },
-                        { content: 'HSN', styles: { halign: 'center', valign: 'middle' } },
-                        { content: 'Qty', styles: { halign: 'center', valign: 'middle' } },
-                        { content: 'Rate', styles: { halign: 'center', valign: 'middle' } },
-                        { content: 'CGST', styles: { halign: 'center', valign: 'middle' } },
-                        { content: 'SGST', styles: { halign: 'center', valign: 'middle' } },
-                        { content: 'Amount', styles: { halign: 'center', valign: 'middle' } }
+                return {
+                    productName: desc,
+                    tiers: [
+                        { weight: "100 kg", price: baseCost * 1.25, mult: "1.25x" },
+                        { weight: "250 kg", price: baseCost * 1.22, mult: "1.22x" },
+                        { weight: "500 kg", price: baseCost * 1.20, mult: "1.20x" },
+                        { weight: "1000kg", price: baseCost * 1.18, mult: "1.18x" }
                     ]
-                ],
-                body: tableBody,
-                styles: {
-                    fontSize: 9,
-                    cellPadding: 3,
-                    lineColor: [0, 0, 0],
-                    lineWidth: 0.1,
-                    textColor: [0, 0, 0],
-                    valign: 'middle'
-                },
-                columnStyles: {
-                    0: { cellWidth: 10, halign: 'center' },
-                    1: { cellWidth: 'auto' },
-                    2: { cellWidth: 20, halign: 'center' },
-                    3: { cellWidth: 25, halign: 'center' },
-                    4: { cellWidth: 35, halign: 'right' },
-                    5: { cellWidth: 15, halign: 'center' },
-                    6: { cellWidth: 15, halign: 'center' },
-                    7: { cellWidth: 30, halign: 'right' }
-                }
+                };
             });
 
-            // @ts-ignore
-            currentY = doc.lastAutoTable.finalY + 10;
-
-            // Amount in Words
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "bold");
-            doc.text("Amount Chargeable (in words):", leftMargin, currentY);
-            doc.setFont("helvetica", "normal");
-            doc.text(`INR ${numberToWords(Math.round(grandTotal))} Only.`, leftMargin, currentY + 5);
-
-            // Signature
-            doc.text("For Atlas Agrofood", rightMargin, currentY + 15, { align: 'right' });
-            doc.text("Authorized Signatory", rightMargin, currentY + 30, { align: 'right' });
-
-            // Save
-            const safeClientName = (clientName || 'Draft').replace(/[^a-z0-9]/gi, '_').substring(0, 50);
-            doc.save(`Quotation_${safeClientName}_${new Date().toISOString().split('T')[0]}.pdf`);
+            await generateQuotationPDF(
+                {
+                    clientName: clientName || "Valued Customer",
+                    company: "N/A",
+                    phone: phone || "Not Provided"
+                },
+                pdfItems
+            );
 
         } catch (error) {
             console.error("PDF Generation Error:", error);

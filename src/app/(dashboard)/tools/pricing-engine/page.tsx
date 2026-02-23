@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Loader2, HelpCircle } from "lucide-react";
 import { getCommodities } from "@/app/actions/commodity";
 import { toast } from "sonner";
+import { generateQuotationPDF } from "@/lib/pdf-generator";
+import { Download } from "lucide-react";
 
 export default function QuoteCalculatorPage() {
     const [loading, setLoading] = useState(true);
@@ -78,15 +80,15 @@ export default function QuoteCalculatorPage() {
         const formYield = selectedForm.yieldPercentage || selectedCommodity.yieldPercentage || 100;
 
         // 2. Waterfall Math Gates
-        const w1 = rawWeight * (1 - (cmWastageIdx / 100)); // Cleaning Gate
-        const w2 = w1 * (1 - (vWastageIdx / 100));         // Processing Gate
-        const finalOutputKg = w2 * (formYield / 100);      // Dehydration Gate
+        // Calculate securely as one continuous float to prevent mid-step rounding logic drop-offs
+        const finalOutputKg = rawWeight * (1 - (cmWastageIdx / 100)) * (1 - (vWastageIdx / 100)) * (formYield / 100);
 
         if (finalOutputKg <= 0) return null;
 
         // 3. OpEx
         const rmCost = rate * rawWeight;
-        const laborCost = 600;
+        // Solar takes longer, so multiply labor by 1.5 if solar
+        const laborCost = powerSource === 'solar' ? 600 * 1.5 : 600;
         const overheadCost = 700;
 
         // 4. Energy Profile Specificity
@@ -113,7 +115,7 @@ export default function QuoteCalculatorPage() {
 
         // Total Electricity
         const totalEnergyUnits = effectiveBaseUnits + grindingUnits;
-        const elecRate = 8.50;
+        const elecRate = 8.32; // Real-world Buldhana rate
         const electricityCost = totalEnergyUnits * elecRate;
 
         // 5. Total TCP & Unit Cost
@@ -162,6 +164,24 @@ export default function QuoteCalculatorPage() {
         const text = `Atlas AgroFood Quote:\n*${name}*\n\n1 Ton @ ₹${priceFor1Ton}/kg.\n\n_Valid for 3 days._`;
         const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
         window.open(url, '_blank');
+    };
+
+    const handleDownloadPDF = async () => {
+        if (!selectedCommodity || !result) return;
+
+        const productName = selectedVariety ? `${selectedVariety.name} ${selectedForm?.formName || ''}` : `${selectedCommodity.name} ${selectedForm?.formName || ''}`;
+
+        await generateQuotationPDF(
+            {
+                clientName: "Valued Customer",
+                company: "N/A",
+                phone: ""
+            },
+            [{
+                productName: productName.trim(),
+                tiers: getQuoteTiers(result.baseUnitCost)
+            }]
+        );
     };
 
     if (loading) {
@@ -324,7 +344,7 @@ export default function QuoteCalculatorPage() {
                                     <div className="grid grid-cols-2 gap-4 mt-6 text-sm border-t border-slate-800 pt-4">
                                         <div>
                                             <p className="text-slate-500 mb-1">Batch Yield (300kg)</p>
-                                            <p className="font-medium text-lg">{result.finalOutputKg.toFixed(1)} <span className="text-slate-400 text-sm">kg</span></p>
+                                            <p className="font-medium text-lg">{result.finalOutputKg.toFixed(2)} <span className="text-slate-400 text-sm">kg</span></p>
                                         </div>
                                         <div>
                                             <p className="text-slate-500 mb-1">TCP per Batch</p>
@@ -356,7 +376,7 @@ export default function QuoteCalculatorPage() {
                                                             <span className="font-mono text-orange-400">₹{result.electricityCost.toFixed(2)}</span>
                                                         </div>
                                                         <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                                                            (({result.baseUnits} base + {result.grindingUnits.toFixed(1)} processing form) × {result.powerFactor}x multiplier × ₹{result.elecRate.toFixed(2)})
+                                                            (({result.baseUnits} base + {result.grindingUnits.toFixed(1)} grinding/milling units) × {result.powerFactor}x multiplier × ₹{result.elecRate.toFixed(2)})
                                                         </div>
                                                     </div>
                                                     <div className="flex flex-col py-1.5 px-3 -mx-3">
@@ -365,7 +385,7 @@ export default function QuoteCalculatorPage() {
                                                             <span className="font-mono text-slate-200">₹{result.laborCost.toFixed(2)}</span>
                                                         </div>
                                                         <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                                                            (Standard 300kg batch factory default)
+                                                            {powerSource === 'solar' ? '(300kg batch factory default × 1.5x Solar duration)' : '(Standard 300kg batch factory default)'}
                                                         </div>
                                                     </div>
                                                     <div className="flex flex-col py-1.5 bg-slate-800/40 px-3 -mx-3 rounded-md">
@@ -394,13 +414,23 @@ export default function QuoteCalculatorPage() {
                                         <CardTitle className="text-lg">Tiered Sales Quotes</CardTitle>
                                         <CardDescription>Export pricing structure</CardDescription>
                                     </div>
-                                    <Button
-                                        onClick={() => handleWhatsApp(result.baseUnitCost)}
-                                        className="bg-green-600 hover:bg-green-700 text-white"
-                                        size="sm"
-                                    >
-                                        WhatsApp Quote
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={handleDownloadPDF}
+                                            variant="outline"
+                                            size="sm"
+                                        >
+                                            <Download className="w-4 h-4 mr-2" />
+                                            PDF
+                                        </Button>
+                                        <Button
+                                            onClick={() => handleWhatsApp(result.baseUnitCost)}
+                                            className="bg-green-600 hover:bg-green-700 text-white"
+                                            size="sm"
+                                        >
+                                            WhatsApp
+                                        </Button>
+                                    </div>
                                 </CardHeader>
                                 <CardContent className="p-0">
                                     <div className="divide-y divide-slate-100">
