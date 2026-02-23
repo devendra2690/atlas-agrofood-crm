@@ -467,19 +467,6 @@ model SalesOpportunity {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  // --- LEGACY MIGRATION FIELDS ---
-  // These fields are temporarily retained to prevent data loss when pushing to Production.
-  // DO NOT USE THESE IN NEW CODE. Use the `items` array instead.
-  legacyProductName        String? @map("productName")
-  legacyTargetPrice        Decimal? @map("targetPrice")
-  legacyPriceType          OpportunityPriceType? @default(PER_KG) @map("priceType")
-  legacyQuantity           Decimal? @map("quantity")
-  legacyProcurementQuantity Decimal? @map("procurementQuantity")
-  legacyCommodityId        String? @map("commodityId")
-  legacyVarietyId          String? @map("varietyId")
-  legacyVarietyFormId      String? @map("varietyFormId")
-  // -------------------------------
-
   // Bridge to Procurement
   procurementProjectId String?
 

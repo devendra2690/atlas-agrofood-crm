@@ -25,6 +25,7 @@ export default function CommoditiesPage() {
     const [newYield, setNewYield] = useState('100'); // Default 100%
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
 
     async function loadCommodities() {
         setFetching(true);
@@ -115,8 +116,15 @@ export default function CommoditiesPage() {
             </Card>
 
             <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <CardTitle>Existing Commodities</CardTitle>
+                    <div className="w-1/3">
+                        <Input
+                            placeholder="🔍 Search commodities..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
                 </CardHeader>
                 <CardContent>
                     {fetching ? (
@@ -125,10 +133,10 @@ export default function CommoditiesPage() {
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            {commodities.length === 0 ? (
+                            {commodities.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
                                 <p className="text-muted-foreground text-center py-4">No commodities found.</p>
                             ) : (
-                                commodities.map((commodity: any) => (
+                                commodities.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((commodity: any) => (
                                     <div key={commodity.id} className="flex items-center justify-between p-3 border rounded-md bg-white hover:bg-slate-50">
                                         <div className="flex items-center gap-2">
                                             <div className="flex items-center gap-4">
