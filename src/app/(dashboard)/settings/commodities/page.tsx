@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getCommodities, createCommodity, deleteCommodity } from '@/app/actions/commodity';
+import { getCommodities, createCommodity, deleteCommodity, getDefaultWastage } from '@/app/actions/commodity';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -24,6 +24,7 @@ export default function CommoditiesPage() {
     const [commodities, setCommodities] = useState<Commodity[]>([]);
     const [newCommodity, setNewCommodity] = useState('');
     const [newYield, setNewYield] = useState('100'); // Default 100%
+    const [newWastage, setNewWastage] = useState('0');
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -51,12 +52,18 @@ export default function CommoditiesPage() {
 
         setLoading(true);
         const yieldVal = parseFloat(newYield);
-        const result = await createCommodity(newCommodity, isNaN(yieldVal) ? 100 : yieldVal);
+        const wastageVal = parseFloat(newWastage);
+        const result = await createCommodity(
+            newCommodity,
+            isNaN(yieldVal) ? 100 : yieldVal,
+            isNaN(wastageVal) ? 0 : wastageVal
+        );
 
         if (result.success && result.data) {
             toast.success("Commodity added");
             setNewCommodity('');
             setNewYield('100');
+            setNewWastage('0');
             loadCommodities();
         } else {
             toast.error(result.error || "Failed to add commodity");
@@ -99,6 +106,14 @@ export default function CommoditiesPage() {
                                 value={newCommodity}
                                 onChange={(e) => setNewCommodity(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                                onBlur={async () => {
+                                    if (!newCommodity.trim()) return;
+                                    const res = await getDefaultWastage(newCommodity);
+                                    if (res.success && res.data) {
+                                        setNewWastage(res.data.defaultWastagePercentage.toString());
+                                        toast.info(`Auto-filled default wastage for ${res.data.commodityName}`);
+                                    }
+                                }}
                             />
                         </div>
                         <div className="grid gap-2 w-[120px]">
@@ -108,6 +123,16 @@ export default function CommoditiesPage() {
                                 placeholder="100"
                                 value={newYield}
                                 onChange={(e) => setNewYield(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                            />
+                        </div>
+                        <div className="grid gap-2 w-[120px]">
+                            <label className="text-sm font-medium">Wastage %</label>
+                            <Input
+                                type="number"
+                                placeholder="0"
+                                value={newWastage}
+                                onChange={(e) => setNewWastage(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
                             />
                         </div>

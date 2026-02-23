@@ -249,3 +249,23 @@ export async function deleteVarietyForm(id: string) {
         return { success: false, error: "Failed to delete variety form" };
     }
 }
+
+// Default Wastage Reference Actions
+
+export async function getDefaultWastage(commodityName: string) {
+    if (!commodityName || commodityName.trim() === "") return { success: true, data: null };
+    try {
+        const reference = await prisma.defaultWastageReference.findFirst({
+            where: {
+                commodityName: {
+                    equals: commodityName.trim(),
+                    mode: 'insensitive' // case-insensitive match
+                }
+            }
+        });
+        return { success: true, data: reference };
+    } catch (error) {
+        console.error("Failed to fetch default wastage:", error);
+        return { success: false, error: "Failed to fetch default wastage" };
+    }
+}
