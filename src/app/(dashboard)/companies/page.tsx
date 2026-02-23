@@ -15,6 +15,8 @@ import { SearchInput } from "@/components/search-input";
 import { CompanyDialog } from "./_components/company-dialog";
 import { CompanyRow } from "./_components/company-row";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+import { ExportButton } from "./_components/export-button";
+import { ImportDialog } from "./_components/import-dialog";
 
 import { getCommodities } from "@/app/actions/commodity";
 import { getCountries } from "@/app/actions/location";
@@ -51,12 +53,8 @@ export default async function CompaniesPage({
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    {/* <CompanyDialog
-                        initialCommodities={initialCommodities}
-                        initialCountries={initialCountries}
-                        trigger={<Button variant="outline"><Plus className="mr-2 h-4 w-4" /> Add Vendor</Button>}
-                        defaultType="VENDOR"
-                    /> */}
+                    <ExportButton />
+                    <ImportDialog />
                     <CompanyDialog
                         initialCommodities={initialCommodities}
                         initialCountries={initialCountries}
