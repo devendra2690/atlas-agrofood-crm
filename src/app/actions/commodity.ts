@@ -8,6 +8,7 @@ export async function getCommodities() {
         const commodities = await prisma.commodity.findMany({
             orderBy: { name: 'asc' },
             include: {
+                forms: true, // Include direct forms
                 varieties: {
                     include: { forms: true }, // Include variety forms
                     orderBy: { name: 'asc' }
@@ -183,7 +184,24 @@ export async function deleteCommodityVariety(id: string) {
     }
 }
 
-// Variety Forms Actions
+// Form Actions
+
+export async function addCommodityForm(commodityId: string, formName: string, yieldPercentage: number, wastagePercentage: number) {
+    try {
+        const form = await prisma.varietyForm.create({
+            data: {
+                commodityId,
+                formName,
+                yieldPercentage,
+                wastagePercentage
+            }
+        });
+        return { success: true, data: form };
+    } catch (error) {
+        console.error("Failed to add commodity form:", error);
+        return { success: false, error: "Failed to add commodity form" };
+    }
+}
 
 export async function addVarietyForm(varietyId: string, formName: string, yieldPercentage: number, wastagePercentage: number) {
     try {

@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { ManageVarietiesDialog } from './_components/manage-varieties-dialog';
 import { EditCommodityDialog } from './_components/edit-commodity-dialog';
 import { TemplateEditorDialog } from './_components/template-editor-dialog';
+import { CommodityConfigDialog } from './_components/commodity-config-dialog';
 
 type Commodity = {
     id: string;
@@ -26,6 +27,9 @@ export default function CommoditiesPage() {
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+
+    const [configOpen, setConfigOpen] = useState(false);
+    const [selectedCommodity, setSelectedCommodity] = useState<Commodity | null>(null);
 
     async function loadCommodities() {
         setFetching(true);
@@ -150,6 +154,16 @@ export default function CommoditiesPage() {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setSelectedCommodity(commodity);
+                                                    setConfigOpen(true);
+                                                }}
+                                            >
+                                                Base Forms
+                                            </Button>
                                             <Link href={`/documents/commodity/${commodity.id}`}>
                                                 <Button variant="ghost" size="sm">
                                                     <Printer className="h-4 w-4" />
@@ -181,6 +195,17 @@ export default function CommoditiesPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {selectedCommodity && (
+                <CommodityConfigDialog
+                    open={configOpen}
+                    onOpenChange={setConfigOpen}
+                    commodity={selectedCommodity as any}
+                    onSuccess={() => {
+                        loadCommodities();
+                    }}
+                />
+            )}
         </div>
     );
 }

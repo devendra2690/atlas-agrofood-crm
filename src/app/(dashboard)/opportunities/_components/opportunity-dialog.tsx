@@ -159,7 +159,9 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
         if (['quantity', 'commodityId', 'varietyId', 'varietyFormId'].includes(field)) {
             const it = newItems[index];
             if (it.quantity && it.commodityId) {
-                let yieldPerc = availableCommodities.find(c => c.id === it.commodityId)?.yieldPercentage || 100;
+                const commodity = availableCommodities.find(c => c.id === it.commodityId);
+                let yieldPerc = commodity?.yieldPercentage || 100;
+
                 if (it.varietyId && varietiesMap[it.commodityId]) {
                     const variety = varietiesMap[it.commodityId].find((v: any) => v.id === it.varietyId);
                     if (variety) {
@@ -169,7 +171,11 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                             else if (variety.yieldPercentage) yieldPerc = variety.yieldPercentage;
                         } else if (variety.yieldPercentage) yieldPerc = variety.yieldPercentage;
                     }
+                } else if (!it.varietyId && it.varietyFormId && commodity?.forms) {
+                    const form = commodity.forms.find((f: any) => f.id === it.varietyFormId);
+                    if (form?.yieldPercentage) yieldPerc = form.yieldPercentage;
                 }
+
                 const qtyNum = parseFloat(it.quantity);
                 if (!isNaN(qtyNum)) {
                     newItems[index].procurementQuantity = (qtyNum * (100 / yieldPerc)).toFixed(2);
@@ -365,9 +371,10 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                         </div>
 
                         {items.map((item, index) => {
+                            const commodityObj = availableCommodities.find(c => c.id === item.commodityId);
                             const availableVarieties = varietiesMap[item.commodityId] || [];
                             const varietyObj = availableVarieties.find((v: any) => v.id === item.varietyId);
-                            const availableForms = varietyObj?.forms || [];
+                            const availableForms = item.varietyId ? (varietyObj?.forms || []) : (commodityObj?.forms || []);
 
                             return (
                                 <Card key={item.localId} className="relative overflow-visible">

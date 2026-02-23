@@ -332,6 +332,7 @@ model Commodity {
    salesOpportunityItems SalesOpportunityItem[]
    procurementProjects ProcurementProject[]
    varieties         CommodityVariety[] // NEW
+   forms             VarietyForm[]      // Direct forms for this commodity
    documentTemplate  Json?     // Stores { sections: [...] } for document generation
  }
  
@@ -354,15 +355,22 @@ model Commodity {
 
  model VarietyForm {
    id                String           @id @default(uuid())
-   varietyId         String
+   
+   // A form can belong to a specific variety OR directly to the base commodity
+   varietyId         String?
+   variety           CommodityVariety? @relation(fields: [varietyId], references: [id], onDelete: Cascade)
+   
+   commodityId       String?
+   commodity         Commodity?        @relation(fields: [commodityId], references: [id], onDelete: Cascade)
+
    formName          String
    yieldPercentage   Float            @default(100.0)
    wastagePercentage Float            @default(0.0)
    
-   variety           CommodityVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
    salesOpportunityItems SalesOpportunityItem[]
 
    @@unique([varietyId, formName])
+   @@unique([commodityId, formName])
  }
  
  model VendorVariety {
