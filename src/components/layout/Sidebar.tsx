@@ -25,7 +25,8 @@ import {
     MessageSquare,
     Megaphone,
     LineChart,
-    Calculator
+    Calculator,
+    Receipt
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -69,6 +70,7 @@ const sidebarItems = [
             { name: "Invoices (AR)", href: "/invoices", icon: FileText },
             { name: "Bills (AP)", href: "/bills", icon: CreditCard },
             { name: "Profitability", href: "/finance", icon: DollarSign },
+            { name: "SplitWise", href: "/expenses", icon: Receipt },
         ]
     },
     {

@@ -142,6 +142,14 @@ model User {
   createdInteractions InteractionLog[] @relation("CreatedInteraction")
   updatedInteractions InteractionLog[] @relation("UpdatedInteraction")
 
+  // Splitwise Relations
+  expensesPaid Expense[] @relation("ExpensesPaid")
+  createdExpenses Expense[] @relation("ExpenseCreatedBy")
+  updatedExpenses Expense[] @relation("ExpenseUpdatedBy")
+  expenseSplitsOwed ExpenseSplit[] @relation("ExpenseSplitsOwed")
+  settlementsPaid ExpenseSettlement[] @relation("SettlementsPaid")
+  settlementsReceived ExpenseSettlement[] @relation("SettlementsReceived")
+
   @@index([email])
   @@index([role])
   
@@ -458,6 +466,19 @@ model SalesOpportunity {
   notes              String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+
+  // --- LEGACY MIGRATION FIELDS ---
+  // These fields are temporarily retained to prevent data loss when pushing to Production.
+  // DO NOT USE THESE IN NEW CODE. Use the `items` array instead.
+  legacyProductName        String? @map("productName")
+  legacyTargetPrice        Decimal? @map("targetPrice")
+  legacyPriceType          OpportunityPriceType? @default(PER_KG) @map("priceType")
+  legacyQuantity           Decimal? @map("quantity")
+  legacyProcurementQuantity Decimal? @map("procurementQuantity")
+  legacyCommodityId        String? @map("commodityId")
+  legacyVarietyId          String? @map("varietyId")
+  legacyVarietyFormId      String? @map("varietyFormId")
+  // -------------------------------
 
   // Bridge to Procurement
   procurementProjectId String?
@@ -826,4 +847,78 @@ enum TodoPriority {
 enum TodoType {
   NOTE
   TASK
+}
+
+// ==========================================
+// INTERNAL EXPENSE SHARING (SPLITWISE)
+// ==========================================
+
+model Expense {
+  id          String   @id @default(uuid())
+  description String
+  totalAmount Decimal
+  date        DateTime @default(now())
+  receiptUrl  String?
+  category    String?  @default("General")
+  
+  // The user who fronted the money
+  paidById    String
+  paidBy      User     @relation("ExpensesPaid", fields: [paidById], references: [id])
+  
+  // The exact mathematical split of who owes what for this expense
+  splits      ExpenseSplit[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Audit trails
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?   @relation("ExpenseUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([paidById])
+  @@index([date])
+}
+
+model ExpenseSplit {
+  id          String   @id @default(uuid())
+  expenseId   String
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  
+  // The user who is responsible for this portion of the bill
+  userId      String
+  user        User     @relation("ExpenseSplitsOwed", fields: [userId], references: [id])
+  
+  // The exact amount this specific user was responsible for within the main Expense
+  owedAmount  Decimal
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([expenseId, userId]) // A user should only have one explicit split row per expense
+  @@index([userId])
+}
+
+model ExpenseSettlement {
+  id          String   @id @default(uuid())
+  amount      Decimal
+  date        DateTime @default(now())
+  method      String?  @default("Cash") // e.g. "Cash", "Bank Transfer", "Venmo"
+  notes       String?
+
+  // The user who is sending the money to clear their debt
+  payerId     String
+  payer       User     @relation("SettlementsPaid", fields: [payerId], references: [id])
+  
+  // The user who receives the money
+  payeeId     String
+  payee       User     @relation("SettlementsReceived", fields: [payeeId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([payerId])
+  @@index([payeeId])
+  @@index([date])
 }
