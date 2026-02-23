@@ -34,6 +34,7 @@ interface Commodity {
     id: string;
     name: string;
     yieldPercentage?: number;
+    forms?: any[];
 }
 
 interface CompanyOption {
