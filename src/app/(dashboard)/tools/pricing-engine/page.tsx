@@ -79,9 +79,11 @@ export default function QuoteCalculatorPage() {
         // Yield (Specificity: Form -> Base Form -> Base Commodity Yield)
         const formYield = selectedForm.yieldPercentage || selectedCommodity.yieldPercentage || 100;
 
-        // 2. Waterfall Math Gates
-        // Calculate securely as one continuous float to prevent mid-step rounding logic drop-offs
-        const finalOutputKg = rawWeight * (1 - (cmWastageIdx / 100)) * (1 - (vWastageIdx / 100)) * (formYield / 100);
+        // 2. Waterfall Math Gates (Raw -> Cleaned -> Peeled -> Dehydrated)
+        const w1 = rawWeight * (1 - (cmWastageIdx / 100)); // Cleaned weight
+        const w2 = w1 * (1 - (vWastageIdx / 100));         // Peeled/Processed weight
+        // The final dehydration factor must only apply to the peeled weight
+        const finalOutputKg = w2 * (formYield / 100);
 
         if (finalOutputKg <= 0) return null;
 
@@ -100,7 +102,7 @@ export default function QuoteCalculatorPage() {
             const name = selectedCommodity.name.toLowerCase();
 
             if (cat === 'Leafy' || name.includes('spinach') || name.includes('moringa')) baseUnits = 70;
-            else if (cat === 'Bulb' || name.includes('onion') || name.includes('garlic')) baseUnits = 115;
+            else if (cat === 'Bulb' || name.includes('onion') || name.includes('garlic')) baseUnits = 130; // Onion needs 130 units
             else if (cat === 'Root' || name.includes('beet') || name.includes('ginger') || name.includes('potato')) baseUnits = 150;
             else if (cat === 'Fruit' || name.includes('banana') || name.includes('tomato') || name.includes('apple')) baseUnits = 220;
             else baseUnits = 150; // Generic fallback if all else fails so Solar always works

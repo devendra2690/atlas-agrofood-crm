@@ -216,13 +216,13 @@ const commoditiesRaw = [
     },
     {
         name: "Onion",
-        baseWastage: 15,
+        baseWastage: 2, // 2% cleaning wastage
         forms: [
-            { formName: "Dehydrated Flakes/Kibbled", yield: 10, wastage: 15 },
-            { formName: "Powder", yield: 8, wastage: 16 },
-            { formName: "Minced", yield: 9, wastage: 15 },
-            { formName: "Paste", yield: 80, wastage: 15 },
-            { formName: "Fried (Birista)", yield: 25, wastage: 15 }
+            { formName: "Dehydrated Flakes/Kibbled", yield: 10, wastage: 18 },
+            { formName: "Powder", yield: 11, wastage: 18 }, // 18% peeling wastage, 11% yield
+            { formName: "Minced", yield: 9, wastage: 18 },
+            { formName: "Paste", yield: 80, wastage: 18 },
+            { formName: "Fried (Birista)", yield: 25, wastage: 18 }
         ]
     },
     {

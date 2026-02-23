@@ -34,7 +34,7 @@ async function main() {
             name.includes('garlic')
         ) {
             category = "Bulb";
-            baseUnits = 115.0;
+            baseUnits = name.includes('onion') ? 130.0 : 115.0;
         } else if (
             name.includes('potato') ||
             name.includes('beet') ||
