@@ -17,7 +17,11 @@ import { importCompanies } from "@/app/actions/import";
 
 import { ImportResult } from "@/app/actions/import";
 
-export function ImportDialog() {
+interface ImportDialogProps {
+    isVendor?: boolean;
+}
+
+export function ImportDialog({ isVendor = false }: ImportDialogProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [file, setFile] = useState<File | null>(null);
@@ -61,8 +65,9 @@ export function ImportDialog() {
             // Next.js Server Actions ONLY accept plain objects
             rows = JSON.parse(JSON.stringify(rows));
 
-            // Call server action
-            const result = await importCompanies(rows);
+            // Call server action with context type validation
+            const requiredType = isVendor ? "VENDOR" : "CLIENT_PROSPECT";
+            const result = await importCompanies(rows, requiredType);
 
             if (result.success) {
                 toast.success(`Successfully imported ${result.importedCount} companies.`);
@@ -110,7 +115,7 @@ export function ImportDialog() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Import Clients & Prospects</DialogTitle>
+                    <DialogTitle>{isVendor ? "Import Vendors" : "Import Clients & Prospects"}</DialogTitle>
                     <DialogDescription>
                         Upload a populated template `.xlsx` file to bulk insert records. Need the template? Use the Export button first.
                     </DialogDescription>

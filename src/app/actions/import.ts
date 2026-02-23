@@ -12,7 +12,7 @@ export type ImportResult = {
     errors: { row: number; reason: string }[];
 };
 
-export async function importCompanies(rows: any[]): Promise<ImportResult> {
+export async function importCompanies(rows: any[], requireType?: "VENDOR" | "CLIENT_PROSPECT"): Promise<ImportResult> {
     const result: ImportResult = {
         success: false,
         importedCount: 0,
@@ -37,7 +37,7 @@ export async function importCompanies(rows: any[]): Promise<ImportResult> {
             const rawSystemId = row["System ID (Do Not Modify)"];
             const rawName = row["Company Name*"];
             const rawType = row["Type*"];
-            const rawPhone = row["Phone"];
+            const rawPhone = row["Phone*"] || row["Phone"]; // Fallback to old "Phone" column if using old template
             const rawEmail = row["Email"];
             const rawWebsite = row["Website"];
             const rawContact = row["Contact Name"];
@@ -60,15 +60,31 @@ export async function importCompanies(rows: any[]): Promise<ImportResult> {
                 type = typeUpper as CompanyType;
             } else if (rawType) {
                 // If they provided a type but it's invalid, and it's not empty, error
-                result.errors.push({ row: rowNumber, reason: `Invalid Type "${rawType}". Must be CLIENT, PROSPECT, VENDOR, or PARTNER.` });
+                result.errors.push({ row: rowNumber, reason: `[${name}] Invalid Type "${rawType}". Must be CLIENT, PROSPECT, VENDOR, or PARTNER.` });
                 continue;
             } else {
-                result.errors.push({ row: rowNumber, reason: "Missing required Type (CLIENT or PROSPECT)" });
+                result.errors.push({ row: rowNumber, reason: `[${name}] Missing required Type column` });
+                continue;
+            }
+
+            // Enforce context-based type restrictions (e.g. uploading a VENDOR on the Clients page)
+            if (requireType === "VENDOR" && type !== "VENDOR") {
+                result.errors.push({ row: rowNumber, reason: `[${name}] This portal only accepts Vendors. Found Type "${type}".` });
+                continue;
+            }
+            if (requireType === "CLIENT_PROSPECT" && type !== "CLIENT" && type !== "PROSPECT") {
+                result.errors.push({ row: rowNumber, reason: `[${name}] This portal only accepts Clients & Prospects. Found Type "${type}".` });
                 continue;
             }
 
             // Optional string cleanups
             const phone = rawPhone ? String(rawPhone).trim() : undefined;
+
+            if (!phone) {
+                result.errors.push({ row: rowNumber, reason: `[${name}] Missing required Phone number` });
+                continue;
+            }
+
             const email = rawEmail ? String(rawEmail).trim() : undefined;
             const website = rawWebsite ? String(rawWebsite).trim() : undefined;
             const contactName = rawContact ? String(rawContact).trim() : undefined;
@@ -87,7 +103,7 @@ export async function importCompanies(rows: any[]): Promise<ImportResult> {
                         where: { name: { equals: countryName, mode: "insensitive" } }
                     });
                     if (!country) {
-                        result.errors.push({ row: rowNumber, reason: `Country "${countryName}" not found in system. Please add it first.` });
+                        result.errors.push({ row: rowNumber, reason: `[${name}] Country "${countryName}" not found in system. Please add it first.` });
                         continue;
                     }
                     countryId = country.id;
@@ -99,7 +115,7 @@ export async function importCompanies(rows: any[]): Promise<ImportResult> {
                             where: { name: { equals: stateName, mode: "insensitive" }, countryId }
                         });
                         if (!state) {
-                            result.errors.push({ row: rowNumber, reason: `State "${stateName}" not found under Country "${countryName}". Please add it first.` });
+                            result.errors.push({ row: rowNumber, reason: `[${name}] State "${stateName}" not found under Country "${countryName}". Please add it first.` });
                             continue;
                         }
                         stateId = state.id;
@@ -111,7 +127,7 @@ export async function importCompanies(rows: any[]): Promise<ImportResult> {
                                 where: { name: { equals: cityName, mode: "insensitive" }, stateId }
                             });
                             if (!city) {
-                                result.errors.push({ row: rowNumber, reason: `City "${cityName}" not found under State "${stateName}". Please add it first.` });
+                                result.errors.push({ row: rowNumber, reason: `[${name}] City "${cityName}" not found under State "${stateName}". Please add it first.` });
                                 continue;
                             }
                             cityId = city.id;
@@ -129,7 +145,7 @@ export async function importCompanies(rows: any[]): Promise<ImportResult> {
                             where: { name: { equals: cn, mode: "insensitive" } }
                         });
                         if (!commodity) {
-                            result.errors.push({ row: rowNumber, reason: `Commodity "${cn}" not found in system. Please add it first.` });
+                            result.errors.push({ row: rowNumber, reason: `[${name}] Commodity "${cn}" not found in system. Please add it first.` });
                             commodityError = true;
                             break;
                         }
@@ -204,11 +220,11 @@ export async function importCompanies(rows: any[]): Promise<ImportResult> {
                 console.error(`Error importing row ${rowNumber}:`, err);
                 // Prisma uniqueness constraints or string too long, etc
                 if (err.code === 'P2002' && err.meta?.target?.includes('phone')) {
-                    result.errors.push({ row: rowNumber, reason: `Phone number ${phone} is already registered to another company.` });
+                    result.errors.push({ row: rowNumber, reason: `[${name}] Phone number ${phone} is already registered to another company.` });
                 } else if (err.code === 'P2025' && finalSystemId) {
-                    result.errors.push({ row: rowNumber, reason: `Company with ID ${finalSystemId} not found to update.` });
+                    result.errors.push({ row: rowNumber, reason: `[${name}] Company with ID ${finalSystemId} not found to update.` });
                 } else {
-                    result.errors.push({ row: rowNumber, reason: `Database Insertion Error: ${err.message || String(err)}` });
+                    result.errors.push({ row: rowNumber, reason: `[${name}] Database Insertion Error: ${err.message || String(err)}` });
                 }
             }
         }

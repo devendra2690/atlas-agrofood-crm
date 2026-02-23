@@ -14,15 +14,20 @@ export async function GET(request: Request) {
 
         const url = new URL(request.url);
         const templateOnly = url.searchParams.get("template") === "true";
+        const requestedType = url.searchParams.get("type"); // "vendor" or default
 
         let dataRows: any[] = [];
 
+        const isVendorView = requestedType === "vendor";
+        const targetTypes = isVendorView ? ["VENDOR"] : ["CLIENT", "PROSPECT"];
+        const sheetTitle = isVendorView ? "Vendors" : "Clients & Prospects";
+
         if (!templateOnly) {
-            // Fetch existing Clients and Prospects
+            // Fetch existing records
             const companies = await prisma.company.findMany({
                 where: {
                     type: {
-                        in: ["CLIENT", "PROSPECT"]
+                        in: targetTypes as any
                     }
                 },
                 include: {
@@ -40,7 +45,7 @@ export async function GET(request: Request) {
                 "System ID (Do Not Modify)": company.id,
                 "Company Name*": company.name,
                 "Type*": company.type,
-                "Phone": company.phone || "",
+                "Phone*": company.phone || "",
                 "Email": company.email || "",
                 "Website": company.website || "",
                 "Contact Name": company.contactName || "",
@@ -56,9 +61,9 @@ export async function GET(request: Request) {
             dataRows = [
                 {
                     "System ID (Do Not Modify)": "",
-                    "Company Name*": "Example Corp (Required)",
-                    "Type*": "CLIENT", // or PROSPECT
-                    "Phone": "+1234567890",
+                    "Company Name*": isVendorView ? "Example Logistics Vendor (Required)" : "Example Corp (Required)",
+                    "Type*": isVendorView ? "VENDOR" : "CLIENT", // or PROSPECT
+                    "Phone*": "+1234567890",
                     "Email": "info@example.com",
                     "Website": "www.example.com",
                     "Contact Name": "John Doe",
@@ -73,7 +78,7 @@ export async function GET(request: Request) {
         // Create a new workbook and worksheet
         const worksheet = XLSX.utils.json_to_sheet(dataRows);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Clients & Prospects");
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetTitle);
 
         // Adjust column widths for better readability
         const colWidths = [
@@ -94,9 +99,11 @@ export async function GET(request: Request) {
         // Generate buffer
         const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 
+        const filename = isVendorView ? "Vendor_Data.xlsx" : "Client_Prospect_Data.xlsx";
+
         // Set headers for download
         const headers = new Headers();
-        headers.append("Content-Disposition", 'attachment; filename="Client_Prospect_Data.xlsx"');
+        headers.append("Content-Disposition", `attachment; filename="${filename}"`);
         headers.append("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
         return new NextResponse(buffer, {

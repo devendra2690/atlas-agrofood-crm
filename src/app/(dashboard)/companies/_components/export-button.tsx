@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-export function ExportButton() {
+export function ExportButton({ isVendor = false }: { isVendor?: boolean }) {
     const [loading, setLoading] = useState(false);
 
     const handleExport = async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/companies/export");
+            const endpoint = isVendor ? "/api/companies/export?type=vendor" : "/api/companies/export";
+            const res = await fetch(endpoint);
             if (!res.ok) {
                 toast.error("Failed to generate export file.");
                 return;
@@ -21,7 +22,7 @@ export function ExportButton() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = "Client_Prospect_Data.xlsx";
+            a.download = isVendor ? "Vendor_Data.xlsx" : "Client_Prospect_Data.xlsx";
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
