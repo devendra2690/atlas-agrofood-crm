@@ -227,12 +227,12 @@ const commoditiesRaw = [
     },
     {
         name: "Garlic",
-        baseWastage: 20,
+        baseWastage: 2,
         forms: [
-            { formName: "Dehydrated Flakes", yield: 20, wastage: 20 },
-            { formName: "Powder", yield: 18, wastage: 22 },
-            { formName: "Paste", yield: 75, wastage: 20 },
-            { formName: "Peeled Cloves", yield: 78, wastage: 22 }
+            { formName: "Dehydrated Flakes", yield: 20, wastage: 15 },
+            { formName: "Powder", yield: 19, wastage: 15 },
+            { formName: "Paste", yield: 75, wastage: 15 },
+            { formName: "Peeled Cloves", yield: 78, wastage: 15 }
         ]
     },
     {
@@ -255,9 +255,9 @@ const commoditiesRaw = [
     },
     {
         name: "Ginger",
-        baseWastage: 20,
+        baseWastage: 5,
         forms: [
-            { formName: "Powder (Dry Ginger/Saunth)", yield: 15, wastage: 22 },
+            { formName: "Powder (Dry Ginger/Saunth)", yield: 20, wastage: 12 },
             { formName: "Paste", yield: 75, wastage: 20 },
             { formName: "Dehydrated Flakes", yield: 18, wastage: 20 }
         ]
@@ -426,7 +426,10 @@ const commoditiesRaw = [
     {
         name: "Cluster Beans",
         baseWastage: 15,
-        forms: []
+        forms: [
+            { formName: "Guar Gum (Powder)", yield: 28, wastage: 15 },
+            { formName: "Dehydrated Clusters", yield: 18, wastage: 15 }
+        ]
     },
     {
         name: "Drumstick",
@@ -434,6 +437,13 @@ const commoditiesRaw = [
         forms: [
             { formName: "Scraped Pulp", yield: 25, wastage: 70 },
             { formName: "Leaf Powder (Moringa)", yield: 15, wastage: 10 }
+        ]
+    },
+    {
+        name: "Moringa Leaves",
+        baseWastage: 10,
+        forms: [
+            { formName: "Powder", yield: 24, wastage: 35 }
         ]
     },
     {
@@ -447,7 +457,10 @@ const commoditiesRaw = [
     {
         name: "Yam",
         baseWastage: 20,
-        forms: []
+        forms: [
+            { formName: "Powder", yield: 22, wastage: 20 },
+            { formName: "Chips", yield: 25, wastage: 20 }
+        ]
     },
     {
         name: "Colocasia",
@@ -604,13 +617,11 @@ async function main() {
         // 2. Upsert the associated Forms
         for (const form of item.forms) {
             // Find existing
-            const existingForm = await prisma.varietyForm.findUnique({
+            const existingForm = await prisma.varietyForm.findFirst({
                 where: {
-                    commodityId_formName: {
-                        commodityId: commodity.id,
-                        formName: form.formName
-                    }
-                }
+                    commodityId: commodity.id,
+                    formName: form.formName
+                } as any
             });
 
             if (existingForm) {
@@ -628,7 +639,7 @@ async function main() {
                         formName: form.formName,
                         yieldPercentage: form.yield,
                         wastagePercentage: form.wastage
-                    }
+                    } as any // Bypass strict TS checks for seed script
                 });
                 formCount++;
             }

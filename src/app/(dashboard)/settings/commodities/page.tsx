@@ -14,6 +14,7 @@ import { ManageVarietiesDialog } from './_components/manage-varieties-dialog';
 import { EditCommodityDialog } from './_components/edit-commodity-dialog';
 import { TemplateEditorDialog } from './_components/template-editor-dialog';
 import { CommodityConfigDialog } from './_components/commodity-config-dialog';
+import { DataManagement } from './_components/data-management';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -104,6 +105,8 @@ export default function CommoditiesPage() {
                     Manage the list of commodities and their yield settings (Raw Material Conversion).
                 </p>
             </div>
+
+            <DataManagement />
 
             <Card>
                 <CardHeader>

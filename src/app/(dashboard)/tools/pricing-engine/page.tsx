@@ -71,13 +71,19 @@ export default function QuoteCalculatorPage() {
         const rate = parseFloat(mandiRate) || 0;
         const rawWeight = 300; // Fixed Batch Size
 
-        // 1. Hierarchical Lookup
-        // Wastage
+        // Wastage (Specificity: Form -> Variety -> Commodity)
         const cmWastageIdx = selectedCommodity.wastagePercentage || 0;
-        const vWastageIdx = selectedVariety?.wastagePercentage || 0;
+        let vWastageIdx = selectedForm?.wastagePercentage || selectedVariety?.wastagePercentage || 0;
 
         // Yield (Specificity: Form -> Base Form -> Base Commodity Yield)
         const formYield = selectedForm.yieldPercentage || selectedCommodity.yieldPercentage || 100;
+
+        // --- BUG FIX: DOUBLE COUNTING YIELD ---
+        // If a user enters wastage percentage as the exact inverse of yield percentage (e.g. 72% wastage and 28% yield),
+        // they are conceptually mapping dehydration loss entirely. Applying both would square the yield reduction.
+        if (Math.abs(vWastageIdx + formYield - 100) < 0.01) {
+            vWastageIdx = 0; // Ignore the prep wastage step if it's just the inverse of the final yield
+        }
 
         // 2. Waterfall Math Gates (Raw -> Cleaned -> Peeled -> Dehydrated)
         const w1 = rawWeight * (1 - (cmWastageIdx / 100)); // Cleaned weight
@@ -111,9 +117,9 @@ export default function QuoteCalculatorPage() {
         const powerFactor = powerSource === 'solar' ? 0.4 : 1.0;
         const effectiveBaseUnits = baseUnits * powerFactor;
 
-        // Grinding Units (from Form multiplier)
-        const formElecMultiplier = selectedForm.formElectricityMultiplier || 0;
-        const grindingUnits = finalOutputKg * formElecMultiplier;
+        // Grinding Units: Global 10% extra of Base Units if Output Form is 'Powder'
+        const isPowder = selectedForm?.formName?.toLowerCase().includes('powder');
+        const grindingUnits = isPowder ? (baseUnits * 0.10) : 0;
 
         // Total Electricity
         const totalEnergyUnits = effectiveBaseUnits + grindingUnits;
