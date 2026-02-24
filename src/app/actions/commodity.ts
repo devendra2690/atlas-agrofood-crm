@@ -301,3 +301,13 @@ export async function getDefaultWastage(commodityName: string) {
         return { success: false, error: "Failed to fetch default wastage" };
     }
 }
+
+export async function getAllDefaultWastages() {
+    try {
+        const data = await prisma.defaultWastageReference.findMany();
+        return { success: true, data };
+    } catch (error) {
+        console.error("Failed to fetch all default wastages:", error);
+        return { success: false, error: "Failed to fetch all default wastages" };
+    }
+}

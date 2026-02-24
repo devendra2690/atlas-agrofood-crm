@@ -10,7 +10,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, HelpCircle } from "lucide-react";
-import { getCommodities } from "@/app/actions/commodity";
+import { getCommodities, getAllDefaultWastages } from "@/app/actions/commodity";
 import { toast } from "sonner";
 import { generateQuotationPDF } from "@/lib/pdf-generator";
 import { Download } from "lucide-react";
@@ -18,6 +18,7 @@ import { Download } from "lucide-react";
 export default function QuoteCalculatorPage() {
     const [loading, setLoading] = useState(true);
     const [commodities, setCommodities] = useState<any[]>([]);
+    const [defaultWastages, setDefaultWastages] = useState<any[]>([]);
 
     // Form State
     const [commodityId, setCommodityId] = useState<string>("");
@@ -29,12 +30,21 @@ export default function QuoteCalculatorPage() {
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const result = await getCommodities();
-            if (result.success && result.data) {
-                setCommodities(result.data);
+            const [commRes, wastRes] = await Promise.all([
+                getCommodities(),
+                getAllDefaultWastages()
+            ]);
+
+            if (commRes.success && commRes.data) {
+                setCommodities(commRes.data);
             } else {
                 toast.error("Failed to load generic commodities");
             }
+
+            if (wastRes.success && wastRes.data) {
+                setDefaultWastages(wastRes.data);
+            }
+
             setLoading(false);
         }
         load();
@@ -72,7 +82,17 @@ export default function QuoteCalculatorPage() {
         const rawWeight = 300; // Fixed Batch Size
 
         // Wastage (Specificity: Form -> Variety -> Commodity)
-        const cmWastageIdx = selectedCommodity.wastagePercentage || 0;
+        let cmWastageIdx = selectedCommodity.wastagePercentage || 0;
+
+        // --- FEATURE: Priority Default Wastage Override ---
+        // If the commodity name exists in the DefaultWastageReference table, use its percentage instead of the base Commodity table
+        const defaultWastageForCommodity = defaultWastages.find(
+            d => d.commodityName.toLowerCase() === selectedCommodity.name.toLowerCase()
+        );
+        if (defaultWastageForCommodity) {
+            cmWastageIdx = defaultWastageForCommodity.defaultWastagePercentage;
+        }
+
         let vWastageIdx = selectedForm?.wastagePercentage || selectedVariety?.wastagePercentage || 0;
 
         // Yield (Specificity: Form -> Base Form -> Base Commodity Yield)
