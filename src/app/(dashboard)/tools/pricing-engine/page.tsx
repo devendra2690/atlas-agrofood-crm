@@ -353,6 +353,15 @@ export default function QuoteCalculatorPage() {
                                         <div>
                                             <p className="text-slate-500 mb-1">Batch Yield (300kg)</p>
                                             <p className="font-medium text-lg">{result.finalOutputKg.toFixed(2)} <span className="text-slate-400 text-sm">kg</span></p>
+
+                                            {/* Waterfall Math Breakdown */}
+                                            <div className="mt-2 pt-2 border-t border-slate-700 text-[10px] text-slate-500 space-y-0.5 font-mono tracking-tighter">
+                                                <p>1. Clean: 300kg &times; {100 - result.cmWastageIdx}% = {(result.rawWeight * (1 - result.cmWastageIdx / 100)).toFixed(1)}kg</p>
+                                                {result.vWastageIdx > 0 && (
+                                                    <p>2. Prep: {(result.rawWeight * (1 - result.cmWastageIdx / 100)).toFixed(1)}kg &times; {100 - result.vWastageIdx}% = {(result.rawWeight * (1 - result.cmWastageIdx / 100) * (1 - result.vWastageIdx / 100)).toFixed(1)}kg</p>
+                                                )}
+                                                <p>{result.vWastageIdx > 0 ? '3.' : '2.'} Yield: {(result.rawWeight * (1 - result.cmWastageIdx / 100) * (1 - result.vWastageIdx / 100)).toFixed(1)}kg &times; {result.formYield}% = {result.finalOutputKg.toFixed(2)}kg</p>
+                                            </div>
                                         </div>
                                         <div>
                                             <p className="text-slate-500 mb-1">TCP per Batch</p>
