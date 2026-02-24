@@ -137,18 +137,20 @@ export default function QuoteCalculatorPage() {
         const powerFactor = powerSource === 'solar' ? 0.4 : 1.0;
         const effectiveBaseUnits = baseUnits * powerFactor;
 
-        // Grinding Units: Global 10% extra of Base Units if Output Form is 'Powder'
-        const isPowder = selectedForm?.formName?.toLowerCase().includes('powder');
-        const grindingUnits = isPowder ? (baseUnits * 0.10) : 0;
+        // Mechanical Processing Rule: Global 10% extra of Base Units for Milling/Slicing
+        const grindingUnits = baseUnits * 0.10;
 
         // Total Electricity
         const totalEnergyUnits = effectiveBaseUnits + grindingUnits;
         const elecRate = 8.32; // Real-world Buldhana rate
         const electricityCost = totalEnergyUnits * elecRate;
 
-        // 5. Total TCP & Unit Cost
+        // 5. Total TCP & Factory Cost per KG
         const tcpAmount = rmCost + laborCost + overheadCost + electricityCost;
-        const baseUnitCost = tcpAmount / finalOutputKg;
+        const factoryCostPerKg = tcpAmount / finalOutputKg;
+
+        // 6. Margin & Rounding
+        const baseUnitCost = factoryCostPerKg * 1.18; // Apply 18% margin at the very end
 
         return {
             rawWeight,
@@ -159,6 +161,7 @@ export default function QuoteCalculatorPage() {
             overheadCost,
             tcpAmount,
             baseUnitCost,
+            factoryCostPerKg, // For UI reference if needed
             // Math details
             rate,
             cmWastageIdx,
@@ -361,7 +364,10 @@ export default function QuoteCalculatorPage() {
                                     <span className="text-8xl font-serif leading-none">₹</span>
                                 </div>
                                 <CardHeader className="pb-2">
-                                    <CardTitle className="text-xl font-light text-slate-300">Total Factory Cost</CardTitle>
+                                    <div className="flex items-center gap-2">
+                                        <CardTitle className="text-xl font-light text-slate-300">Final Quoted Price</CardTitle>
+                                        <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">18% Margin</span>
+                                    </div>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="flex items-baseline gap-2">
@@ -413,7 +419,7 @@ export default function QuoteCalculatorPage() {
                                                             <span className="font-mono text-orange-400">₹{result.electricityCost.toFixed(2)}</span>
                                                         </div>
                                                         <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                                                            (({result.baseUnits} base + {result.grindingUnits.toFixed(1)} grinding/milling units) × {result.powerFactor}x multiplier × ₹{result.elecRate.toFixed(2)})
+                                                            ((({result.baseUnits} thermal × {result.powerFactor}x) + {result.grindingUnits.toFixed(1)} mechanical) × ₹{result.elecRate.toFixed(2)})
                                                         </div>
                                                     </div>
                                                     <div className="flex flex-col py-1.5 px-3 -mx-3">
@@ -437,6 +443,10 @@ export default function QuoteCalculatorPage() {
                                                     <div className="flex justify-between items-center py-2 mt-2 border-t border-slate-700/50">
                                                         <span className="text-slate-400 font-medium">Total Cost of Production</span>
                                                         <span className="font-mono font-bold text-slate-200">₹{result.tcpAmount.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center py-1 bg-slate-800 px-3 -mx-3 rounded-md">
+                                                        <span className="text-emerald-400/80 font-medium text-[11px] uppercase tracking-wider">Raw Factory Cost / KG</span>
+                                                        <span className="font-mono font-bold text-emerald-400/90 text-sm">₹{result.factoryCostPerKg.toFixed(2)}</span>
                                                     </div>
                                                 </AccordionContent>
                                             </AccordionItem>
