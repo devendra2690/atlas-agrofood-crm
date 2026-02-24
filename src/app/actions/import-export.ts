@@ -167,18 +167,21 @@ export async function importVarieties(rows: any[]) {
             // Resolve Commodity ID
             let validCommodityId = row.commodityId;
             if (row.commodityName) {
-                const c = await prisma.commodity.findFirst({ where: { name: { equals: row.commodityName, mode: 'insensitive' } } });
-                if (c) validCommodityId = c.id;
+                const c = await prisma.commodity.findFirst({ where: { name: { equals: String(row.commodityName).trim(), mode: 'insensitive' } } });
+                if (c) {
+                    validCommodityId = c.id;
+                } else {
+                    return { success: false, error: `Parent commodity name '${row.commodityName}' not found. Please import 'Base Commodities' first!` };
+                }
+            } else if (validCommodityId) {
+                const cExists = await prisma.commodity.findUnique({ where: { id: validCommodityId } });
+                if (!cExists) {
+                    return { success: false, error: `The old Commodity ID for '${row.name}' does not exist on this server. Please re-export your CSV from Dev to include 'commodityName' for auto-mapping.` };
+                }
             }
 
             if (!validCommodityId) {
-                return { success: false, error: `Commodity ID or Name missing for variety '${row.name}'` };
-            }
-
-            // Verify commodity exists
-            const cExists = await prisma.commodity.findUnique({ where: { id: validCommodityId } });
-            if (!cExists) {
-                return { success: false, error: `Parent commodity not found in this environment for variety '${row.name}'. Please map 'commodityName' or re-export from this environment.` };
+                return { success: false, error: `Commodity ID or Name completely missing for variety '${row.name}'` };
             }
 
             if (row.id) {
@@ -230,26 +233,35 @@ export async function importForms(rows: any[]) {
             let validVarietyId = row.varietyId || null;
 
             if (row.commodityName) {
-                const c = await prisma.commodity.findFirst({ where: { name: { equals: row.commodityName, mode: 'insensitive' } } });
-                if (c) validCommodityId = c.id;
+                const c = await prisma.commodity.findFirst({ where: { name: { equals: String(row.commodityName).trim(), mode: 'insensitive' } } });
+                if (c) {
+                    validCommodityId = c.id;
+                } else {
+                    return { success: false, error: `Parent commodity '${row.commodityName}' not found. Please import 'Base Commodities' first!` };
+                }
+            } else if (validCommodityId) {
+                const cExists = await prisma.commodity.findUnique({ where: { id: validCommodityId } });
+                if (!cExists) {
+                    return { success: false, error: `The old Commodity ID for '${row.formName}' does not exist on this server. Please re-export your CSV from Dev to include 'commodityName' for auto-mapping.` };
+                }
             }
+
             if (row.varietyName) {
-                const v = await prisma.commodityVariety.findFirst({ where: { name: { equals: row.varietyName, mode: 'insensitive' } } });
-                if (v) validVarietyId = v.id;
+                const v = await prisma.commodityVariety.findFirst({ where: { name: { equals: String(row.varietyName).trim(), mode: 'insensitive' } } });
+                if (v) {
+                    validVarietyId = v.id;
+                } else {
+                    return { success: false, error: `Parent variety '${row.varietyName}' not found. Please import 'Crop Varieties' first!` };
+                }
+            } else if (validVarietyId) {
+                const vExists = await prisma.commodityVariety.findUnique({ where: { id: validVarietyId } });
+                if (!vExists) {
+                    return { success: false, error: `The old Variety ID for '${row.formName}' does not exist on this server. Please re-export your CSV from Dev to include 'varietyName'.` };
+                }
             }
 
             if (!validCommodityId && !validVarietyId) {
                 return { success: false, error: `Form '${row.formName}' must belong to a valid Commodity or Variety. Both IDs missing or name lookup failed.` };
-            }
-
-            // Verify foreign keys exist in target database before crashing
-            if (validCommodityId) {
-                const c = await prisma.commodity.findUnique({ where: { id: validCommodityId } });
-                if (!c) return { success: false, error: `Commodity ID '${validCommodityId}' not found for form '${row.formName}'. Ensure parent exists or map by 'commodityName'.` };
-            }
-            if (validVarietyId) {
-                const v = await prisma.commodityVariety.findUnique({ where: { id: validVarietyId } });
-                if (!v) return { success: false, error: `Variety ID '${validVarietyId}' not found for form '${row.formName}'. Ensure parent exists or map by 'varietyName'.` };
             }
 
             const yieldPct = parseFloat(row.yieldPercentage) || 100;
