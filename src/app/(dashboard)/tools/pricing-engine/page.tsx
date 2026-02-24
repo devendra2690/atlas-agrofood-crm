@@ -210,7 +210,7 @@ export default function QuoteCalculatorPage() {
             },
             [{
                 productName: productName.trim(),
-                tiers: getQuoteTiers(result.baseUnitCost)
+                tiers: getQuoteTiers(result.factoryCostPerKg)
             }]
         );
     };
@@ -471,7 +471,7 @@ export default function QuoteCalculatorPage() {
                                             PDF
                                         </Button>
                                         <Button
-                                            onClick={() => handleWhatsApp(result.baseUnitCost)}
+                                            onClick={() => handleWhatsApp(result.factoryCostPerKg)}
                                             className="bg-green-600 hover:bg-green-700 text-white"
                                             size="sm"
                                         >
@@ -481,7 +481,7 @@ export default function QuoteCalculatorPage() {
                                 </CardHeader>
                                 <CardContent className="p-0">
                                     <div className="divide-y divide-slate-100">
-                                        {getQuoteTiers(result.baseUnitCost).map((tier, idx) => (
+                                        {getQuoteTiers(result.factoryCostPerKg).map((tier, idx) => (
                                             <div key={idx} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                                                 <div className="flex items-center gap-3">
                                                     <div className="bg-slate-100 text-slate-600 font-semibold px-3 py-1 rounded text-sm min-w-20 text-center">
