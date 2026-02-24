@@ -19,9 +19,20 @@ export async function exportCommodities() {
 
 export async function exportVarieties() {
     try {
-        const data = await prisma.commodityVariety.findMany({
-            orderBy: { name: 'asc' }
+        const rawData = await prisma.commodityVariety.findMany({
+            orderBy: { name: 'asc' },
+            include: { commodity: { select: { name: true } } }
         });
+
+        // Flatten for CSV
+        const data = rawData.map(v => {
+            const { commodity, ...rest } = v;
+            return {
+                ...rest,
+                commodityName: commodity?.name || ''
+            };
+        });
+
         return { success: true, data };
     } catch (error) {
         console.error("Export Varieties Error:", error);
@@ -31,9 +42,23 @@ export async function exportVarieties() {
 
 export async function exportForms() {
     try {
-        const data = await prisma.varietyForm.findMany({
-            orderBy: { formName: 'asc' }
+        const rawData = await prisma.varietyForm.findMany({
+            orderBy: { formName: 'asc' },
+            include: {
+                commodity: { select: { name: true } },
+                variety: { select: { name: true } }
+            }
         });
+
+        const data = rawData.map(f => {
+            const { commodity, variety, ...rest } = f;
+            return {
+                ...rest,
+                commodityName: commodity?.name || '',
+                varietyName: variety?.name || ''
+            };
+        });
+
         return { success: true, data };
     } catch (error) {
         console.error("Export Forms Error:", error);
@@ -134,10 +159,27 @@ export async function importVarieties(rows: any[]) {
     try {
         let imported = 0;
         for (const row of rows) {
-            if (!row.name || !row.commodityId) continue;
+            if (!row.name) continue;
 
             const yieldPct = parseFloat(row.yieldPercentage) || 100;
             const wastagePct = parseFloat(row.wastagePercentage) || 0;
+
+            // Resolve Commodity ID
+            let validCommodityId = row.commodityId;
+            if (row.commodityName) {
+                const c = await prisma.commodity.findFirst({ where: { name: { equals: row.commodityName, mode: 'insensitive' } } });
+                if (c) validCommodityId = c.id;
+            }
+
+            if (!validCommodityId) {
+                return { success: false, error: `Commodity ID or Name missing for variety '${row.name}'` };
+            }
+
+            // Verify commodity exists
+            const cExists = await prisma.commodity.findUnique({ where: { id: validCommodityId } });
+            if (!cExists) {
+                return { success: false, error: `Parent commodity not found in this environment for variety '${row.name}'. Please map 'commodityName' or re-export from this environment.` };
+            }
 
             if (row.id) {
                 const exists = await prisma.commodityVariety.findUnique({ where: { id: row.id } });
@@ -149,7 +191,7 @@ export async function importVarieties(rows: any[]) {
                             description: row.description || null,
                             yieldPercentage: yieldPct,
                             wastagePercentage: wastagePct,
-                            commodityId: row.commodityId
+                            commodityId: validCommodityId
                         }
                     });
                     imported++;
@@ -164,7 +206,7 @@ export async function importVarieties(rows: any[]) {
                     description: row.description || null,
                     yieldPercentage: yieldPct,
                     wastagePercentage: wastagePct,
-                    commodityId: row.commodityId
+                    commodityId: validCommodityId
                 }
             });
             imported++;
@@ -182,8 +224,33 @@ export async function importForms(rows: any[]) {
         let imported = 0;
         for (const row of rows) {
             if (!row.formName) continue;
-            // Must belong to commodity or variety
-            if (!row.commodityId && !row.varietyId) continue;
+
+            // Resolve IDs by name if provided (This makes CSVs portable across environments)
+            let validCommodityId = row.commodityId || null;
+            let validVarietyId = row.varietyId || null;
+
+            if (row.commodityName) {
+                const c = await prisma.commodity.findFirst({ where: { name: { equals: row.commodityName, mode: 'insensitive' } } });
+                if (c) validCommodityId = c.id;
+            }
+            if (row.varietyName) {
+                const v = await prisma.commodityVariety.findFirst({ where: { name: { equals: row.varietyName, mode: 'insensitive' } } });
+                if (v) validVarietyId = v.id;
+            }
+
+            if (!validCommodityId && !validVarietyId) {
+                return { success: false, error: `Form '${row.formName}' must belong to a valid Commodity or Variety. Both IDs missing or name lookup failed.` };
+            }
+
+            // Verify foreign keys exist in target database before crashing
+            if (validCommodityId) {
+                const c = await prisma.commodity.findUnique({ where: { id: validCommodityId } });
+                if (!c) return { success: false, error: `Commodity ID '${validCommodityId}' not found for form '${row.formName}'. Ensure parent exists or map by 'commodityName'.` };
+            }
+            if (validVarietyId) {
+                const v = await prisma.commodityVariety.findUnique({ where: { id: validVarietyId } });
+                if (!v) return { success: false, error: `Variety ID '${validVarietyId}' not found for form '${row.formName}'. Ensure parent exists or map by 'varietyName'.` };
+            }
 
             const yieldPct = parseFloat(row.yieldPercentage) || 100;
             const wastagePct = parseFloat(row.wastagePercentage) || 0;
@@ -199,8 +266,8 @@ export async function importForms(rows: any[]) {
                             yieldPercentage: yieldPct,
                             wastagePercentage: wastagePct,
                             formElectricityMultiplier: elecMult,
-                            commodityId: row.commodityId || null,
-                            varietyId: row.varietyId || null
+                            commodityId: validCommodityId,
+                            varietyId: validVarietyId
                         } as any
                     });
                     imported++;
@@ -212,8 +279,8 @@ export async function importForms(rows: any[]) {
             const existingForm = await prisma.varietyForm.findFirst({
                 where: {
                     formName: row.formName,
-                    commodityId: row.commodityId || null,
-                    varietyId: row.varietyId || null
+                    commodityId: validCommodityId,
+                    varietyId: validVarietyId
                 } as any
             });
 
@@ -233,8 +300,8 @@ export async function importForms(rows: any[]) {
                         yieldPercentage: yieldPct,
                         wastagePercentage: wastagePct,
                         formElectricityMultiplier: elecMult,
-                        commodityId: row.commodityId || null,
-                        varietyId: row.varietyId || null
+                        commodityId: validCommodityId,
+                        varietyId: validVarietyId
                     } as any
                 });
             }
