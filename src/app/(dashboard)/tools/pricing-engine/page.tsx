@@ -28,6 +28,19 @@ export default function QuoteCalculatorPage() {
     const [powerSource, setPowerSource] = useState<string>("electric");
     const [mandiRate, setMandiRate] = useState<string>("");
 
+    // Quote Cart State
+    interface QuoteCartItem {
+        productName: string;
+        tiers: { weight: string; price: number; mult: string }[];
+    }
+    const [quoteCart, setQuoteCart] = useState<QuoteCartItem[]>([]);
+
+    // PDF Client Details State
+    const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
+    const [clientName, setClientName] = useState("");
+    const [companyName, setCompanyName] = useState("");
+    const [clientPhone, setClientPhone] = useState("");
+
     useEffect(() => {
         async function load() {
             setLoading(true);
@@ -198,23 +211,41 @@ export default function QuoteCalculatorPage() {
         window.open(url, '_blank');
     };
 
-    const handleDownloadPDF = async () => {
+    const handleAddToCart = () => {
         if (!selectedCommodity || !result) return;
-
         const productName = selectedVariety ? `${selectedVariety.name} ${selectedForm?.formName || ''}` : `${selectedCommodity.name} ${selectedForm?.formName || ''}`;
+
+        setQuoteCart([...quoteCart, {
+            productName: productName.trim(),
+            tiers: getQuoteTiers(result.factoryCostPerKg)
+        }]);
+        toast.success(`${productName.trim()} added to Quote Report`);
+    };
+
+    const handleDownloadPDF = async () => {
+        let itemsToPrint = [...quoteCart];
+
+        if (itemsToPrint.length === 0) {
+            if (!selectedCommodity || !result) return;
+            const productName = selectedVariety ? `${selectedVariety.name} ${selectedForm?.formName || ''}` : `${selectedCommodity.name} ${selectedForm?.formName || ''}`;
+            itemsToPrint = [{
+                productName: productName.trim(),
+                tiers: getQuoteTiers(result.factoryCostPerKg)
+            }];
+        }
 
         await generateQuotationPDF(
             {
-                clientName: "Valued Customer",
-                company: "N/A",
-                phone: ""
+                clientName: clientName || "Valued Customer",
+                company: companyName || "N/A",
+                phone: clientPhone || "-"
             },
-            [{
-                productName: productName.trim(),
-                tiers: getQuoteTiers(result.factoryCostPerKg)
-            }],
+            itemsToPrint,
             atlasLogoBase64
         );
+
+        setIsPdfDialogOpen(false);
+        toast.success("PDF Generated Successfully");
     };
 
     if (loading) {
@@ -465,16 +496,58 @@ export default function QuoteCalculatorPage() {
                                     </div>
                                     <div className="flex gap-2">
                                         <Button
-                                            onClick={handleDownloadPDF}
+                                            onClick={handleAddToCart}
                                             variant="outline"
+                                            className="border-green-600 text-green-700 hover:bg-green-50"
                                             size="sm"
                                         >
-                                            <Download className="w-4 h-4 mr-2" />
-                                            PDF
+                                            + Add to Report
                                         </Button>
+                                        <Dialog open={isPdfDialogOpen} onOpenChange={setIsPdfDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    className="bg-slate-800 hover:bg-slate-900 text-white relative"
+                                                >
+                                                    <Download className="w-4 h-4 mr-2" />
+                                                    Generate PDF
+                                                    {quoteCart.length > 0 && (
+                                                        <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-sm border-2 border-slate-800">
+                                                            {quoteCart.length}
+                                                        </span>
+                                                    )}
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Client Details for Quotation</DialogTitle>
+                                                    <DialogDescription>
+                                                        Enter the client information to be printed on the final PDF report.
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <div className="space-y-4 py-4">
+                                                    <div className="space-y-2">
+                                                        <Label>Client Name (Contact)</Label>
+                                                        <Input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="e.g. John Doe" />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label>Company Name</Label>
+                                                        <Input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="e.g. Acme Corp" />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label>Phone Number</Label>
+                                                        <Input value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="e.g. +91 9876543210" />
+                                                    </div>
+                                                </div>
+                                                <Button onClick={handleDownloadPDF} className="w-full bg-green-700 hover:bg-green-800 text-white">
+                                                    Download PDF Quote ({quoteCart.length > 0 ? quoteCart.length : 1} commodities)
+                                                </Button>
+                                            </DialogContent>
+                                        </Dialog>
                                         <Button
                                             onClick={() => handleWhatsApp(result.factoryCostPerKg)}
-                                            className="bg-green-600 hover:bg-green-700 text-white"
+                                            className="bg-green-600 hover:bg-green-700 text-white hidden sm:flex"
                                             size="sm"
                                         >
                                             WhatsApp
