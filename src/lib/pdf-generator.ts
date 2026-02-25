@@ -196,6 +196,15 @@ export const generateQuotationPDF = async (
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
+        // Watermark Logo
+        if (logoBase64) {
+            // @ts-ignore
+            doc.setGState(new doc.GState({ opacity: 0.05 }));
+            const wmSize = 140;
+            doc.addImage(logoBase64, 'PNG', (pageWidth - wmSize) / 2, (pageHeight - wmSize) / 2, wmSize, wmSize);
+            // @ts-ignore
+            doc.setGState(new doc.GState({ opacity: 1.0 }));
+        }
 
         // Footer line
         doc.setDrawColor(200, 200, 200);
