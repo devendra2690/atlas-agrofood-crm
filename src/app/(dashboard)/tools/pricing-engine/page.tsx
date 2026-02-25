@@ -13,6 +13,7 @@ import { Loader2, HelpCircle } from "lucide-react";
 import { getCommodities, getAllDefaultWastages } from "@/app/actions/commodity";
 import { toast } from "sonner";
 import { generateQuotationPDF } from "@/lib/pdf-generator";
+import { atlasLogoBase64 } from "@/lib/logo-base64";
 import { Download } from "lucide-react";
 
 export default function QuoteCalculatorPage() {
@@ -211,7 +212,8 @@ export default function QuoteCalculatorPage() {
             [{
                 productName: productName.trim(),
                 tiers: getQuoteTiers(result.factoryCostPerKg)
-            }]
+            }],
+            atlasLogoBase64
         );
     };
 

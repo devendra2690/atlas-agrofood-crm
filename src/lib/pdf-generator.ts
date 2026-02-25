@@ -93,6 +93,8 @@ export const generateQuotationPDF = async (
             ['Company:', clientDetails.company || '-'],
             ['Phone:', clientDetails.phone || '-']
         ],
+        tableWidth: 140,
+        margin: { left: (pageWidth - 140) / 2 },
         styles: {
             fontSize: 9,
             cellPadding: 3,
@@ -101,7 +103,7 @@ export const generateQuotationPDF = async (
         },
         columnStyles: {
             0: { cellWidth: 50, fontStyle: 'normal', fillColor: [248, 248, 248] }, // Very light grey bg for labels
-            1: { cellWidth: 'auto', fontStyle: 'bold' }
+            1: { cellWidth: 90, fontStyle: 'bold' }
         },
         alternateRowStyles: { fillColor: [255, 255, 255] }
     });
@@ -127,14 +129,16 @@ export const generateQuotationPDF = async (
         // Pricing Table for this product
         const tableData = item.tiers.map(t => [
             t.weight === '1000kg' ? '1 MT (1000 kg)' : t.weight,
-            `₹ ${t.price.toFixed(0)}`
+            `Rs. ${t.price.toFixed(0)}`
         ]);
 
         autoTable(doc, {
             startY: currentY,
             theme: 'grid',
-            head: [['Order Quantity', 'Price (₹/kg)']],
+            head: [['Order Quantity', 'Price (Rs./kg)']],
             body: tableData,
+            margin: { left: leftMargin },
+            tableWidth: 120,
             styles: {
                 fontSize: 9,
                 cellPadding: 3,
@@ -145,11 +149,11 @@ export const generateQuotationPDF = async (
                 fillColor: PRIMARY_COLOR,
                 textColor: [255, 255, 255],
                 fontStyle: 'normal',
-                halign: 'left'
+                halign: 'center'
             },
             columnStyles: {
-                0: { cellWidth: 80 },
-                1: { cellWidth: 'auto', halign: 'center' }
+                0: { cellWidth: 60, halign: 'center' },
+                1: { cellWidth: 60, halign: 'center' }
             },
             alternateRowStyles: { fillColor: [245, 245, 245] }
         });
