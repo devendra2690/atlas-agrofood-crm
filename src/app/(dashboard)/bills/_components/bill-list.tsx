@@ -38,6 +38,11 @@ export function BillList({ bills, isAdmin }: BillListProps) {
                                 <Badge variant={bill.status === "PAID" ? "default" : "outline"}>
                                     {bill.status}
                                 </Badge>
+                                <Button variant="outline" size="sm" asChild>
+                                    <Link href={`/bills/${bill.id}/print`} target="_blank">
+                                        Print
+                                    </Link>
+                                </Button>
                                 {isAdmin && (
                                     <DeleteWithConfirmation
                                         id={bill.id}

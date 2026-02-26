@@ -709,6 +709,7 @@ export async function getPurchaseOrder(id: string) {
                 vendor: { include: { country: true, state: true, city: true } },
                 project: {
                     include: {
+                        commodity: true,
                         salesOpportunities: {
                             include: {
                                 items: true,

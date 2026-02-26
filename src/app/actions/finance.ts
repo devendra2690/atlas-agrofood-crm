@@ -85,6 +85,53 @@ export async function getBills(filters?: {
     }
 }
 
+export async function getBill(id: string) {
+    try {
+        const bill = await prisma.bill.findUnique({
+            where: { id },
+            include: {
+                vendor: { include: { country: true, state: true, city: true } },
+                purchaseOrder: {
+                    include: {
+                        project: {
+                            include: {
+                                commodity: true
+                            }
+                        }
+                    }
+                },
+                transactions: true,
+                createdBy: { select: { name: true } },
+                updatedBy: { select: { name: true } }
+            }
+        });
+
+        if (!bill) return { success: false, error: "Bill not found" };
+
+        const safeBill = {
+            ...bill,
+            totalAmount: bill.totalAmount.toNumber(),
+            pendingAmount: bill.pendingAmount.toNumber(),
+            purchaseOrder: {
+                ...bill.purchaseOrder,
+                totalAmount: bill.purchaseOrder.totalAmount.toNumber(),
+                quantity: bill.purchaseOrder.quantity?.toNumber()
+            },
+            transactions: bill.transactions.map((t: any) => ({
+                ...t,
+                id: t.id,
+                amount: t.amount.toNumber(),
+                receipts: t.receipts || []
+            }))
+        };
+
+        return { success: true, data: safeBill };
+    } catch (e) {
+        console.error("Failed to fetch bill details:", e);
+        return { success: false, error: "Failed to fetch bill" };
+    }
+}
+
 export async function getInvoices(filters?: {
     page?: number;
     limit?: number;
