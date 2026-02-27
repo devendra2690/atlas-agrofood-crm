@@ -229,7 +229,7 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
                             <td className="border-r border-black border-t p-1"></td>
                             <td className="border-r border-black border-t p-1 text-right px-2">Taxable Value</td>
                             <td className="border-r border-black border-t p-1"></td>
-                            <td className="border-r border-black border-t p-1 text-right px-2">{((order as any).items || []).reduce((sum: number, it: any) => sum + Number(it.quantity), 0)} MT</td>
+                            <td className="border-r border-black border-t p-1 text-right px-2">{parseFloat((((order as any).items || []).reduce((sum: number, it: any) => sum + Number(it.quantity), 0) as number).toFixed(3)).toString()} MT</td>
                             <td className="border-r border-black border-t p-1"></td>
                             <td className="border-r border-black border-t p-1"></td>
                             <td colSpan={3} className="border-r border-black border-t p-1 text-right px-4"></td>
