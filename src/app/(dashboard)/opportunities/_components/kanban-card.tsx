@@ -107,7 +107,8 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
     // Group submissions by product name
     const groupedSubmissions = optimisticSubmissions?.length > 0 ? optimisticSubmissions.reduce((acc: any, sub: any) => {
         const productName = sub.opportunityItem?.productName ||
-            (opportunity.items?.length > 1 ? "Generic Sample (All Items)" : (opportunity.items?.[0]?.productName || sub.sample?.project?.commodity?.name || sub.sample?.project?.name || "Sample"));
+            sub.sample?.project?.commodity?.name ||
+            (opportunity.items?.length > 1 ? "Generic Sample (All Items)" : (opportunity.items?.[0]?.productName || sub.sample?.project?.name || "Sample"));
         if (!acc[productName]) {
             acc[productName] = [];
         }
@@ -162,11 +163,13 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
                         <div className="text-sm font-bold text-green-600">
                             {(() => {
                                 if (!opportunity.items || opportunity.items.length === 0) return '-';
-                                if (opportunity.items.length === 1) {
-                                    return opportunity.items[0].targetPrice ? `₹${opportunity.items[0].targetPrice.toLocaleString()}` : '-';
-                                }
                                 const total = calculateTotalValue(opportunity.items);
-                                return total ? `Total: ₹${total.toLocaleString()}` : "Multiple Items";
+                                if (!total) {
+                                    return opportunity.items.length === 1 && opportunity.items[0].targetPrice
+                                        ? `₹${opportunity.items[0].targetPrice.toLocaleString()}`
+                                        : "Multiple Items";
+                                }
+                                return `₹${total.toLocaleString()}`;
                             })()}
                         </div>
                         {opportunity.deadline && (
