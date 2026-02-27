@@ -153,7 +153,7 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                                         <Label>Total Quantity Received <span className="text-red-500">*</span></Label>
                                         <Input
                                             type="number"
-                                            placeholder={`Expected: ${orderedQuantity}`}
+                                            placeholder={`Expected: ${Number(orderedQuantity.toFixed(3))}`}
                                             value={receivedQty}
                                             onChange={(e) => setReceivedQty(e.target.value)}
                                         />
@@ -169,7 +169,7 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                                     <div className="grid gap-2">
                                         <Label>Accepted Quantity</Label>
                                         <div className="p-2 bg-slate-100 rounded text-center font-mono font-bold">
-                                            {((parseFloat(receivedQty) || 0) - (parseFloat(rejectedQty) || 0)).toFixed(2)}
+                                            {Number(((parseFloat(receivedQty) || 0) - (parseFloat(rejectedQty) || 0)).toFixed(3))}
                                         </div>
                                     </div>
                                     <div className="grid gap-2">

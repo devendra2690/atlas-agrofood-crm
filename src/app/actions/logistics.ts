@@ -345,8 +345,14 @@ export async function getShipments(filters?: {
             quantity: s.quantity?.toNumber(),
             purchaseOrder: s.purchaseOrder ? {
                 ...s.purchaseOrder,
+                items: s.purchaseOrder.items?.map((it: any) => ({
+                    ...it,
+                    quantity: it.quantity?.toNumber() || 0,
+                    rate: it.rate?.toNumber() || 0,
+                    amount: it.amount?.toNumber() || 0
+                })) || [],
                 quantity: s.purchaseOrder.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0,
-                totalAmount: s.purchaseOrder.totalAmount.toNumber()
+                totalAmount: s.purchaseOrder.totalAmount?.toNumber() || 0
             } : null,
             salesOrder: s.salesOrder ? {
                 ...s.salesOrder,

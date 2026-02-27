@@ -321,6 +321,40 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                             )}
                         </CardContent>
                     </Card>
+
+                    {/* Vendor Bills / Purchase Invoices */}
+                    {(order.purchaseOrders && order.purchaseOrders.some((po: any) => po.bills && po.bills.length > 0)) && (
+                        <Card className="col-span-3">
+                            <CardHeader>
+                                <CardTitle>Purchase Invoices (Vendor Bills)</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    {order.purchaseOrders.map((po: any) =>
+                                        po.bills?.map((bill: any) => (
+                                            <div key={bill.id} className="flex items-center justify-between p-3 border rounded-lg bg-slate-50">
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-semibold">{po.vendor?.name}</p>
+                                                        <Badge variant={bill.status === 'PAID' ? 'default' : 'outline'}>{bill.status}</Badge>
+                                                    </div>
+                                                    <p className="text-sm text-slate-500 mt-1">
+                                                        Bill #: {bill.invoiceNumber || bill.id.slice(0, 8).toUpperCase()}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-mono font-bold">₹{bill.totalAmount.toLocaleString()}</p>
+                                                    <p className="text-xs text-slate-500">
+                                                        {bill.pendingAmount > 0 ? `Pending: ₹${bill.pendingAmount.toLocaleString()}` : "Paid"}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             </TabsContent>
 

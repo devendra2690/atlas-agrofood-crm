@@ -27,6 +27,7 @@ type PurchaseOrderWithRelations = Omit<PurchaseOrder, 'totalAmount' | 'quantity'
     vendor: { name: string };
     project: { name: string; commodity?: { name: string } | null };
     sample?: any;
+    items?: any[];
 };
 
 interface PurchaseOrderKanbanProps {
@@ -242,26 +243,37 @@ function DraggableCard({ order }: { order: PurchaseOrderWithRelations }) {
 }
 
 function OrderCard({ order, isOverlay }: { order: PurchaseOrderWithRelations, isOverlay?: boolean }) {
-    // Extracted specific commodity from the linked sample submission
-    const sampleSubmission = order.sample?.submissions?.[0];
-    const commodityName = sampleSubmission?.opportunityItem?.productName ||
-        sampleSubmission?.opportunityItem?.commodity?.name ||
-        order.project?.commodity?.name ||
-        null;
+    // If order has items, extract unique commodities from them
+    const commodityNames = order.items && order.items.length > 0
+        ? Array.from(new Set(order.items.map((it: any) => it.commodity?.name).filter(Boolean)))
+        : [];
+
+    // Fallback if no items (legacy data)
+    if (commodityNames.length === 0) {
+        const sampleSubmission = order.sample?.submissions?.[0];
+        const fallbackName = sampleSubmission?.opportunityItem?.productName ||
+            sampleSubmission?.opportunityItem?.commodity?.name ||
+            order.project?.commodity?.name;
+        if (fallbackName) commodityNames.push(fallbackName);
+    }
 
     return (
         <Card className={`shadow-sm ${isOverlay ? 'shadow-xl bg-white scale-105' : ''}`}>
             <CardContent className="p-3">
                 <div className="flex justify-between items-start mb-2">
                     <div className="font-semibold text-sm truncate w-[70%]">
-                        {order.project.name}
+                        {order.project?.name || `Order #${order.id.slice(0, 8)}`}
                     </div>
                     {isOverlay && <Badge>{order.status}</Badge>}
                 </div>
 
-                {commodityName && (
-                    <div className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 mb-2 inline-block">
-                        {commodityName}
+                {commodityNames.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                        {commodityNames.map(name => (
+                            <div key={name as string} className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 inline-block">
+                                {name as string}
+                            </div>
+                        ))}
                     </div>
                 )}
 
@@ -276,7 +288,7 @@ function OrderCard({ order, isOverlay }: { order: PurchaseOrderWithRelations, is
                     </div>
                     <div className="flex justify-between">
                         <span>Quantity:</span>
-                        <span>{order.quantity} MT</span>
+                        <span>{order.quantity ? Number(order.quantity.toFixed(3)) : 0} MT</span>
                     </div>
                 </div>
 

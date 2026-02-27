@@ -106,7 +106,7 @@ export default async function PurchaseOrderDetailsPage({ params }: PageProps) {
                                                         {item.commodity?.name || 'Unknown Item'}
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
-                                                        {Number(item.quantity).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                                        {Number(item.quantity).toLocaleString(undefined, { maximumFractionDigits: 3 })}
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
                                                         ₹{Number(item.rate).toLocaleString(undefined, { minimumFractionDigits: 2 })}

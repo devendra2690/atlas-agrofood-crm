@@ -105,6 +105,7 @@ export function CreatePurchaseOrderDialog({
                     sampleId: s.id,
                     commodityId: s.opportunityItem?.commodityId || s.project?.commodityId || selectedProject?.commodityId || "",
                     commodityName: s.opportunityItem?.productName || s.opportunityItem?.commodity?.name || s.project?.commodity?.name || s.id.substring(0, 8),
+                    opportunityItemId: s.opportunityItemId || undefined,
                     quantity: "",
                     rate: s.priceQuoted ? String(s.priceQuoted) : "",
                     amount: ""
@@ -160,9 +161,10 @@ export function CreatePurchaseOrderDialog({
                 vendorId,
                 totalAmount: validItems.reduce((sum, it) => sum + parseFloat(it.amount), 0),
                 status: "DRAFT",
+                sampleId: validItems[0]?.sampleId, // Pass at root level for legacy/single-sample tracking
                 items: validItems.map(it => ({
                     commodityId: it.commodityId || selectedProject?.commodityId || "",
-                    sampleId: it.sampleId,
+                    opportunityItemId: it.opportunityItemId || undefined,
                     quantity: parseFloat(it.quantity),
                     quantityUnit: "MT",
                     rate: parseFloat(it.rate),

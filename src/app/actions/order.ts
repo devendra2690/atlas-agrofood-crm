@@ -233,7 +233,8 @@ export async function getSalesOrder(id: string) {
                                     include: {
                                         items: true,
                                         vendor: true,
-                                        sample: true
+                                        sample: true,
+                                        bills: true
                                     },
                                     orderBy: { createdAt: 'desc' }
                                 }
@@ -283,6 +284,17 @@ export async function getSalesOrder(id: string) {
                     ...order.opportunity.procurementProject,
                     purchaseOrders: order.opportunity.procurementProject.purchaseOrders.map((po: any) => ({
                         ...po,
+                        items: po.items?.map((it: any) => ({
+                            ...it,
+                            quantity: it.quantity?.toNumber() || 0,
+                            rate: it.rate?.toNumber() || 0,
+                            amount: it.amount?.toNumber() || 0
+                        })) || [],
+                        bills: po.bills?.map((b: any) => ({
+                            ...b,
+                            totalAmount: b.totalAmount?.toNumber() || 0,
+                            pendingAmount: b.pendingAmount?.toNumber() || 0
+                        })) || [],
                         totalAmount: po.totalAmount.toNumber(),
                         quantity: po.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0,
                         sample: po.sample ? {
@@ -303,6 +315,17 @@ export async function getSalesOrder(id: string) {
             approvedSample: approvedSamples[0] || null, // Keep for backward compatibility if needed temporarily
             purchaseOrders: order.opportunity.procurementProject?.purchaseOrders.map(po => ({
                 ...po,
+                items: po.items?.map((it: any) => ({
+                    ...it,
+                    quantity: it.quantity?.toNumber() || 0,
+                    rate: it.rate?.toNumber() || 0,
+                    amount: it.amount?.toNumber() || 0
+                })) || [],
+                bills: po.bills?.map((b: any) => ({
+                    ...b,
+                    totalAmount: b.totalAmount?.toNumber() || 0,
+                    pendingAmount: b.pendingAmount?.toNumber() || 0
+                })) || [],
                 totalAmount: po.totalAmount.toNumber(),
                 quantity: po.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0,
                 sample: po.sample ? {

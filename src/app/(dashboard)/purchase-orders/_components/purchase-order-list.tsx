@@ -68,15 +68,27 @@ export function PurchaseOrderList({ orders }: PurchaseOrderListProps) {
                                 </TableCell>
                                 <TableCell>
                                     {(() => {
-                                        const sampleSubmission = order.sample?.submissions?.[0];
-                                        const commodityName = sampleSubmission?.opportunityItem?.productName ||
-                                            sampleSubmission?.opportunityItem?.commodity?.name ||
-                                            order.project?.commodity?.name;
+                                        const commodityNames = order.items && order.items.length > 0
+                                            ? Array.from(new Set(order.items.map((it: any) => it.commodity?.name).filter(Boolean)))
+                                            : [];
+
+                                        if (commodityNames.length === 0) {
+                                            const sampleSubmission = order.sample?.submissions?.[0];
+                                            const fallbackName = sampleSubmission?.opportunityItem?.productName ||
+                                                sampleSubmission?.opportunityItem?.commodity?.name ||
+                                                order.project?.commodity?.name;
+                                            if (fallbackName) commodityNames.push(fallbackName);
+                                        }
+
                                         return (
-                                            <div className="flex flex-col">
-                                                {commodityName && (
-                                                    <span className="font-medium text-slate-900">
-                                                        {commodityName}
+                                            <div className="flex flex-col gap-1">
+                                                {commodityNames.length > 0 && (
+                                                    <span className="font-medium text-slate-900 flex flex-wrap gap-1">
+                                                        {commodityNames.map((name, i) => (
+                                                            <span key={name as string}>
+                                                                {name as string}{i < commodityNames.length - 1 ? ", " : ""}
+                                                            </span>
+                                                        ))}
                                                     </span>
                                                 )}
                                                 <Link href={`/procurement/${order.project.id}`} className="hover:underline text-muted-foreground text-xs">

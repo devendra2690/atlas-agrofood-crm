@@ -111,6 +111,7 @@ export async function getProcurementProjects(filters?: {
                                         select: {
                                             id: true,
                                             productName: true,
+                                            commodityId: true,
                                             commodity: { select: { name: true } }
                                         }
                                     },
@@ -139,7 +140,7 @@ export async function getProcurementProjects(filters?: {
                         select: {
                             id: true,
                             items: {
-                                select: { quantity: true, amount: true }
+                                select: { quantity: true, amount: true, commodityId: true, opportunityItemId: true, commodity: { select: { name: true } } }
                             },
                             status: true,
                             sample: {
@@ -707,6 +708,11 @@ export async function getPurchaseOrders(filters?: {
                 include: {
                     vendor: true,
                     project: true,
+                    items: {
+                        include: {
+                            commodity: true
+                        }
+                    },
                     sample: {
                         include: {
                             submissions: {
@@ -729,8 +735,14 @@ export async function getPurchaseOrders(filters?: {
         // Deserialize decimals
         const safeOrders = (orders as any[]).map(order => ({
             ...order,
-            totalAmount: order.totalAmount.toNumber(),
-            quantity: order.quantity?.toNumber(),
+            totalAmount: order.totalAmount?.toNumber() || 0,
+            quantity: order.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0,
+            items: order.items?.map((it: any) => ({
+                ...it,
+                quantity: it.quantity?.toNumber() || 0,
+                amount: it.amount?.toNumber() || 0,
+                rate: it.rate?.toNumber() || 0
+            })) || [],
             sample: order.sample ? {
                 ...order.sample,
                 priceQuoted: order.sample.priceQuoted?.toNumber(),
@@ -939,14 +951,22 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
         if (status === 'RECEIVED' && order.status !== 'RECEIVED') {
             const project = order.project;
 
+            const isFulfillment = project.name.startsWith("Fulfillment");
+
             // 1. Calculate stats
             const totalDemand = project.salesOpportunities
                 .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
                 .reduce((sum: number, opp: any) => {
                     if (opp.items && opp.items.length > 0) {
-                        return sum + opp.items.reduce((itemSum: number, item: any) => itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0), 0);
+                        return sum + opp.items.reduce((itemSum: number, item: any) => {
+                            if (!isFulfillment && project.commodityId && item.commodityId !== project.commodityId) {
+                                return itemSum;
+                            }
+                            const val = isFulfillment ? Number(item.quantity) : (Number(item.procurementQuantity) || Number(item.quantity));
+                            return itemSum + (val || 0);
+                        }, 0);
                     }
-                    return sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0);
+                    return sum + (isFulfillment ? Number(opp.quantity) : (Number(opp.procurementQuantity) || Number(opp.quantity) || 0));
                 }, 0);
 
             const otherProcured = project.purchaseOrders

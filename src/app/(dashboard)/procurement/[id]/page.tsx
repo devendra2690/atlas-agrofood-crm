@@ -108,7 +108,8 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                         (!sub.opportunityItemId && !item.commodityId))
                                                 );
                                                 if (hasApprovedSample) {
-                                                    return itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0);
+                                                    const demandValue = isFulfillment ? Number(item.quantity) : (Number(item.procurementQuantity) || Number(item.quantity));
+                                                    return itemSum + (demandValue || 0);
                                                 }
                                                 return itemSum;
                                             }, 0);
@@ -175,7 +176,8 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                             (!sub.opportunityItemId && !item.commodityId)
                                                         );
                                                         if (hasApprovedSample) {
-                                                            return itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0);
+                                                            const demandValue = isFulfillment ? Number(item.quantity) : (Number(item.procurementQuantity) || Number(item.quantity));
+                                                            return itemSum + (demandValue || 0);
                                                         }
                                                         return itemSum;
                                                     }, 0);
@@ -207,17 +209,25 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                                 (!sub.opportunityItemId && !item.commodityId)
                                                             ))
                                                             .map((item: any, idx: number) => {
-                                                                const itemDemand = Number(item.procurementQuantity) || Number(item.quantity) || 0;
+                                                                const itemDemand = isFulfillment ? Number(item.quantity) : (Number(item.procurementQuantity) || Number(item.quantity) || 0);
                                                                 const itemProcured = (project.purchaseOrders || [])
-                                                                    .filter((po: any) => {
-                                                                        if (po.status === 'CANCELLED') return false;
+                                                                    .filter((po: any) => po.status !== 'CANCELLED')
+                                                                    .reduce((sum: number, po: any) => {
+                                                                        if (po.items && po.items.length > 0) {
+                                                                            const matchedItems = po.items.filter((it: any) => {
+                                                                                if (item.id && it.opportunityItemId) return it.opportunityItemId === item.id;
+                                                                                return it.commodityId === item.commodityId;
+                                                                            });
+                                                                            if (matchedItems.length > 0) {
+                                                                                return sum + matchedItems.reduce((matchSum: number, it: any) => matchSum + (Number(it.quantity) || 0), 0);
+                                                                            }
+                                                                        }
                                                                         const poItemId = po.sample?.submissions?.[0]?.opportunityItemId;
-                                                                        if (poItemId) return poItemId === item.id;
-                                                                        return po.sample?.project?.commodityId === item.commodityId;
-                                                                    })
-                                                                    .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0);
-                                                                const isFulfilled = itemProcured >= itemDemand;
-
+                                                                        if (item.id && poItemId) return sum + (poItemId === item.id ? (Number(po.quantity) || 0) : 0);
+                                                                        if (po.sample?.project?.commodityId === item.commodityId) return sum + (Number(po.quantity) || 0);
+                                                                        return sum;
+                                                                    }, 0);
+                                                                const isFulfilled = itemDemand > 0 && Math.round(itemProcured * 1000) >= Math.round(itemDemand * 1000);
                                                                 return (
                                                                     <div key={item.id || idx} className="text-muted-foreground text-xs ml-5 flex justify-between items-center">
                                                                         <div className="flex items-center gap-2">

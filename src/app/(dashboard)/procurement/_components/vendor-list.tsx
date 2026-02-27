@@ -69,20 +69,32 @@ export function VendorList({ projectVendors, samples = [], isFulfillment = false
                                                 .reduce((sum: number, opp: any) => {
                                                     const itemsTotal = (opp.items || [])
                                                         .filter((item: any) => sample.opportunityItemId ? item.id === sample.opportunityItemId : item.commodityId === commodityId)
-                                                        .reduce((itemSum: number, item: any) => itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0), 0);
+                                                        .reduce((itemSum: number, item: any) => {
+                                                            const val = isFulfillment ? Number(item.quantity) : (Number(item.procurementQuantity) || Number(item.quantity));
+                                                            return itemSum + (val || 0);
+                                                        }, 0);
                                                     return sum + itemsTotal;
                                                 }, 0);
 
                                             const itemProcured = (project.purchaseOrders || [])
-                                                .filter((po: any) => {
-                                                    if (po.status === 'CANCELLED') return false;
+                                                .filter((po: any) => po.status !== 'CANCELLED')
+                                                .reduce((sum: number, po: any) => {
+                                                    if (po.items && po.items.length > 0) {
+                                                        const matchedItems = po.items.filter((it: any) => {
+                                                            if (sample.opportunityItemId && it.opportunityItemId) return it.opportunityItemId === sample.opportunityItemId;
+                                                            return it.commodityId === commodityId;
+                                                        });
+                                                        if (matchedItems.length > 0) {
+                                                            return sum + matchedItems.reduce((matchSum: number, it: any) => matchSum + (Number(it.quantity) || 0), 0);
+                                                        }
+                                                    }
                                                     const poItemId = po.sample?.submissions?.[0]?.opportunityItemId;
-                                                    if (sample.opportunityItemId && poItemId) return poItemId === sample.opportunityItemId;
-                                                    return po.sample?.project?.commodityId === commodityId;
-                                                })
-                                                .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0);
+                                                    if (sample.opportunityItemId && poItemId) return sum + (poItemId === sample.opportunityItemId ? (Number(po.quantity) || 0) : 0);
+                                                    if (po.sample?.project?.commodityId === commodityId) return sum + (Number(po.quantity) || 0);
+                                                    return sum;
+                                                }, 0);
 
-                                            isFulfilled = itemDemand > 0 && itemProcured >= itemDemand;
+                                            isFulfilled = itemDemand > 0 && Math.round(itemProcured * 1000) >= Math.round(itemDemand * 1000);
                                         }
 
                                         return (
