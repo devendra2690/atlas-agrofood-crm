@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -14,7 +14,7 @@ import {
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { createManualPurchaseOrder, getProcurementProjects } from "@/app/actions/procurement";
 
@@ -38,11 +38,16 @@ export function CreatePurchaseOrderDialog({
     // Form State
     const [projectId, setProjectId] = useState(defaultProjectId || "");
     const [vendorId, setVendorId] = useState(defaultVendorId || "");
-    const [sampleId, setSampleId] = useState(defaultSampleId || "");
-    const [commodityName, setCommodityName] = useState(defaultCommodityName || "");
-    const [amount, setAmount] = useState("");
-    const [quantity, setQuantity] = useState("");
-    const [rate, setRate] = useState("");
+
+    // Array of items to be included in the PO
+    const [items, setItems] = useState<{
+        sampleId: string;
+        commodityId: string;
+        commodityName: string;
+        quantity: string;
+        rate: string;
+        amount: string;
+    }[]>([]);
 
     // Derived State
     const selectedProject = projects.find(p => p.id === projectId);
@@ -67,7 +72,7 @@ export function CreatePurchaseOrderDialog({
 
     const vendors = Array.from(vendorMap.values());
 
-    const availableSamples = (() => {
+    const availableSamples = useMemo(() => {
         if (!selectedProject || !vendorId) return [];
         const all = [
             ...(selectedProject.samples || []),
@@ -84,13 +89,31 @@ export function CreatePurchaseOrderDialog({
         ];
         const unique = Array.from(new Map(all.filter(Boolean).filter(s => s.vendor?.id === vendorId || s.vendorId === vendorId).map(s => [s.id, s])).values());
         return unique;
-    })();
+    }, [selectedProject, vendorId]);
 
     useEffect(() => {
         if (open) {
             loadProjects();
         }
     }, [open]);
+
+    // Auto-populate items when vendor or availableSamples change
+    useEffect(() => {
+        if (vendorId && availableSamples.length > 0) {
+            if (open) { // only auto-populate when dialog is open
+                setItems(availableSamples.map((s: any) => ({
+                    sampleId: s.id,
+                    commodityId: s.opportunityItem?.commodityId || s.project?.commodityId || selectedProject?.commodityId || "",
+                    commodityName: s.opportunityItem?.productName || s.opportunityItem?.commodity?.name || s.project?.commodity?.name || s.id.substring(0, 8),
+                    quantity: "",
+                    rate: s.priceQuoted ? String(s.priceQuoted) : "",
+                    amount: ""
+                })));
+            }
+        } else if (!vendorId) {
+            setItems([]);
+        }
+    }, [availableSamples, vendorId, open]);
 
     async function loadProjects() {
         const result = await getProcurementProjects({ type: "PROJECT" });
@@ -99,18 +122,52 @@ export function CreatePurchaseOrderDialog({
         }
     }
 
+    const updateItem = (index: number, field: string, value: string) => {
+        const newItems = [...items];
+        (newItems[index] as any)[field] = value;
+
+        // Auto-calculate amount
+        if (field === 'quantity' || field === 'rate') {
+            const qty = parseFloat(field === 'quantity' ? value : newItems[index].quantity) || 0;
+            const rate = parseFloat(field === 'rate' ? value : newItems[index].rate) || 0;
+            if (qty > 0 && rate > 0) {
+                newItems[index].amount = (qty * 1000 * rate).toFixed(2);
+            } else {
+                newItems[index].amount = "";
+            }
+        }
+        setItems(newItems);
+    };
+
+    const removeItem = (index: number) => {
+        setItems(items.filter((_, i) => i !== index));
+    };
+
     async function handleCreate() {
-        if (!projectId || !vendorId || !amount || !quantity || !rate) return;
+        const validItems = items.filter(it => parseFloat(it.quantity) > 0 && parseFloat(it.rate) > 0 && parseFloat(it.amount) > 0);
+
+        if (!projectId || !vendorId || validItems.length === 0) {
+            toast.error("Please fill in quantity and rate for at least one item.");
+            return;
+        }
+
         setLoading(true);
         try {
+            const selectedProject = projects.find(p => p.id === projectId);
+
             const result = await createManualPurchaseOrder({
                 projectId,
                 vendorId,
-                totalAmount: parseFloat(amount),
+                totalAmount: validItems.reduce((sum, it) => sum + parseFloat(it.amount), 0),
                 status: "DRAFT",
-                sampleId: sampleId || undefined,
-                quantity: parseFloat(quantity),
-                quantityUnit: "MT"
+                items: validItems.map(it => ({
+                    commodityId: it.commodityId || selectedProject?.commodityId || "",
+                    sampleId: it.sampleId,
+                    quantity: parseFloat(it.quantity),
+                    quantityUnit: "MT",
+                    rate: parseFloat(it.rate),
+                    amount: parseFloat(it.amount)
+                }))
             });
 
             if (result.success) {
@@ -118,9 +175,7 @@ export function CreatePurchaseOrderDialog({
                 setOpen(false);
                 setProjectId("");
                 setVendorId("");
-                setAmount("");
-                setQuantity("");
-                setRate("");
+                setItems([]);
             } else {
                 toast.error("Failed to create purchase order");
             }
@@ -142,11 +197,11 @@ export function CreatePurchaseOrderDialog({
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Create Purchase Order {commodityName && `(${commodityName})`}</DialogTitle>
+                    <DialogTitle>Create Purchase Order</DialogTitle>
                     <DialogDescription>
-                        Manually create a purchase order for a project.
+                        Create a multi-item purchase order for a project. Valid items (with quantity {`> 0`}) will be added to the order.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -158,7 +213,7 @@ export function CreatePurchaseOrderDialog({
                             onChange={(val) => {
                                 setProjectId(val);
                                 setVendorId(""); // Reset vendor when project changes
-                                setSampleId(""); // Reset sample when project changes
+                                setItems([]);
                             }}
                             placeholder="Select project..."
                             searchPlaceholder="Search project..."
@@ -173,7 +228,6 @@ export function CreatePurchaseOrderDialog({
                             value={vendorId}
                             onChange={(val) => {
                                 setVendorId(val);
-                                setSampleId(""); // Reset sample when vendor changes
                             }}
                             placeholder={!projectId ? "Select project first" : "Select vendor..."}
                             searchPlaceholder="Search vendor..."
@@ -185,122 +239,82 @@ export function CreatePurchaseOrderDialog({
                             </p>
                         )}
 
-                        {availableSamples.length > 0 && (
-                            <div className="grid gap-2 mt-4">
-                                <Label>Commodity / Item <span className="text-red-500">*</span></Label>
-                                <Combobox
-                                    options={availableSamples.map((s: any) => ({
-                                        label: s?.opportunityItem?.productName || s?.opportunityItem?.commodity?.name || s?.project?.commodity?.name || s?.id?.substring(0, 8) || 'Unknown Item',
-                                        value: s?.id
-                                    }))}
-                                    value={sampleId}
-                                    onChange={setSampleId}
-                                    placeholder="Select commodity..."
-                                    searchPlaceholder="Search commodity..."
-                                />
+                        {availableSamples.length === 0 && projectId && vendorId && (
+                            <div className="grid gap-2 mt-4 text-sm text-muted-foreground p-3 border rounded-md bg-slate-50">
+                                No approved samples found for this vendor in this project. You must have an approved sample to order an item.
                             </div>
                         )}
 
-                        {(() => {
-                            if (!selectedProject || !quantity) return null;
-                            const qty = parseFloat(quantity) || 0;
-                            if (qty <= 0) return null;
-
-                            const selectedSample = availableSamples.find((s: any) => s.id === sampleId);
-                            const selectedCommodityName = selectedSample?.opportunityItem?.productName || selectedSample?.opportunityItem?.commodity?.name || selectedSample?.project?.commodity?.name;
-
-                            const totalDemand = selectedProject.salesOpportunities
-                                .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
-                                .reduce((sum: number, opp: any) => {
-                                    if (opp.items && opp.items.length > 0) {
-                                        return sum + opp.items.reduce((itemSum: number, item: any) => {
-                                            const itemName = item.productName || item.commodity?.name;
-                                            if (selectedCommodityName && itemName && itemName !== selectedCommodityName) {
-                                                return itemSum;
-                                            }
-                                            return itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0);
-                                        }, 0);
-                                    }
-                                    return sum + (Number(opp.procurementQuantity) || Number(opp.quantity) || 0);
-                                }, 0);
-
-                            const currentProcured = selectedProject.purchaseOrders
-                                .filter((po: any) => po.status !== 'CANCELLED')
-                                .reduce((sum: number, po: any) => {
-                                    const poCommodityName = po.sample?.opportunityItem?.productName || po.sample?.opportunityItem?.commodity?.name || po.sample?.project?.commodity?.name;
-                                    if (selectedCommodityName && poCommodityName && poCommodityName !== selectedCommodityName) {
-                                        return sum;
-                                    }
-                                    return sum + (Number(po.quantity) || 0);
-                                }, 0);
-
-                            const projectedTotal = currentProcured + qty;
-
-                            if (projectedTotal > totalDemand) {
-                                const surplus = projectedTotal - totalDemand;
-                                return (
-                                    <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200 mt-2">
-                                        <p className="font-semibold flex items-center gap-2">
-                                            ⚠️ Potential Surplus Warning
-                                        </p>
-                                        <p className="mt-1">
-                                            Demand: <strong>{totalDemand.toFixed(2)} MT</strong><br />
-                                            Already Procured: <strong>{currentProcured.toFixed(2)} MT</strong><br />
-                                            <span className="text-red-600 font-medium">This PO will create a {surplus.toFixed(2)} MT surplus.</span>
-                                        </p>
+                        {items.length > 0 && (
+                            <div className="grid gap-3 mt-4">
+                                <Label>Order Items <span className="text-red-500">*</span></Label>
+                                {items.map((item, idx) => (
+                                    <div key={idx} className="grid grid-cols-12 gap-3 items-end border p-4 rounded-md bg-slate-50 relative">
+                                        <div className="col-span-12 font-medium text-sm text-slate-800 border-b pb-2 mb-1">
+                                            {item.commodityName}
+                                        </div>
+                                        <div className="col-span-4">
+                                            <Label className="text-xs text-slate-500">Quantity (MT)</Label>
+                                            <Input
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={item.quantity}
+                                                onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="col-span-4">
+                                            <Label className="text-xs text-slate-500">Rate (₹/kg)</Label>
+                                            <Input
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={item.rate}
+                                                onChange={(e) => updateItem(idx, 'rate', e.target.value)}
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="col-span-4">
+                                            <Label className="text-xs text-slate-500">Total Amount</Label>
+                                            <Input
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={item.amount}
+                                                onChange={(e) => updateItem(idx, 'amount', e.target.value)}
+                                                className="bg-slate-100 font-mono"
+                                            />
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute top-2 right-2 h-6 w-6 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                            onClick={() => removeItem(idx)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                     </div>
-                                );
-                            }
-                            return null;
-                        })()}
-                    </div>
+                                ))}
 
-                    <div className="grid gap-2">
-                        <Label>Quantity (MT) <span className="text-red-500">*</span></Label>
-                        <Input
-                            type="number"
-                            placeholder="0.00"
-                            value={quantity}
-                            onChange={(e) => {
-                                setQuantity(e.target.value);
-                                if (e.target.value && rate) {
-                                    // Quantity (MT) * 1000 * Rate (per kg)
-                                    setAmount((parseFloat(e.target.value) * 1000 * parseFloat(rate)).toFixed(2));
-                                }
-                            }}
-                        />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label>Rate (per kg) <span className="text-red-500">*</span></Label>
-                        <Input
-                            type="number"
-                            placeholder="0.00"
-                            value={rate}
-                            onChange={(e) => {
-                                setRate(e.target.value);
-                                if (quantity && e.target.value) {
-                                    // Quantity (MT) * 1000 * Rate (per kg)
-                                    setAmount((parseFloat(quantity) * 1000 * parseFloat(e.target.value)).toFixed(2));
-                                }
-                            }}
-                        />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label>Total Amount <span className="text-red-500">*</span></Label>
-                        <Input
-                            type="number"
-                            placeholder="0.00"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                        // readOnly
-                        />
+                                <div className="flex justify-between items-center mt-2 px-1">
+                                    <span className="text-sm text-muted-foreground">
+                                        {items.filter(it => parseFloat(it.quantity) > 0).length} items selected
+                                    </span>
+                                    <div className="text-right">
+                                        <span className="text-sm font-medium text-slate-500 mr-2">Order Total:</span>
+                                        <span className="text-lg font-bold">
+                                            ₹{items.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button onClick={handleCreate} disabled={loading || !projectId || !vendorId || !quantity || !amount || !rate || (availableSamples.length > 0 && !sampleId)}>
-                        {loading ? "Creating..." : "Create Order"}
+                    <Button
+                        onClick={handleCreate}
+                        disabled={loading || !projectId || !vendorId || items.filter(it => parseFloat(it.quantity) > 0 && parseFloat(it.rate) > 0).length === 0}
+                    >
+                        {loading ? "Creating Order..." : "Create Purchase Order"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

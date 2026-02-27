@@ -46,9 +46,7 @@ export function EditPurchaseOrderDialog({ order }: EditPurchaseOrderDialogProps)
         setLoading(true);
         try {
             const result = await updatePurchaseOrder(order.id, {
-                totalAmount: parseFloat(amount),
-                quantity: quantity ? parseFloat(quantity) : undefined,
-                quantityUnit: "MT", // Defaulting to MT for now as per schema default
+                totalAmount: parseFloat(amount)
             });
 
             if (result.success) {

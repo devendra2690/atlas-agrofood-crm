@@ -55,6 +55,7 @@ interface OpportunityDialogProps {
 
 export type OpportunityItemData = {
     localId: string;
+    id?: string;
     productName: string;
     commodityId: string;
     varietyId: string;
@@ -107,6 +108,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
             if (initialData?.items && initialData.items.length > 0) {
                 setItems(initialData.items.map((it: any) => ({
                     localId: Math.random().toString(),
+                    id: it.id,
                     productName: it.productName || "",
                     commodityId: it.commodityId || "",
                     varietyId: it.varietyId || "",
@@ -210,6 +212,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
             }
 
             const activeItemsData = items.map(item => ({
+                id: item.id || undefined,
                 productName: item.productName,
                 commodityId: item.commodityId,
                 varietyId: item.varietyId || undefined,

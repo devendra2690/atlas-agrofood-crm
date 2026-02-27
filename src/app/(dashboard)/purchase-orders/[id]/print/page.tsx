@@ -23,14 +23,7 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
         email: "sales@atlasagrofood.co.in"
     };
 
-    const quantity = (order as any).quantity ? Number((order as any).quantity) : 0;
-    const quantityUnit = (order as any).quantityUnit || "MT";
     const taxableAmount = Number(order.totalAmount);
-
-    let impliedRate = 0;
-    if (quantity > 0) {
-        impliedRate = quantityUnit === 'MT' ? taxableAmount / (quantity * 1000) : taxableAmount / quantity;
-    }
 
     const formattedTaxable = taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -192,35 +185,43 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
                         </tr>
                     </thead>
                     <tbody>
-                        {/* Item Row 1 */}
-                        <tr className="align-top h-[180px]">
-                            <td className="border-r border-black p-1 px-2">1</td>
-                            <td className="border-r border-black p-1 text-left px-2">
-                                {(() => {
-                                    const sampleSubmission = order.sample?.submissions?.[0];
-                                    const commodityName = sampleSubmission?.opportunityItem?.productName ||
-                                        sampleSubmission?.opportunityItem?.commodity?.name ||
-                                        order.project?.commodity?.name;
+                        {/* Map over items */}
+                        {((order as any).items || []).map((item: any, index: number) => {
+                            const commodityName = item.commodity?.name || order.project?.commodity?.name || order.project.name;
+                            const itemQty = Number(item.quantity) || 0;
+                            const itemRate = Number(item.rate) || 0;
+                            const itemAmount = Number(item.amount) || 0;
 
-                                    if (commodityName && commodityName !== order.project.name) {
-                                        return (
-                                            <div className="flex flex-col py-1">
-                                                <span className="font-bold text-[13px]">{commodityName}</span>
-                                                <span className="text-[9px] font-medium text-slate-600 mt-0.5 leading-tight">{order.project.name}</span>
-                                            </div>
-                                        );
-                                    }
-                                    return <span className="font-bold text-[13px]">{order.project.name}</span>;
-                                })()}
-                            </td>
-                            <td className="border-r border-black p-1 px-2 font-bold">123456</td>
-                            <td className="border-r border-black p-1 font-bold">{quantity > 0 ? quantity : '-'}</td>
-                            <td className="border-r border-black p-1 font-bold">{quantity > 0 ? impliedRate.toFixed(2) : '-'}</td>
-                            <td className="border-r border-black p-1">{quantity > 0 ? (quantityUnit === 'MT' ? 'MT' : quantityUnit) : '-'}</td>
-                            <td className="border-r border-black p-1">0%</td>
-                            <td className="border-r border-black p-1">0%</td>
+                            return (
+                                <tr key={item.id || index} className="align-top border-b border-black/10">
+                                    <td className="border-r border-black p-1 px-2">{index + 1}</td>
+                                    <td className="border-r border-black p-1 text-left px-2">
+                                        <span className="font-bold text-[13px]">{commodityName}</span>
+                                    </td>
+                                    <td className="border-r border-black p-1 px-2 font-bold">-</td>
+                                    <td className="border-r border-black p-1 font-bold">{itemQty > 0 ? itemQty : '-'}</td>
+                                    <td className="border-r border-black p-1 font-bold">{itemQty > 0 ? itemRate.toFixed(2) : '-'}</td>
+                                    <td className="border-r border-black p-1">{itemQty > 0 ? (item.quantityUnit || 'MT') : '-'}</td>
+                                    <td className="border-r border-black p-1">0%</td>
+                                    <td className="border-r border-black p-1">0%</td>
+                                    <td className="border-r border-black p-1 bg-slate-100"></td>
+                                    <td className="border-r-0 border-black p-1 font-bold text-right px-2">{itemAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                </tr>
+                            );
+                        })}
+
+                        {/* Filler row to push footer down if items list is small */}
+                        <tr className="align-top h-[150px]">
+                            <td className="border-r border-black p-1 px-2"></td>
+                            <td className="border-r border-black p-1 text-left px-2"></td>
+                            <td className="border-r border-black p-1 px-2 font-bold"></td>
+                            <td className="border-r border-black p-1 font-bold"></td>
+                            <td className="border-r border-black p-1 font-bold"></td>
+                            <td className="border-r border-black p-1"></td>
+                            <td className="border-r border-black p-1"></td>
+                            <td className="border-r border-black p-1"></td>
                             <td className="border-r border-black p-1 bg-slate-100"></td>
-                            <td className="border-r-0 border-black p-1 font-bold text-right px-2">{formattedTaxable}</td>
+                            <td className="border-r-0 border-black p-1 font-bold text-right px-2"></td>
                         </tr>
 
                         {/* Subtotal Row */}
@@ -228,27 +229,27 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
                             <td className="border-r border-black border-t p-1"></td>
                             <td className="border-r border-black border-t p-1 text-right px-2">Taxable Value</td>
                             <td className="border-r border-black border-t p-1"></td>
-                            <td className="border-r border-black border-t p-1 text-right px-2">{quantity > 0 ? `${quantity} ${quantityUnit}` : ''}</td>
+                            <td className="border-r border-black border-t p-1 text-right px-2">{((order as any).items || []).reduce((sum: number, it: any) => sum + Number(it.quantity), 0)} MT</td>
                             <td className="border-r border-black border-t p-1"></td>
                             <td className="border-r border-black border-t p-1"></td>
                             <td colSpan={3} className="border-r border-black border-t p-1 text-right px-4"></td>
-                            <td className="border-r-0 border-black border-t p-1 text-right px-2">{formattedTaxable}</td>
+                            <td className="border-r-0 border-black border-t p-1 text-right px-2 whitespace-nowrap">₹ {formattedTaxable}</td>
                         </tr>
 
                         {/* SGST / CGST Rows (blank for now, matching tally lines) */}
                         <tr className="border-t border-black font-bold text-[10px]">
                             <td colSpan={9} className="border-r border-black p-1 text-right px-4">CGST 2.5%</td>
-                            <td className="border-r-0 border-black p-1 text-right px-2">{cgst}</td>
+                            <td className="border-r-0 border-black p-1 text-right px-2 whitespace-nowrap">₹ {cgst}</td>
                         </tr>
                         <tr className="border-t border-black font-bold text-[10px]">
                             <td colSpan={9} className="border-r border-black p-1 text-right px-4">SGST 2.5%</td>
-                            <td className="border-r-0 border-black p-1 text-right px-2">{sgst}</td>
+                            <td className="border-r-0 border-black p-1 text-right px-2 whitespace-nowrap">₹ {sgst}</td>
                         </tr>
 
                         {/* Final Totals */}
                         <tr className="border-t-2 border-black border-b-2 font-bold text-[12px]">
                             <td colSpan={9} className="border-r border-black p-2 text-right px-4">Total</td>
-                            <td className="border-r-0 border-black p-2 text-right px-2">₹ {formattedFinalTotal}</td>
+                            <td className="border-r-0 border-black p-2 text-right px-2 whitespace-nowrap">₹ {formattedFinalTotal}</td>
                         </tr>
                     </tbody>
                 </table>

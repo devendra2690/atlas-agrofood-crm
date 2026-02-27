@@ -21,6 +21,7 @@ import { auth } from "@/auth";
 import { logActivity } from "./audit";
 
 export type OpportunityItemData = {
+    id?: string;
     productName: string;
     commodityId: string;
     varietyId?: string;
@@ -210,6 +211,14 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
             });
         }
 
+        const existingOpp = await prisma.salesOpportunity.findUnique({
+            where: { id },
+            include: { items: true }
+        });
+        const existingItemIds = existingOpp?.items.map(i => i.id) || [];
+        const incomingItemIds = preparedItems.map(i => i.id).filter(Boolean) as string[];
+        const itemsToDelete = existingItemIds.filter(itemId => !incomingItemIds.includes(itemId));
+
         const opportunity = await prisma.salesOpportunity.update({
             where: { id },
             data: {
@@ -221,8 +230,32 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
                 recurringFrequency: data.recurringFrequency,
                 notes: data.notes,
                 items: {
-                    deleteMany: {}, // Clean slate
-                    create: preparedItems // Create newly updated items
+                    deleteMany: { id: { in: itemsToDelete } },
+                    update: preparedItems.filter(i => i.id).map(item => ({
+                        where: { id: item.id },
+                        data: {
+                            productName: item.productName,
+                            commodityId: item.commodityId,
+                            varietyId: item.varietyId,
+                            varietyFormId: item.varietyFormId,
+                            targetPrice: item.targetPrice,
+                            priceType: item.priceType,
+                            quantity: item.quantity,
+                            procurementQuantity: item.procurementQuantity,
+                            notes: item.notes
+                        }
+                    })),
+                    create: preparedItems.filter(i => !i.id).map(item => ({
+                        productName: item.productName,
+                        commodityId: item.commodityId,
+                        varietyId: item.varietyId,
+                        varietyFormId: item.varietyFormId,
+                        targetPrice: item.targetPrice,
+                        priceType: item.priceType!,
+                        quantity: item.quantity,
+                        procurementQuantity: item.procurementQuantity,
+                        notes: item.notes
+                    }))
                 }
             },
             include: { items: true }

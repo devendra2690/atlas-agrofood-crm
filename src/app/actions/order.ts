@@ -58,6 +58,7 @@ export async function createSalesOrder(opportunityId: string) {
             for (const item of opportunity.items) {
                 // Only include items that have a matching approved sample
                 const hasApprovedSample = opportunity.sampleSubmissions.some((sub: any) =>
+                    sub.opportunityItemId === item.id ||
                     sub.sample?.project?.commodityId === item.commodityId || !item.commodityId
                 );
 
@@ -230,6 +231,7 @@ export async function getSalesOrder(id: string) {
                             include: {
                                 purchaseOrders: {
                                     include: {
+                                        items: true,
                                         vendor: true,
                                         sample: true
                                     },
@@ -256,11 +258,12 @@ export async function getSalesOrder(id: string) {
         if (!order) return { success: false, error: "Order not found" };
 
         // Flatten samples logic
-        const allSamples = order.opportunity.sampleSubmissions.map(sub => ({
+        const allSamples = order.opportunity.sampleSubmissions.map((sub: any) => ({
             ...sub.sample,
             priceQuoted: sub.sample.priceQuoted?.toNumber(),
             vendor: sub.sample.vendor,
-            submissionStatus: sub.status // Include status so we can show it
+            submissionStatus: sub.status, // Include status so we can show it
+            opportunityItemId: sub.opportunityItemId
         }));
 
         const approvedSamples = allSamples.filter(s => s.submissionStatus === 'CLIENT_APPROVED');
@@ -281,7 +284,7 @@ export async function getSalesOrder(id: string) {
                     purchaseOrders: order.opportunity.procurementProject.purchaseOrders.map((po: any) => ({
                         ...po,
                         totalAmount: po.totalAmount.toNumber(),
-                        quantity: po.quantity?.toNumber(),
+                        quantity: po.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0,
                         sample: po.sample ? {
                             ...po.sample,
                             priceQuoted: po.sample.priceQuoted?.toNumber()
@@ -301,7 +304,7 @@ export async function getSalesOrder(id: string) {
             purchaseOrders: order.opportunity.procurementProject?.purchaseOrders.map(po => ({
                 ...po,
                 totalAmount: po.totalAmount.toNumber(),
-                quantity: po.quantity?.toNumber(),
+                quantity: po.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0,
                 sample: po.sample ? {
                     ...po.sample,
                     priceQuoted: po.sample.priceQuoted?.toNumber()

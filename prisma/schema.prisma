@@ -332,6 +332,7 @@ model Commodity {
    wastagePercentage Float @default(0.0) // Percentage wastage
    companies         Company[]
    salesOpportunityItems SalesOpportunityItem[]
+   purchaseOrderItems    PurchaseOrderItem[]
    procurementProjects ProcurementProject[]
    varieties         CommodityVariety[] // NEW
    forms             VarietyForm[]      // Direct forms for this commodity
@@ -357,6 +358,7 @@ model Commodity {
    commodity   Commodity @relation(fields: [commodityId], references: [id])
    vendorMappings VendorVariety[]
    salesOpportunityItems SalesOpportunityItem[] // Relation
+   purchaseOrderItems    PurchaseOrderItem[]
    procurementProjects ProcurementProject[] // Relation
    forms             VarietyForm[]      // NEW
    
@@ -531,6 +533,7 @@ model SalesOpportunityItem {
   varietyForm        VarietyForm?      @relation(fields: [varietyFormId], references: [id])
 
   sampleSubmissions  SampleSubmission[]
+  purchaseOrderItems PurchaseOrderItem[]
 
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
@@ -658,8 +661,7 @@ model PurchaseOrder {
   projectId   String
   vendorId    String
   sampleId    String? // Link to the approved sample
-  quantity    Decimal? // NEW: Explicit quantity
-  quantityUnit String? @default("MT") // NEW: Unit
+  items       PurchaseOrderItem[]
   totalAmount Decimal
   status      PurchaseOrderStatus @default(DRAFT)
   pdfUrl      String? // URL to the attached PO PDF
@@ -682,6 +684,25 @@ model PurchaseOrder {
   @@index([vendorId])
   @@index([createdAt])
   @@index([status])
+}
+
+
+model PurchaseOrderItem {
+  id              String @id @default(uuid())
+  purchaseOrderId String
+  commodityId     String
+  varietyId       String?
+  opportunityItemId String?
+  quantity        Decimal
+  quantityUnit    String @default("MT")
+  rate            Decimal  @default(0)
+  amount          Decimal
+  notes           String?
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  commodity       Commodity     @relation(fields: [commodityId], references: [id])
+  variety         CommodityVariety? @relation(fields: [varietyId], references: [id])
+  opportunityItem SalesOpportunityItem? @relation(fields: [opportunityItemId], references: [id])
 }
 
 model Invoice {

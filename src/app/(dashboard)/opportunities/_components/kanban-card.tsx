@@ -5,7 +5,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, X, MoreHorizontal, PlusCircle } from "lucide-react"; // Added PlusCircle
+import { Check, X, MoreHorizontal, PlusCircle, FileText } from "lucide-react";
 import { updateSubmissionStatus } from "@/app/actions/sample";
 import { createSalesOrder } from "@/app/actions/order";
 import { useRouter } from "next/navigation";
@@ -84,9 +84,30 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
 
     const [creatingOrder, setCreatingOrder] = useState(false);
 
+    const calculateTotalValue = (items: any[]) => {
+        if (!items || items.length === 0) return null;
+        let total = 0;
+        for (const item of items) {
+            if (!item.targetPrice || !item.quantity) return null;
+            const price = Number(item.targetPrice);
+            const qty = Number(item.quantity);
+            if (item.priceType === 'PER_KG') {
+                total += price * (qty * 1000);
+            } else if (item.priceType === 'PER_MT') {
+                total += price * qty;
+            } else if (item.priceType === 'TOTAL_AMOUNT') {
+                total += price;
+            } else {
+                return null;
+            }
+        }
+        return total;
+    };
+
     // Group submissions by product name
     const groupedSubmissions = optimisticSubmissions?.length > 0 ? optimisticSubmissions.reduce((acc: any, sub: any) => {
-        const productName = sub.opportunityItem?.productName || sub.sample?.project?.commodity?.name || sub.sample?.project?.name || "Sample";
+        const productName = sub.opportunityItem?.productName ||
+            (opportunity.items?.length > 1 ? "Generic Sample (All Items)" : (opportunity.items?.[0]?.productName || sub.sample?.project?.commodity?.name || sub.sample?.project?.name || "Sample"));
         if (!acc[productName]) {
             acc[productName] = [];
         }
@@ -124,9 +145,12 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
         >
             <Card className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group relative">
                 <CardHeader className="p-3 pb-0 space-y-0">
-                    <CardTitle className="text-sm font-medium leading-none truncate">
+                    <CardTitle
+                        className="text-sm font-medium leading-none truncate"
+                        title={opportunity.items?.map((i: any) => i.productName).join(', ')}
+                    >
                         {opportunity.items && opportunity.items.length > 0
-                            ? (opportunity.items.length === 1 ? opportunity.items[0].productName : `Multiple Items (${opportunity.items.length})`)
+                            ? opportunity.items.map((i: any) => i.productName).join(', ')
                             : "No Product"}
                     </CardTitle>
                     <div className="text-xs text-muted-foreground pt-1 truncate">
@@ -136,9 +160,14 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
                 <CardContent className="p-3 pt-2">
                     <div className="flex justify-between items-end">
                         <div className="text-sm font-bold text-green-600">
-                            {opportunity.items && opportunity.items.length === 1 && opportunity.items[0].targetPrice
-                                ? `₹${opportunity.items[0].targetPrice}`
-                                : opportunity.items && opportunity.items.length > 1 ? "Multiple Items" : '-'}
+                            {(() => {
+                                if (!opportunity.items || opportunity.items.length === 0) return '-';
+                                if (opportunity.items.length === 1) {
+                                    return opportunity.items[0].targetPrice ? `₹${opportunity.items[0].targetPrice.toLocaleString()}` : '-';
+                                }
+                                const total = calculateTotalValue(opportunity.items);
+                                return total ? `Total: ₹${total.toLocaleString()}` : "Multiple Items";
+                            })()}
                         </div>
                         {opportunity.deadline && (
                             <div className="flex items-center text-[10px] text-muted-foreground">
@@ -193,8 +222,11 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
                                                                         )}
                                                                         onClick={(e) => e.stopPropagation()} // Prevent accordion/card click
                                                                     >
-                                                                        <div className="flex items-center truncate flex-1 pr-2">
-                                                                            <span className="truncate">{sub.sample?.vendor?.name || "Unknown Provider"}</span>
+                                                                        <div className="flex items-center flex-1 pr-2 min-w-0">
+                                                                            <span className="truncate font-medium">{sub.sample?.vendor?.name || "Unknown Provider"}</span>
+                                                                            {sub.sample?.priceQuoted && (
+                                                                                <span className="ml-1.5 text-[10px] text-muted-foreground shrink-0 border-l pl-1.5">₹{Number(sub.sample.priceQuoted)}</span>
+                                                                            )}
                                                                         </div>
 
                                                                         <div className="flex items-center flex-shrink-0">
@@ -249,12 +281,19 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(`/opportunities/${opportunity.id}/print-po`, '_blank');
+                                    }}>
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Print Proforma (PO)
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem
                                         onClick={(e) => {
                                             e.preventDefault();
                                             handleCreateOrder();
                                         }}
-                                        disabled={creatingOrder || opportunity.status !== "CLOSED_WON"}
+                                        disabled={creatingOrder || opportunity.status !== "CLOSED_WON" || (opportunity.salesOrders && opportunity.salesOrders.length > 0)}
                                         className="text-green-700 focus:text-green-800 data-[disabled]:text-muted-foreground"
                                     >
                                         <Check className="mr-2 h-4 w-4" />

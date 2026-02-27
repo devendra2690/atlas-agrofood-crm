@@ -93,6 +93,7 @@ export async function getBill(id: string) {
                 vendor: { include: { country: true, state: true, city: true } },
                 purchaseOrder: {
                     include: {
+                        items: true,
                         project: {
                             include: {
                                 commodity: true
@@ -115,7 +116,7 @@ export async function getBill(id: string) {
             purchaseOrder: {
                 ...bill.purchaseOrder,
                 totalAmount: bill.purchaseOrder.totalAmount.toNumber(),
-                quantity: bill.purchaseOrder.quantity?.toNumber()
+                quantity: bill.purchaseOrder.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0
             },
             transactions: bill.transactions.map((t: any) => ({
                 ...t,

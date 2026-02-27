@@ -27,7 +27,7 @@ export default async function PurchaseInvoicePrintPage({ params }: { params: Pro
     };
 
     const quantity = order.quantity ? Number(order.quantity) : 0;
-    const quantityUnit = order.quantityUnit || "MT";
+    const quantityUnit = "MT";
     const taxableAmount = Number(bill.totalAmount);
 
     let impliedRate = 0;

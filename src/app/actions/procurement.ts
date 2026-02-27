@@ -138,7 +138,9 @@ export async function getProcurementProjects(filters?: {
                     purchaseOrders: {
                         select: {
                             id: true,
-                            quantity: true,
+                            items: {
+                                select: { quantity: true, amount: true }
+                            },
                             status: true,
                             sample: {
                                 select: {
@@ -186,7 +188,12 @@ export async function getProcurementProjects(filters?: {
             })),
             purchaseOrders: p.purchaseOrders.map((po: any) => ({
                 ...po,
-                quantity: po.quantity?.toNumber() || 0
+                items: po.items?.map((it: any) => ({
+                    ...it,
+                    quantity: it.quantity?.toNumber() || 0,
+                    amount: it.amount?.toNumber() || 0
+                })) || [],
+                quantity: po.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0
             }))
         }));
 
@@ -440,6 +447,12 @@ export async function getProcurementProject(id: string) {
                 },
                 purchaseOrders: {
                     include: {
+                        items: {
+                            include: {
+                                commodity: true,
+                                variety: true
+                            }
+                        },
                         vendor: true,
                         sample: {
                             include: {
@@ -508,7 +521,13 @@ export async function getProcurementProject(id: string) {
             purchaseOrders: ((project as any).purchaseOrders || []).map((po: any) => ({
                 ...po,
                 totalAmount: po.totalAmount.toNumber(),
-                quantity: po.quantity?.toNumber(),
+                items: po.items?.map((it: any) => ({
+                    ...it,
+                    quantity: it.quantity?.toNumber(),
+                    rate: it.rate?.toNumber(),
+                    amount: it.amount?.toNumber()
+                })) || [],
+                quantity: po.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0,
                 sample: po.sample ? {
                     ...po.sample,
                     priceQuoted: po.sample.priceQuoted?.toNumber()
@@ -749,6 +768,13 @@ export async function getPurchaseOrder(id: string) {
             where: { id },
             include: {
                 vendor: { include: { country: true, state: true, city: true } },
+                items: {
+                    include: {
+                        commodity: true,
+                        variety: true,
+                        opportunityItem: { include: { commodity: true } }
+                    }
+                },
                 project: {
                     include: {
                         commodity: true,
@@ -822,8 +848,13 @@ export async function getPurchaseOrder(id: string) {
             },
             vendor: o.vendor,
             totalAmount: o.totalAmount?.toNumber(),
-            quantity: o.quantity?.toNumber(),
-            quantityUnit: o.quantityUnit,
+            items: o.items?.map((it: any) => ({
+                ...it,
+                quantity: it.quantity?.toNumber(),
+                rate: it.rate?.toNumber(),
+                amount: it.amount?.toNumber()
+            })) || [],
+            quantity: o.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0,
             sample: o.sample ? {
                 ...o.sample,
                 priceQuoted: o.sample.priceQuoted?.toNumber(),
@@ -850,7 +881,7 @@ export async function getPurchaseOrder(id: string) {
                 rejectedQuantity: o.grn.rejectedQuantity?.toNumber(),
                 acceptedQuantity: o.grn.acceptedQuantity?.toNumber()
             } : null,
-            candidateSamples: candidateSamples.map(sample => ({
+            candidateSamples: candidateSamples.map((sample: any) => ({
                 ...sample,
                 priceQuoted: sample.priceQuoted?.toNumber(),
                 vendor: sample.vendor
@@ -884,6 +915,7 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
         const order = await prisma.purchaseOrder.findUnique({
             where: { id },
             include: {
+                items: true,
                 project: {
                     include: {
                         salesOpportunities: {
@@ -891,7 +923,11 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
                                 items: true
                             }
                         },
-                        purchaseOrders: true
+                        purchaseOrders: {
+                            include: {
+                                items: true
+                            }
+                        }
                     }
                 }
             }
@@ -915,9 +951,12 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
 
             const otherProcured = project.purchaseOrders
                 .filter((po: any) => po.id !== id && po.status !== 'CANCELLED')
-                .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0);
+                .reduce((sum: number, po: any) => {
+                    const poQty = po.items?.reduce((s: number, it: any) => s + (Number(it.quantity) || 0), 0) || 0;
+                    return sum + poQty;
+                }, 0);
 
-            const currentQuantity = Number(order.quantity) || 0;
+            const currentQuantity = order.items?.reduce((s: number, it: any) => s + (Number(it.quantity) || 0), 0) || 0;
 
             // 2. RESTRICT: If demand is ALREADY met by others
             if (otherProcured >= totalDemand) {
@@ -939,6 +978,7 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
             const FullOrder = await prisma.purchaseOrder.findUnique({
                 where: { id },
                 include: {
+                    items: true,
                     bills: { include: { transactions: true } },
                     shipments: true,
                     grn: true
@@ -969,7 +1009,7 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
             );
 
             const acceptedQty = FullOrder.grn.acceptedQuantity.toNumber();
-            const originalQty = FullOrder.quantity?.toNumber() || 0;
+            const originalQty = FullOrder.items?.reduce((sum, it) => sum + it.quantity.toNumber(), 0) || 0;
             const originalTotal = FullOrder.totalAmount.toNumber();
 
             // Calculate effective unit price (Price Per MT)
@@ -990,10 +1030,10 @@ export async function updatePurchaseOrderStatus(id: string, status: PurchaseOrde
             if (acceptedQty < originalQty) {
                 // If we are closing with partial qty, we must update the PO quantity to match actuals
                 // This releases the 'reserved' space in the project logic.
+                // FIXME: Multi-item POs need item-level GRN to reduce specific item quantities.
                 await prisma.purchaseOrder.update({
                     where: { id },
                     data: {
-                        quantity: acceptedQty,
                         totalAmount: totalPaid // Adjust total amount to what was paid/received
                     }
                 });
@@ -1169,8 +1209,7 @@ export async function updatePurchaseOrderPdf(id: string, url: string) {
             success: true,
             data: {
                 ...order,
-                totalAmount: order.totalAmount.toNumber(),
-                quantity: order.quantity?.toNumber()
+                totalAmount: order.totalAmount.toNumber()
             }
         };
     } catch (error) {
@@ -1184,24 +1223,30 @@ export async function createManualPurchaseOrder(data: {
     projectId: string;
     vendorId: string;
     totalAmount: number;
+    items: { commodityId: string, varietyId?: string, opportunityItemId?: string, quantity: number, quantityUnit: string, rate: number, amount: number, notes?: string }[];
     status: PurchaseOrderStatus;
-    sampleId?: string; // Optional
-    quantity?: number; // NEW
-    quantityUnit?: string; // NEW
+    sampleId?: string;
 }) {
     try {
         const session = await auth();
+        const computedAmount = data.items.reduce((sum, item) => sum + item.amount, 0);
+        const finalAmount = data.totalAmount || computedAmount;
+
         const order = await prisma.purchaseOrder.create({
             data: {
                 createdById: session?.user?.id,
                 updatedById: session?.user?.id,
                 projectId: data.projectId,
                 vendorId: data.vendorId,
-                totalAmount: data.totalAmount,
+                totalAmount: finalAmount,
                 status: data.status,
                 sampleId: data.sampleId,
-                quantity: data.quantity,
-                quantityUnit: data.quantityUnit
+                items: {
+                    create: data.items
+                }
+            },
+            include: {
+                items: true
             }
         });
 
@@ -1210,7 +1255,7 @@ export async function createManualPurchaseOrder(data: {
             entityType: "PurchaseOrder",
             entityId: order.id,
             entityTitle: `PO #${order.id.slice(0, 8).toUpperCase()}`,
-            details: `Created manual PO - ₹${data.totalAmount.toLocaleString()}`
+            details: `Created manual PO - ₹${finalAmount.toLocaleString()}`
         });
 
         revalidatePath("/purchase-orders");
@@ -1222,7 +1267,13 @@ export async function createManualPurchaseOrder(data: {
             data: {
                 ...order,
                 totalAmount: order.totalAmount.toNumber(),
-                quantity: order.quantity?.toNumber()
+                items: order.items.map((it: any) => ({
+                    ...it,
+                    quantity: it.quantity.toNumber(),
+                    rate: it.rate.toNumber(),
+                    amount: it.amount.toNumber()
+                })),
+                quantity: order.items.reduce((sum: number, it: any) => sum + it.quantity.toNumber(), 0)
             }
         };
     } catch (error: any) {
@@ -1256,8 +1307,6 @@ export async function deletePurchaseOrder(id: string) {
 
 export async function updatePurchaseOrder(id: string, data: {
     totalAmount: number;
-    quantity?: number;
-    quantityUnit?: string;
     status?: PurchaseOrderStatus;
 }) {
     try {
@@ -1267,8 +1316,6 @@ export async function updatePurchaseOrder(id: string, data: {
             data: {
                 updatedById: session?.user?.id,
                 totalAmount: data.totalAmount,
-                quantity: data.quantity,
-                quantityUnit: data.quantityUnit,
                 status: data.status
             }
         });

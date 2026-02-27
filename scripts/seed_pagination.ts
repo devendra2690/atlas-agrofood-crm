@@ -79,8 +79,7 @@ async function main() {
                 vendorId: vendor.id,
                 status: 'DRAFT',
                 totalAmount: 1000 * (i + 1),
-                quantity: 10,
-                quantityUnit: 'MT'
+                items: { create: [{ commodityId: commodity.id, quantity: 10, rate: 100 * (i + 1), amount: 1000 * (i + 1) }] }
             }
         });
     }

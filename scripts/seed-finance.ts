@@ -73,7 +73,7 @@ async function main() {
                 vendorId: vendor.id,
                 status: 'RECEIVED',
                 totalAmount: 5000 + i * 100,
-                quantity: 100,
+                items: { create: [{ commodityId: commodity!.id, quantity: 100, rate: (5000 + i * 100) / 100, amount: 5000 + i * 100 }] },
                 createdById: userId,
                 updatedById: userId
             }

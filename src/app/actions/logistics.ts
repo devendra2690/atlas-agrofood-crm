@@ -247,7 +247,7 @@ export async function createGRN(data: GRNData) {
             const project = await prisma.procurementProject.findUnique({
                 where: { id: po.projectId },
                 include: {
-                    purchaseOrders: true,
+                    purchaseOrders: { include: { items: true } },
                     salesOpportunities: { include: { items: true } }
                 }
             });
@@ -258,10 +258,9 @@ export async function createGRN(data: GRNData) {
                     .reduce((sum: any, opp: any) => sum + (opp.items?.reduce((s: any, it: any) => s + (Number(it.procurementQuantity) || Number(it.quantity) || 0), 0) || 0), 0);
 
                 const totalSupply = project.purchaseOrders
-                    .filter(p => p.status === 'RECEIVED') // Only count receieved now? Or all active? usually all active.
-                    // Wait, previous logic counted all active. Let's count all active (Supply).
+                    .filter(p => p.status === 'RECEIVED')
                     .filter(p => p.status !== 'DRAFT')
-                    .reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
+                    .reduce((sum, p) => sum + (p.items?.reduce((s: number, it: any) => s + (Number(it.quantity) || 0), 0) || 0), 0);
 
                 if (totalSupply >= totalDemand) {
                     await prisma.procurementProject.update({
@@ -324,6 +323,7 @@ export async function getShipments(filters?: {
                     updatedBy: { select: { name: true } },
                     purchaseOrder: {
                         include: {
+                            items: true,
                             project: true,
                             vendor: true
                         }
@@ -345,7 +345,7 @@ export async function getShipments(filters?: {
             quantity: s.quantity?.toNumber(),
             purchaseOrder: s.purchaseOrder ? {
                 ...s.purchaseOrder,
-                quantity: s.purchaseOrder.quantity?.toNumber(),
+                quantity: s.purchaseOrder.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0,
                 totalAmount: s.purchaseOrder.totalAmount.toNumber()
             } : null,
             salesOrder: s.salesOrder ? {

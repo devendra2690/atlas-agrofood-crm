@@ -165,6 +165,7 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                         {order.opportunity.items
                                             .filter((item: any) =>
                                                 order.approvedSamples && order.approvedSamples.some((sub: any) =>
+                                                    sub.opportunityItemId === item.id ||
                                                     sub.project?.commodityId === item.commodityId || !item.commodityId
                                                 )
                                             )

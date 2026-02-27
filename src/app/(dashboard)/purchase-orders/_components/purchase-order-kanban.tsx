@@ -276,7 +276,7 @@ function OrderCard({ order, isOverlay }: { order: PurchaseOrderWithRelations, is
                     </div>
                     <div className="flex justify-between">
                         <span>Quantity:</span>
-                        <span>{order.quantity} {order.quantityUnit}</span>
+                        <span>{order.quantity} MT</span>
                     </div>
                 </div>
 
