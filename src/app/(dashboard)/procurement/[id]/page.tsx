@@ -101,15 +101,18 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                         .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
                                         .reduce((sum: number, opp: any) => {
                                             const itemsTotal = (opp.items || []).reduce((itemSum: number, item: any) => {
-                                                const hasApprovedSample = opp.sampleSubmissions?.some((sub: any) =>
+                                                const approvedSub = opp.sampleSubmissions?.find((sub: any) =>
                                                     Math.abs(Number(item.procurementQuantity) || Number(item.quantity) || 0) > 0 &&
                                                     (sub.opportunityItemId === item.id ||
                                                         (!sub.opportunityItemId && sub.sample?.project?.commodityId === item.commodityId) ||
                                                         (!sub.opportunityItemId && !item.commodityId))
                                                 );
-                                                if (hasApprovedSample) {
-                                                    const demandValue = isFulfillment ? Number(item.quantity) : (Number(item.procurementQuantity) || Number(item.quantity));
-                                                    return itemSum + (demandValue || 0);
+                                                if (approvedSub) {
+                                                    const isVendorSupply = approvedSub.sample?.vendor?.type === 'VENDOR';
+                                                    const demandValue = isVendorSupply
+                                                        ? (Number(item.procurementQuantity) || Number(item.quantity) || 0)
+                                                        : (Number(item.quantity) || 0);
+                                                    return itemSum + demandValue;
                                                 }
                                                 return itemSum;
                                             }, 0);
@@ -170,14 +173,17 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                 .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
                                                 .reduce((sum: number, opp: any) => {
                                                     const itemsTotal = (opp.items || []).reduce((itemSum: number, item: any) => {
-                                                        const hasApprovedSample = opp.sampleSubmissions?.some((sub: any) =>
+                                                        const approvedSub = opp.sampleSubmissions?.find((sub: any) =>
                                                             sub.opportunityItemId === item.id ||
                                                             (!sub.opportunityItemId && sub.sample?.project?.commodityId === item.commodityId) ||
                                                             (!sub.opportunityItemId && !item.commodityId)
                                                         );
-                                                        if (hasApprovedSample) {
-                                                            const demandValue = isFulfillment ? Number(item.quantity) : (Number(item.procurementQuantity) || Number(item.quantity));
-                                                            return itemSum + (demandValue || 0);
+                                                        if (approvedSub) {
+                                                            const isVendorSupply = approvedSub.sample?.vendor?.type === 'VENDOR';
+                                                            const demandValue = isVendorSupply
+                                                                ? (Number(item.procurementQuantity) || Number(item.quantity) || 0)
+                                                                : (Number(item.quantity) || 0);
+                                                            return itemSum + demandValue;
                                                         }
                                                         return itemSum;
                                                     }, 0);
@@ -209,7 +215,15 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                                 (!sub.opportunityItemId && !item.commodityId)
                                                             ))
                                                             .map((item: any, idx: number) => {
-                                                                const itemDemand = isFulfillment ? Number(item.quantity) : (Number(item.procurementQuantity) || Number(item.quantity) || 0);
+                                                                const approvedSub = opp.sampleSubmissions?.find((sub: any) =>
+                                                                    sub.opportunityItemId === item.id ||
+                                                                    (!sub.opportunityItemId && sub.sample?.project?.commodityId === item.commodityId) ||
+                                                                    (!sub.opportunityItemId && !item.commodityId)
+                                                                );
+                                                                const isVendorSupply = approvedSub?.sample?.vendor?.type === 'VENDOR';
+                                                                const itemDemand = isVendorSupply
+                                                                    ? (Number(item.procurementQuantity) || Number(item.quantity) || 0)
+                                                                    : (Number(item.quantity) || 0);
                                                                 const itemProcured = (project.purchaseOrders || [])
                                                                     .filter((po: any) => po.status !== 'CANCELLED')
                                                                     .reduce((sum: number, po: any) => {

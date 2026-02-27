@@ -193,7 +193,7 @@ export async function getSalesOrders(filters?: {
                     ...it,
                     targetPrice: it.targetPrice?.toNumber(),
                     quantity: it.quantity?.toNumber(),
-                    procurementQuantity: it.procurementQuantity?.toNumber()
+                    procurementQuantity: it.procurementQuantity ? it.procurementQuantity.toNumber() : undefined
                 }))
             }
         }));
@@ -278,7 +278,7 @@ export async function getSalesOrder(id: string) {
                     ...it,
                     targetPrice: it.targetPrice?.toNumber(),
                     quantity: it.quantity?.toNumber(),
-                    procurementQuantity: it.procurementQuantity?.toNumber()
+                    procurementQuantity: it.procurementQuantity ? it.procurementQuantity.toNumber() : undefined
                 })),
                 procurementProject: order.opportunity.procurementProject ? {
                     ...order.opportunity.procurementProject,
@@ -559,7 +559,7 @@ export async function updateSalesOrderStatus(id: string, status: SalesOrderStatu
                         ...it,
                         targetPrice: it.targetPrice?.toNumber(),
                         quantity: it.quantity?.toNumber(),
-                        procurementQuantity: it.procurementQuantity?.toNumber()
+                        procurementQuantity: it.procurementQuantity ? it.procurementQuantity.toNumber() : undefined
                     })),
                     procurementProject: order.opportunity.procurementProject ? {
                         ...order.opportunity.procurementProject,

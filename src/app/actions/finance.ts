@@ -116,7 +116,13 @@ export async function getBill(id: string) {
             purchaseOrder: {
                 ...bill.purchaseOrder,
                 totalAmount: bill.purchaseOrder.totalAmount.toNumber(),
-                quantity: bill.purchaseOrder.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0
+                quantity: bill.purchaseOrder.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0,
+                items: bill.purchaseOrder.items?.map((it: any) => ({
+                    ...it,
+                    quantity: it.quantity?.toNumber(),
+                    rate: it.rate?.toNumber(),
+                    amount: it.amount?.toNumber()
+                }))
             },
             transactions: bill.transactions.map((t: any) => ({
                 ...t,
@@ -167,10 +173,10 @@ export async function getInvoices(filters?: {
                         select: {
                             id: true,
                             amount: true,
-                            // date: true, // Not needed for list view calculation usually? But if displayed...
-                            // receipts: true, // HEAVY FIELD (JSON/ArrayString?)
-                            // type: true,
-                            // description: true
+                            date: true,
+                            receipts: true,
+                            type: true,
+                            description: true
                         },
                         orderBy: { date: 'desc' }
                     }
@@ -192,13 +198,17 @@ export async function getInvoices(filters?: {
                     items: inv.salesOrder.opportunity.items?.map((it: any) => ({
                         ...it,
                         targetPrice: it.targetPrice?.toNumber(),
-                        quantity: it.quantity?.toNumber()
+                        quantity: it.quantity?.toNumber(),
+                        procurementQuantity: it.procurementQuantity ? it.procurementQuantity.toNumber() : undefined
                     }))
                 }
             },
             transactions: inv.transactions.map((t: any) => ({
                 id: t.id,
                 amount: t.amount.toNumber(),
+                date: t.date,
+                type: t.type,
+                description: t.description,
                 receipts: [] // Don't send receipts list to list view, use null or empty array.
             }))
         }));
