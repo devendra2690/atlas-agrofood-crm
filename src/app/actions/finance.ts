@@ -322,7 +322,33 @@ export async function generateInvoiceFromSalesOrder(salesOrderId: string) {
     }
 }
 
-// ... (existing code)
+export async function updateInvoiceDocument(id: string, documentUrl: string) {
+    try {
+        const session = await auth();
+        await prisma.invoice.update({
+            where: { id },
+            data: {
+                documentUrl,
+                updatedById: session?.user?.id
+            }
+        });
+
+        // Let's also log this
+        await logActivity({
+            action: "UPDATE",
+            entityType: "Invoice",
+            entityId: id,
+            entityTitle: `Invoice #${id.slice(0, 8).toUpperCase()}`,
+            details: `Attached final invoice document`
+        });
+
+        revalidatePath('/invoices');
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to update invoice document:", error);
+        return { success: false, error: "Failed to update invoice document" };
+    }
+}
 
 // --- Transaction Actions ---
 

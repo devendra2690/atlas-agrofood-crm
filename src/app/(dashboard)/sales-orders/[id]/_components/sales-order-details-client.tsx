@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SalesOrderFinancials } from "./sales-order-financials";
 import { generateInvoiceFromSalesOrder } from "@/app/actions/finance";
 import { RecordPaymentDialog } from "./record-payment-dialog";
-
+import { InvoiceDocumentAttachment } from "@/app/(dashboard)/invoices/_components/invoice-document-attachment";
 interface SalesOrderDetailsClientProps {
     order: any;
     financials: any;
@@ -294,26 +294,36 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                             ) : (
                                 <div className="space-y-4">
                                     {order.invoices.map((inf: any) => (
-                                        <div key={inf.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-semibold">{inf.id.slice(0, 8).toUpperCase()}</p>
-                                                    <Badge variant={inf.status === 'PAID' ? 'default' : 'outline'}>{inf.status}</Badge>
-                                                </div>
-                                                <p className="text-sm text-slate-500 mt-1">
-                                                    Due: {inf.dueDate ? format(new Date(inf.dueDate), "MMM d") : "-"}
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="font-mono font-bold">₹{inf.totalAmount.toLocaleString()}</p>
-                                                <p className="text-xs text-slate-500">
-                                                    {inf.pendingAmount > 0 ? `Pending: ₹${inf.pendingAmount.toLocaleString()}` : "Paid"}
-                                                </p>
-                                                {inf.pendingAmount > 0 && (
-                                                    <div className="mt-2">
-                                                        <RecordPaymentDialog invoice={inf} />
+                                        <div key={inf.id} className="flex flex-col border rounded-lg p-3 bg-slate-50">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-semibold">{inf.id.slice(0, 8).toUpperCase()}</p>
+                                                        <Badge variant={inf.status === 'PAID' ? 'default' : 'outline'}>{inf.status}</Badge>
                                                     </div>
-                                                )}
+                                                    <p className="text-sm text-slate-500 mt-1">
+                                                        Due: {inf.dueDate ? format(new Date(inf.dueDate), "MMM d") : "-"}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-mono font-bold">₹{inf.totalAmount.toLocaleString()}</p>
+                                                    <p className="text-xs text-slate-500">
+                                                        {inf.pendingAmount > 0 ? `Pending: ₹${inf.pendingAmount.toLocaleString()}` : "Paid"}
+                                                    </p>
+                                                    <div className="flex items-center justify-end gap-2 mt-2">
+                                                        <Button variant="outline" size="sm" className="h-8" asChild>
+                                                            <Link href={`/invoices/${inf.id}/print`} target="_blank">
+                                                                Print
+                                                            </Link>
+                                                        </Button>
+                                                        {inf.pendingAmount > 0 && (
+                                                            <RecordPaymentDialog invoice={inf} />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="mt-4 border-t border-slate-200 pt-3">
+                                                <InvoiceDocumentAttachment invoiceId={inf.id} initialUrl={inf.documentUrl} />
                                             </div>
                                         </div>
                                     ))}
@@ -471,7 +481,7 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                     transactions={transactions}
                 />
             </TabsContent>
-        </Tabs>
+        </Tabs >
     );
 }
 

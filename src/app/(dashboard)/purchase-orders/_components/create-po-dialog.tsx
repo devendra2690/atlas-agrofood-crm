@@ -44,6 +44,7 @@ export function CreatePurchaseOrderDialog({
         sampleId: string;
         commodityId: string;
         commodityName: string;
+        opportunityItemId?: string;
         quantity: string;
         rate: string;
         amount: string;

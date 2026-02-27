@@ -286,7 +286,7 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
                                         window.open(`/opportunities/${opportunity.id}/print-po`, '_blank');
                                     }}>
                                         <FileText className="mr-2 h-4 w-4" />
-                                        Print Proforma (PO)
+                                        Print Proforma (PI)
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                         onClick={(e) => {

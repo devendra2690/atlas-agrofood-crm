@@ -711,6 +711,7 @@ model Invoice {
   totalAmount   Decimal
   pendingAmount Decimal
   dueDate       DateTime?
+  documentUrl   String?
   status        InvoiceStatus @default(UNPAID)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
