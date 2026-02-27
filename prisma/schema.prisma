@@ -483,6 +483,7 @@ model SalesOpportunity {
   type               OpportunityType   @default(ONE_TIME)
   recurringFrequency RecurringFrequency?
   notes              String?
+  poUrl              String?      // Client PO Document (Generated or Uploaded)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
@@ -528,6 +529,8 @@ model SalesOpportunityItem {
   
   varietyFormId      String?
   varietyForm        VarietyForm?      @relation(fields: [varietyFormId], references: [id])
+
+  sampleSubmissions  SampleSubmission[]
 
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
@@ -611,12 +614,14 @@ model SampleSubmission {
   id            String       @id @default(uuid())
   sampleId      String
   opportunityId String
+  opportunityItemId String?  // Optional link to specific item in multi-item opp
   status        SampleStatus @default(SENT_TO_CLIENT)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  sample      SampleRecord     @relation(fields: [sampleId], references: [id])
-  opportunity SalesOpportunity @relation(fields: [opportunityId], references: [id])
+  sample          SampleRecord          @relation(fields: [sampleId], references: [id])
+  opportunity     SalesOpportunity      @relation(fields: [opportunityId], references: [id])
+  opportunityItem SalesOpportunityItem? @relation(fields: [opportunityItemId], references: [id])
 
   @@unique([sampleId, opportunityId])
 }
@@ -630,6 +635,7 @@ model SalesOrder {
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   fulfillmentNotes String?       // Notes explaining why order was closed/delivered if incomplete
+  poUrl            String?       // Inherited attached Client PO from Opportunity
 
   opportunity SalesOpportunity @relation(fields: [opportunityId], references: [id])
   client      Company          @relation(fields: [clientId], references: [id])

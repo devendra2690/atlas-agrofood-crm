@@ -147,6 +147,15 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                     <p className="text-sm font-medium text-slate-500">Created At</p>
                                     <p className="text-lg">{format(new Date(order.createdAt), "PPP")}</p>
                                 </div>
+                                {order.poUrl && (
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-500">Client PO Document</p>
+                                        <Button variant="outline" size="sm" className="mt-1 gap-2" onClick={() => window.open(order.poUrl, "_blank")}>
+                                            <ExternalLink className="h-4 w-4" />
+                                            View Attached PO
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="space-y-4 pt-2">

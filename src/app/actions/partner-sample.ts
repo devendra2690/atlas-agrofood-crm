@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 
 export async function createPartnerSample(data: {
     opportunityId: string;
+    opportunityItemId?: string; // Optional for backward compatibility, but required for multi-item
     vendorId: string;
     date: Date;
     quantity?: number;
@@ -89,6 +90,7 @@ export async function createPartnerSample(data: {
             data: {
                 sampleId: sample.id,
                 opportunityId: opportunity.id,
+                opportunityItemId: data.opportunityItemId,
                 status: "SENT_TO_CLIENT" // Ready to send, or just linked? Let's say SENT_TO_CLIENT as per flow usually implies we have it. Or maybe just "RECEIVED" status on sample is enough?
                 // The prompt says "send it to client". 
                 // Let's create the submission entry so it shows up in the "Samples" list on the Opportunity.

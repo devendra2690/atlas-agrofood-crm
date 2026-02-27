@@ -67,9 +67,24 @@ export function PurchaseOrderList({ orders }: PurchaseOrderListProps) {
                                     </Link>
                                 </TableCell>
                                 <TableCell>
-                                    <Link href={`/procurement/${order.project.id}`} className="hover:underline text-muted-foreground text-sm">
-                                        {order.project.name}
-                                    </Link>
+                                    {(() => {
+                                        const sampleSubmission = order.sample?.submissions?.[0];
+                                        const commodityName = sampleSubmission?.opportunityItem?.productName ||
+                                            sampleSubmission?.opportunityItem?.commodity?.name ||
+                                            order.project?.commodity?.name;
+                                        return (
+                                            <div className="flex flex-col">
+                                                {commodityName && (
+                                                    <span className="font-medium text-slate-900">
+                                                        {commodityName}
+                                                    </span>
+                                                )}
+                                                <Link href={`/procurement/${order.project.id}`} className="hover:underline text-muted-foreground text-xs">
+                                                    {order.project.name}
+                                                </Link>
+                                            </div>
+                                        );
+                                    })()}
                                 </TableCell>
                                 <TableCell className="font-semibold text-slate-700">
                                     ₹{order.totalAmount.toLocaleString()}

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { getPurchaseOrder } from "@/app/actions/procurement";
 import { atlasLogoBase64 } from "@/lib/logo-base64";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function PurchaseOrderPrintPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -24,21 +25,22 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
 
     const quantity = (order as any).quantity ? Number((order as any).quantity) : 0;
     const quantityUnit = (order as any).quantityUnit || "MT";
-    const totalAmount = Number(order.totalAmount);
+    const taxableAmount = Number(order.totalAmount);
 
     let impliedRate = 0;
     if (quantity > 0) {
-        impliedRate = quantityUnit === 'MT' ? totalAmount / (quantity * 1000) : totalAmount / quantity;
+        impliedRate = quantityUnit === 'MT' ? taxableAmount / (quantity * 1000) : taxableAmount / quantity;
     }
 
-    // Tally often uses 2 decimal places for amount
-    const formattedTotal = totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formattedTaxable = taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    // Hardcoded GST representation for the layout (0% if not stored)
-    // To match tally strictly, we will show columns for CGST/SGST/IGST
-    const taxAmount = 0;
-    const cgst = (taxAmount / 2).toFixed(2);
-    const sgst = (taxAmount / 2).toFixed(2);
+    const cgstValue = taxableAmount * 0.025;
+    const sgstValue = taxableAmount * 0.025;
+    const finalTotalAmount = taxableAmount + cgstValue + sgstValue;
+
+    const cgst = cgstValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const sgst = sgstValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formattedFinalTotal = finalTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     // Simple integer-to-words for Indian numbering system
     const numberToWords = (num: number): string => {
@@ -58,7 +60,8 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
     };
 
     return (
-        <div className="p-4 max-w-[210mm] mx-auto bg-white min-h-[297mm] text-black print:p-0 font-sans text-[11px] leading-snug relative">
+        <div className="p-4 max-w-[210mm] mx-auto bg-white min-h-[297mm] text-black print:p-8 font-sans text-[11px] leading-snug relative">
+            <PrintButton />
 
             {/* Background Watermark */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden z-0 opacity-10">
@@ -192,8 +195,23 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
                         {/* Item Row 1 */}
                         <tr className="align-top h-[180px]">
                             <td className="border-r border-black p-1 px-2">1</td>
-                            <td className="border-r border-black p-1 text-left font-bold px-2">
-                                {order.project.commodity ? order.project.commodity.name : order.project.name}
+                            <td className="border-r border-black p-1 text-left px-2">
+                                {(() => {
+                                    const sampleSubmission = order.sample?.submissions?.[0];
+                                    const commodityName = sampleSubmission?.opportunityItem?.productName ||
+                                        sampleSubmission?.opportunityItem?.commodity?.name ||
+                                        order.project?.commodity?.name;
+
+                                    if (commodityName && commodityName !== order.project.name) {
+                                        return (
+                                            <div className="flex flex-col py-1">
+                                                <span className="font-bold text-[13px]">{commodityName}</span>
+                                                <span className="text-[9px] font-medium text-slate-600 mt-0.5 leading-tight">{order.project.name}</span>
+                                            </div>
+                                        );
+                                    }
+                                    return <span className="font-bold text-[13px]">{order.project.name}</span>;
+                                })()}
                             </td>
                             <td className="border-r border-black p-1 px-2 font-bold">123456</td>
                             <td className="border-r border-black p-1 font-bold">{quantity > 0 ? quantity : '-'}</td>
@@ -202,35 +220,35 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
                             <td className="border-r border-black p-1">0%</td>
                             <td className="border-r border-black p-1">0%</td>
                             <td className="border-r border-black p-1 bg-slate-100"></td>
-                            <td className="border-r-0 border-black p-1 font-bold text-right px-2">{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="border-r-0 border-black p-1 font-bold text-right px-2">{formattedTaxable}</td>
                         </tr>
 
                         {/* Subtotal Row */}
                         <tr className="border-t border-black font-bold align-bottom">
                             <td className="border-r border-black border-t p-1"></td>
-                            <td className="border-r border-black border-t p-1 text-right px-2">Total</td>
+                            <td className="border-r border-black border-t p-1 text-right px-2">Taxable Value</td>
                             <td className="border-r border-black border-t p-1"></td>
                             <td className="border-r border-black border-t p-1 text-right px-2">{quantity > 0 ? `${quantity} ${quantityUnit}` : ''}</td>
                             <td className="border-r border-black border-t p-1"></td>
                             <td className="border-r border-black border-t p-1"></td>
-                            <td colSpan={3} className="border-r border-black border-t p-1 text-right px-4">Taxable Amount</td>
-                            <td className="border-r-0 border-black border-t p-1 text-right px-2">{formattedTotal}</td>
+                            <td colSpan={3} className="border-r border-black border-t p-1 text-right px-4"></td>
+                            <td className="border-r-0 border-black border-t p-1 text-right px-2">{formattedTaxable}</td>
                         </tr>
 
                         {/* SGST / CGST Rows (blank for now, matching tally lines) */}
                         <tr className="border-t border-black font-bold text-[10px]">
-                            <td colSpan={9} className="border-r border-black p-1 text-right px-4">CGST</td>
+                            <td colSpan={9} className="border-r border-black p-1 text-right px-4">CGST 2.5%</td>
                             <td className="border-r-0 border-black p-1 text-right px-2">{cgst}</td>
                         </tr>
                         <tr className="border-t border-black font-bold text-[10px]">
-                            <td colSpan={9} className="border-r border-black p-1 text-right px-4">SGST</td>
+                            <td colSpan={9} className="border-r border-black p-1 text-right px-4">SGST 2.5%</td>
                             <td className="border-r-0 border-black p-1 text-right px-2">{sgst}</td>
                         </tr>
 
                         {/* Final Totals */}
                         <tr className="border-t-2 border-black border-b-2 font-bold text-[12px]">
                             <td colSpan={9} className="border-r border-black p-2 text-right px-4">Total</td>
-                            <td className="border-r-0 border-black p-2 text-right px-2">₹ {formattedTotal}</td>
+                            <td className="border-r-0 border-black p-2 text-right px-2">₹ {formattedFinalTotal}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -241,7 +259,7 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
                         <tr className="align-top">
                             <td className="border-r-2 border-black w-[60%] p-2">
                                 <p className="text-[10px]">Amount Chargeable (in words)</p>
-                                <p className="font-bold tracking-tight">INR {numberToWords(totalAmount)} Only</p>
+                                <p className="font-bold tracking-tight">INR {numberToWords(finalTotalAmount)} Only</p>
 
                                 <div className="mt-8 text-[10px]">
                                     <p className="font-bold underline">Declaration</p>

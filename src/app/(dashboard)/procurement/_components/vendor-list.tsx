@@ -59,8 +59,8 @@ export function VendorList({ projectVendors, samples = [], isFulfillment = false
                             {isFulfillment ? (
                                 approvedSamples.length > 0 ? (
                                     approvedSamples.map(sample => {
-                                        const commodityName = sample.project?.commodity?.name || 'Item';
-                                        const commodityId = sample.project?.commodityId;
+                                        const commodityName = sample.opportunityItem?.productName || sample.opportunityItem?.commodity?.name || sample.project?.commodity?.name || 'Item';
+                                        const commodityId = sample.opportunityItem?.commodityId || sample.project?.commodityId;
 
                                         let isFulfilled = false;
                                         if (project && project.salesOpportunities && commodityId) {
@@ -68,13 +68,18 @@ export function VendorList({ projectVendors, samples = [], isFulfillment = false
                                                 .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
                                                 .reduce((sum: number, opp: any) => {
                                                     const itemsTotal = (opp.items || [])
-                                                        .filter((item: any) => item.commodityId === commodityId)
+                                                        .filter((item: any) => sample.opportunityItemId ? item.id === sample.opportunityItemId : item.commodityId === commodityId)
                                                         .reduce((itemSum: number, item: any) => itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0), 0);
                                                     return sum + itemsTotal;
                                                 }, 0);
 
                                             const itemProcured = (project.purchaseOrders || [])
-                                                .filter((po: any) => po.status !== 'CANCELLED' && po.sample?.project?.commodityId === commodityId)
+                                                .filter((po: any) => {
+                                                    if (po.status === 'CANCELLED') return false;
+                                                    const poItemId = po.sample?.submissions?.[0]?.opportunityItemId;
+                                                    if (sample.opportunityItemId && poItemId) return poItemId === sample.opportunityItemId;
+                                                    return po.sample?.project?.commodityId === commodityId;
+                                                })
                                                 .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0);
 
                                             isFulfilled = itemDemand > 0 && itemProcured >= itemDemand;

@@ -17,10 +17,10 @@ export default async function DashboardLayout({
     const { data: alerts } = await getDeadlineAlerts();
 
     return (
-        <div className="flex min-h-screen bg-slate-50">
-            <Sidebar user={user} />
+        <div className="flex min-h-screen bg-slate-50 print:bg-white">
+            <Sidebar user={user} className="print:hidden" />
             <div className="flex-1 flex flex-col min-w-0">
-                <header className="h-16 border-b bg-white px-6 flex items-center gap-4 sticky top-0 z-10">
+                <header className="h-16 border-b bg-white px-6 flex items-center gap-4 sticky top-0 z-10 print:hidden">
                     <MobileSidebar user={user} />
                     <div className="flex-1">
                         <h2 className="text-lg font-semibold text-slate-800">Workspace</h2>
@@ -31,7 +31,7 @@ export default async function DashboardLayout({
                         <UserNav user={user || undefined} />
                     </div>
                 </header>
-                <main className="flex-1 p-6 overflow-auto">
+                <main className="flex-1 p-6 overflow-auto print:p-0 print:overflow-visible print:h-auto">
                     {children}
                 </main>
             </div>

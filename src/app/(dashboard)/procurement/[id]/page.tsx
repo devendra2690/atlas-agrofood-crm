@@ -43,6 +43,8 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
             if (!sub.sample) return null;
             return {
                 ...sub.sample,
+                opportunityItemId: sub.opportunityItemId,
+                opportunityItem: sub.opportunityItem,
                 // Override sample status with submission status so VendorList sees the approval
                 status: sub.status === 'CLIENT_APPROVED' ? 'CLIENT_APPROVED' : sub.sample.status
             };
@@ -100,7 +102,10 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                         .reduce((sum: number, opp: any) => {
                                             const itemsTotal = (opp.items || []).reduce((itemSum: number, item: any) => {
                                                 const hasApprovedSample = opp.sampleSubmissions?.some((sub: any) =>
-                                                    sub.sample?.project?.commodityId === item.commodityId || !item.commodityId
+                                                    Math.abs(Number(item.procurementQuantity) || Number(item.quantity) || 0) > 0 &&
+                                                    (sub.opportunityItemId === item.id ||
+                                                        (!sub.opportunityItemId && sub.sample?.project?.commodityId === item.commodityId) ||
+                                                        (!sub.opportunityItemId && !item.commodityId))
                                                 );
                                                 if (hasApprovedSample) {
                                                     return itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0);
@@ -165,7 +170,9 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                 .reduce((sum: number, opp: any) => {
                                                     const itemsTotal = (opp.items || []).reduce((itemSum: number, item: any) => {
                                                         const hasApprovedSample = opp.sampleSubmissions?.some((sub: any) =>
-                                                            sub.sample?.project?.commodityId === item.commodityId || !item.commodityId
+                                                            sub.opportunityItemId === item.id ||
+                                                            (!sub.opportunityItemId && sub.sample?.project?.commodityId === item.commodityId) ||
+                                                            (!sub.opportunityItemId && !item.commodityId)
                                                         );
                                                         if (hasApprovedSample) {
                                                             return itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0);
@@ -194,11 +201,20 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                     </div>
                                                     <div className="mt-2 space-y-1">
                                                         {(opp.items || [])
-                                                            .filter((item: any) => opp.sampleSubmissions?.some((sub: any) => sub.sample?.project?.commodityId === item.commodityId || !item.commodityId))
+                                                            .filter((item: any) => opp.sampleSubmissions?.some((sub: any) =>
+                                                                sub.opportunityItemId === item.id ||
+                                                                (!sub.opportunityItemId && sub.sample?.project?.commodityId === item.commodityId) ||
+                                                                (!sub.opportunityItemId && !item.commodityId)
+                                                            ))
                                                             .map((item: any, idx: number) => {
                                                                 const itemDemand = Number(item.procurementQuantity) || Number(item.quantity) || 0;
                                                                 const itemProcured = (project.purchaseOrders || [])
-                                                                    .filter((po: any) => po.status !== 'CANCELLED' && po.sample?.project?.commodityId === item.commodityId)
+                                                                    .filter((po: any) => {
+                                                                        if (po.status === 'CANCELLED') return false;
+                                                                        const poItemId = po.sample?.submissions?.[0]?.opportunityItemId;
+                                                                        if (poItemId) return poItemId === item.id;
+                                                                        return po.sample?.project?.commodityId === item.commodityId;
+                                                                    })
                                                                     .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0);
                                                                 const isFulfilled = itemProcured >= itemDemand;
 
@@ -291,7 +307,11 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                         <div className="bg-slate-50 rounded-md p-3 border space-y-2">
                                                             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Required Items</p>
                                                             {(opp.items || [])
-                                                                .filter((item: any) => opp.sampleSubmissions?.some((sub: any) => sub.sample?.project?.commodityId === item.commodityId || !item.commodityId))
+                                                                .filter((item: any) => opp.sampleSubmissions?.some((sub: any) =>
+                                                                    sub.opportunityItemId === item.id ||
+                                                                    (!sub.opportunityItemId && sub.sample?.project?.commodityId === item.commodityId) ||
+                                                                    (!sub.opportunityItemId && !item.commodityId)
+                                                                ))
                                                                 .map((item: any, idx: number) => (
                                                                     <div key={item.id || idx} className="flex justify-between items-center text-sm">
                                                                         <span className="font-medium text-slate-700">{item.productName || "Product"}</span>

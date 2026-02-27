@@ -25,12 +25,12 @@ import { toast } from "sonner";
 import { Loader2, Beaker } from "lucide-react";
 
 interface CollectSampleDialogProps {
-    opportunityId: string;
+    opportunity: any;
     companies: any[]; // Vendors
     trigger?: React.ReactNode;
 }
 
-export function CollectSampleDialog({ opportunityId, companies, trigger }: CollectSampleDialogProps) {
+export function CollectSampleDialog({ opportunity, companies, trigger }: CollectSampleDialogProps) {
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
 
@@ -43,6 +43,7 @@ export function CollectSampleDialog({ opportunityId, companies, trigger }: Colle
         const dateStr = formData.get("date") as string;
         const priceStr = formData.get("price") as string;
         const notes = formData.get("notes") as string;
+        const opportunityItemId = formData.get("opportunityItemId") as string;
 
         if (!vendorId) {
             toast.error("Please select a partner/vendor");
@@ -51,7 +52,8 @@ export function CollectSampleDialog({ opportunityId, companies, trigger }: Colle
 
         startTransition(async () => {
             const result = await createPartnerSample({
-                opportunityId,
+                opportunityId: opportunity.id,
+                opportunityItemId: opportunityItemId !== "none" ? opportunityItemId : undefined,
                 vendorId,
                 date: new Date(dateStr || new Date()),
                 price: priceStr ? parseFloat(priceStr) : undefined,
@@ -101,6 +103,24 @@ export function CollectSampleDialog({ opportunityId, companies, trigger }: Colle
                                 </SelectContent>
                             </Select>
                         </div>
+                        {opportunity?.items && opportunity.items.length > 0 && (
+                            <div className="grid gap-2">
+                                <Label htmlFor="opportunityItemId">For Product/Item</Label>
+                                <Select name="opportunityItemId" defaultValue="none">
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="All items (Generic)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">All items (Generic)</SelectItem>
+                                        {opportunity.items.map((item: any, i: number) => (
+                                            <SelectItem key={item.id} value={item.id}>
+                                                {item.productName || `Item ${i + 1}`}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                         <div className="grid gap-2">
                             <Label htmlFor="date">Date Received</Label>
                             <Input

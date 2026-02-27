@@ -2,6 +2,20 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+
+export async function updateOpportunityPoUrl(id: string, poUrl: string | null) {
+    try {
+        await prisma.salesOpportunity.update({
+            where: { id },
+            data: { poUrl },
+        });
+        revalidatePath("/opportunities");
+        revalidatePath(`/opportunities/${id}`);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: "Failed to update PO URL" };
+    }
+}
 import { OpportunityStatus, TrustLevel } from "@prisma/client";
 import { auth } from "@/auth";
 import { logActivity } from "./audit";
@@ -361,6 +375,13 @@ export async function getOpportunities(filters?: {
                 select: {
                     id: true,
                     status: true,
+                    opportunityItem: {
+                        select: {
+                            id: true,
+                            productName: true,
+                            commodity: { select: { name: true } }
+                        }
+                    },
                     sample: {
                         select: {
                             id: true,
@@ -382,6 +403,11 @@ export async function getOpportunities(filters?: {
                             status: true
                         }
                     }
+                }
+            },
+            salesOrders: {
+                select: {
+                    id: true
                 }
             }
         };
@@ -527,7 +553,11 @@ export async function updateOpportunityStatus(id: string, status: OpportunitySta
             oppItems.forEach((item: any) => {
                 const hasApprovedForItem = oppSamples.some(sub =>
                     sub.status === 'CLIENT_APPROVED' &&
-                    (sub.sample?.project?.commodityId === item.commodityId || !item.commodityId)
+                    (
+                        sub.opportunityItemId === item.id ||
+                        (!sub.opportunityItemId && sub.sample?.project?.commodityId === item.commodityId) ||
+                        (!sub.opportunityItemId && !item.commodityId)
+                    )
                 );
 
                 if (!hasApprovedForItem) {

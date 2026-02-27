@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { OpportunityPoAttachment } from "./po-attachment";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -543,7 +544,16 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                         })}
                     </div>
 
-                    <DialogFooter>
+                    {initialData && (
+                        <div className="mt-4">
+                            <OpportunityPoAttachment
+                                opportunityId={initialData.id}
+                                initialUrl={initialData.poUrl}
+                            />
+                        </div>
+                    )}
+
+                    <DialogFooter className="mt-4">
                         <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
                         <Button type="submit" disabled={loading}>
                             {loading ? "Saving..." : (initialData ? "Update Opportunity" : "Create Opportunity")}
@@ -551,6 +561,6 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                     </DialogFooter>
                 </form>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }

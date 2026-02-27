@@ -106,6 +106,14 @@ export async function getProcurementProjects(filters?: {
                             sampleSubmissions: {
                                 where: { status: 'CLIENT_APPROVED' },
                                 select: {
+                                    // @ts-ignore - Prisma cache type issue
+                                    opportunityItem: {
+                                        select: {
+                                            id: true,
+                                            productName: true,
+                                            commodity: { select: { name: true } }
+                                        }
+                                    },
                                     sample: {
                                         select: {
                                             id: true,
@@ -165,7 +173,7 @@ export async function getProcurementProjects(filters?: {
             prisma.procurementProject.count({ where })
         ]);
 
-        const safeProjects = projects.map(p => ({
+        const safeProjects = (projects as any[]).map(p => ({
             ...p,
             salesOpportunities: p.salesOpportunities.map((opp: any) => ({
                 ...opp,
@@ -378,6 +386,10 @@ export async function getProcurementProject(id: string) {
                         sampleSubmissions: {
                             where: { status: 'CLIENT_APPROVED' },
                             include: {
+                                // @ts-ignore - Prisma cache type issue
+                                opportunityItem: {
+                                    include: { commodity: true }
+                                },
                                 sample: {
                                     include: {
                                         vendor: true,
@@ -397,12 +409,19 @@ export async function getProcurementProject(id: string) {
                         vendor: true,
                         submissions: {
                             include: {
+                                // @ts-ignore - Prisma cache type issue
+                                opportunityItem: {
+                                    include: { commodity: true }
+                                },
                                 opportunity: {
                                     include: {
                                         items: true,
                                         company: true,
                                         sampleSubmissions: {
                                             include: {
+                                                opportunityItem: {
+                                                    include: { commodity: true }
+                                                },
                                                 sample: {
                                                     include: {
                                                         vendor: true
@@ -424,6 +443,7 @@ export async function getProcurementProject(id: string) {
                         vendor: true,
                         sample: {
                             include: {
+                                submissions: true,
                                 project: {
                                     include: {
                                         commodity: true
@@ -446,7 +466,7 @@ export async function getProcurementProject(id: string) {
         // Sanitize decimals
         const safeProject = {
             ...project,
-            salesOpportunities: project.salesOpportunities.map((opp: any) => ({
+            salesOpportunities: (project as any).salesOpportunities.map((opp: any) => ({
                 ...opp,
                 items: opp.items?.map((it: any) => ({
                     ...it,
@@ -462,10 +482,10 @@ export async function getProcurementProject(id: string) {
                     }
                 }))
             })),
-            samples: project.samples.map(sample => ({
+            samples: (project as any).samples.map((sample: any) => ({
                 ...sample,
                 priceQuoted: sample.priceQuoted?.toNumber(),
-                submissions: (sample.submissions || []).map(sub => ({
+                submissions: (sample.submissions || []).map((sub: any) => ({
                     ...sub,
                     opportunity: {
                         ...sub.opportunity,
@@ -485,7 +505,7 @@ export async function getProcurementProject(id: string) {
                     }
                 }))
             })),
-            purchaseOrders: (project.purchaseOrders || []).map((po: any) => ({
+            purchaseOrders: ((project as any).purchaseOrders || []).map((po: any) => ({
                 ...po,
                 totalAmount: po.totalAmount.toNumber(),
                 quantity: po.quantity?.toNumber(),
@@ -494,7 +514,7 @@ export async function getProcurementProject(id: string) {
                     priceQuoted: po.sample.priceQuoted?.toNumber()
                 } : undefined
             })),
-            projectVendors: project.projectVendors
+            projectVendors: (project as any).projectVendors
         };
 
         return { success: true, data: safeProject };
@@ -668,20 +688,42 @@ export async function getPurchaseOrders(filters?: {
                 include: {
                     vendor: true,
                     project: true,
-                    sample: true
+                    sample: {
+                        include: {
+                            submissions: {
+                                // @ts-ignore - Prisma cache type issue
+                                include: {
+                                    opportunityItem: {
+                                        include: {
+                                            commodity: true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }),
             prisma.purchaseOrder.count()
         ]);
 
         // Deserialize decimals
-        const safeOrders = orders.map(order => ({
+        const safeOrders = (orders as any[]).map(order => ({
             ...order,
             totalAmount: order.totalAmount.toNumber(),
             quantity: order.quantity?.toNumber(),
             sample: order.sample ? {
                 ...order.sample,
-                priceQuoted: order.sample.priceQuoted?.toNumber()
+                priceQuoted: order.sample.priceQuoted?.toNumber(),
+                submissions: (order.sample.submissions || []).map((sub: any) => ({
+                    ...sub,
+                    opportunityItem: sub.opportunityItem ? {
+                        ...sub.opportunityItem,
+                        targetPrice: sub.opportunityItem.targetPrice?.toNumber(),
+                        quantity: sub.opportunityItem.quantity?.toNumber(),
+                        procurementQuantity: sub.opportunityItem.procurementQuantity?.toNumber()
+                    } : null
+                }))
             } : null
         }));
 
@@ -722,7 +764,21 @@ export async function getPurchaseOrder(id: string) {
                         }
                     }
                 },
-                sample: { include: { vendor: true } },
+                sample: {
+                    include: {
+                        vendor: true,
+                        submissions: {
+                            // @ts-ignore - Prisma cache type issue
+                            include: {
+                                opportunityItem: {
+                                    include: {
+                                        commodity: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 bills: true,
                 shipments: true,
                 grn: true
@@ -732,20 +788,21 @@ export async function getPurchaseOrder(id: string) {
         if (!order) return { success: false, error: "Purchase Order not found" };
 
         // Collect all approved samples from related opportunities
-        const rawSamples = order.project.salesOpportunities.flatMap(op =>
-            op.sampleSubmissions.map(sub => sub.sample)
+        const o: any = order;
+        const rawSamples = (o.project.salesOpportunities || []).flatMap((op: any) =>
+            (op.sampleSubmissions || []).map((sub: any) => sub.sample)
         );
 
         // Deduplicate samples by ID
         const candidateSamples = Array.from(
-            new Map(rawSamples.map(sample => [sample.id, sample])).values()
+            new Map(rawSamples.map((sample: any) => [sample.id, sample])).values()
         );
 
         const safeOrder = {
-            ...order,
+            ...o,
             project: {
-                ...order.project,
-                salesOpportunities: order.project.salesOpportunities.map((opp: any) => ({
+                ...o.project,
+                salesOpportunities: (o.project.salesOpportunities || []).map((opp: any) => ({
                     ...opp,
                     items: opp.items?.map((it: any) => ({
                         ...it,
@@ -763,26 +820,35 @@ export async function getPurchaseOrder(id: string) {
                     }))
                 }))
             },
-            vendor: order.vendor,
-            totalAmount: order.totalAmount.toNumber(),
-            quantity: order.quantity?.toNumber(),
-            quantityUnit: order.quantityUnit,
-            sample: order.sample ? {
-                ...order.sample,
-                priceQuoted: order.sample.priceQuoted?.toNumber(),
-                vendor: order.sample.vendor
+            vendor: o.vendor,
+            totalAmount: o.totalAmount?.toNumber(),
+            quantity: o.quantity?.toNumber(),
+            quantityUnit: o.quantityUnit,
+            sample: o.sample ? {
+                ...o.sample,
+                priceQuoted: o.sample.priceQuoted?.toNumber(),
+                vendor: o.sample.vendor,
+                submissions: (o.sample.submissions || []).map((sub: any) => ({
+                    ...sub,
+                    opportunityItem: sub.opportunityItem ? {
+                        ...sub.opportunityItem,
+                        targetPrice: sub.opportunityItem.targetPrice?.toNumber(),
+                        quantity: sub.opportunityItem.quantity?.toNumber(),
+                        procurementQuantity: sub.opportunityItem.procurementQuantity?.toNumber()
+                    } : null
+                }))
             } : null,
-            bills: order.bills.map(bill => ({
+            bills: (o.bills || []).map((bill: any) => ({
                 ...bill,
-                totalAmount: bill.totalAmount.toNumber(),
-                pendingAmount: bill.pendingAmount.toNumber()
+                totalAmount: bill.totalAmount?.toNumber(),
+                pendingAmount: bill.pendingAmount?.toNumber()
             })),
-            shipments: order.shipments,
-            grn: order.grn ? {
-                ...order.grn,
-                totalReceivedQuantity: order.grn.totalReceivedQuantity.toNumber(),
-                rejectedQuantity: order.grn.rejectedQuantity.toNumber(),
-                acceptedQuantity: order.grn.acceptedQuantity.toNumber()
+            shipments: o.shipments,
+            grn: o.grn ? {
+                ...o.grn,
+                totalReceivedQuantity: o.grn.totalReceivedQuantity?.toNumber(),
+                rejectedQuantity: o.grn.rejectedQuantity?.toNumber(),
+                acceptedQuantity: o.grn.acceptedQuantity?.toNumber()
             } : null,
             candidateSamples: candidateSamples.map(sample => ({
                 ...sample,

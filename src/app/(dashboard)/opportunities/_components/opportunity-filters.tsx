@@ -72,7 +72,7 @@ export function OpportunityFilters() {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="NEW">New / Open</SelectItem>
+                    <SelectItem value="OPEN">New / Open</SelectItem>
                     <SelectItem value="QUALIFICATION">Qualification</SelectItem>
                     <SelectItem value="PROPOSAL">Proposal</SelectItem>
                     <SelectItem value="NEGOTIATION">Negotiation</SelectItem>

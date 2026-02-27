@@ -15,6 +15,9 @@ export async function createSalesOrder(opportunityId: string) {
             include: {
                 company: true,
                 items: true,
+                salesOrders: {
+                    select: { id: true }
+                },
                 sampleSubmissions: {
                     where: { status: 'CLIENT_APPROVED' },
                     include: {
@@ -34,9 +37,13 @@ export async function createSalesOrder(opportunityId: string) {
             return { success: false, error: "Opportunity not found" };
         }
 
-        // 1.5 Validate Status
+        // 1.5 Validate Status and Existing Orders
         if (opportunity.status !== 'CLOSED_WON') {
             return { success: false, error: "Opportunity must be 'Closed Won' before creating an Order." };
+        }
+
+        if (opportunity.salesOrders && opportunity.salesOrders.length > 0) {
+            return { success: false, error: "A Sales Order has already been created for this Opportunity." };
         }
 
         // 2. Validate Pre-requisites
@@ -77,7 +84,8 @@ export async function createSalesOrder(opportunityId: string) {
                 opportunityId: opportunity.id,
                 clientId: opportunity.company.id,
                 totalAmount: totalAmount,
-                status: 'PENDING'
+                status: 'PENDING',
+                poUrl: opportunity.poUrl
             }
         });
 

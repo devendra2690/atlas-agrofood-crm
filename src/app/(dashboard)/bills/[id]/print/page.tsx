@@ -28,19 +28,22 @@ export default async function PurchaseInvoicePrintPage({ params }: { params: Pro
 
     const quantity = order.quantity ? Number(order.quantity) : 0;
     const quantityUnit = order.quantityUnit || "MT";
-    const totalAmount = Number(bill.totalAmount);
+    const taxableAmount = Number(bill.totalAmount);
 
     let impliedRate = 0;
     if (quantity > 0) {
-        impliedRate = quantityUnit === 'MT' ? totalAmount / (quantity * 1000) : totalAmount / quantity;
+        impliedRate = quantityUnit === 'MT' ? taxableAmount / (quantity * 1000) : taxableAmount / quantity;
     }
 
-    const formattedTotal = totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formattedTaxable = taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    // Hardcoded GST placeholder
-    const taxAmount = 0;
-    const cgst = (taxAmount / 2).toFixed(2);
-    const sgst = (taxAmount / 2).toFixed(2);
+    const cgstValue = taxableAmount * 0.025;
+    const sgstValue = taxableAmount * 0.025;
+    const finalTotalAmount = taxableAmount + cgstValue + sgstValue;
+
+    const cgst = cgstValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const sgst = sgstValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formattedFinalTotal = finalTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const numberToWords = (num: number): string => {
         if (num === 0) return "Zero";
@@ -65,7 +68,7 @@ export default async function PurchaseInvoicePrintPage({ params }: { params: Pro
     ].filter(Boolean).join(", ");
 
     return (
-        <div className="p-4 max-w-[210mm] mx-auto bg-white min-h-[297mm] text-black print:p-0 font-sans text-[11px] leading-snug relative">
+        <div className="p-4 max-w-[210mm] mx-auto bg-white min-h-[297mm] text-black print:p-8 font-sans text-[11px] leading-snug relative">
 
             {/* Background Watermark */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden z-0 opacity-10">
@@ -192,18 +195,36 @@ export default async function PurchaseInvoicePrintPage({ params }: { params: Pro
                                             <td className="border-r border-black p-1 font-bold text-center">
                                                 {quantity > 0 ? (quantityUnit === 'MT' ? 'KG' : quantityUnit) : '-'}
                                             </td>
-                                            <td className="border-r-0 border-black p-1 font-bold text-right px-2">{formattedTotal}</td>
+                                            <td className="border-r-0 border-black p-1 font-bold text-right px-2">{formattedTaxable}</td>
                                         </tr>
 
                                         {/* Subtotal Row */}
                                         <tr className="align-bottom">
                                             <td className="border-r border-black border-t p-1"></td>
-                                            <td className="border-r border-black border-t p-1 text-right font-bold px-2">Total</td>
+                                            <td className="border-r border-black border-t p-1 text-right font-bold px-2">Taxable Value</td>
                                             <td className="border-r border-black border-t p-1"></td>
                                             <td className="border-r border-black border-t p-1 text-right font-bold px-2">{quantity > 0 ? `${quantity} ${quantityUnit}` : ''}</td>
                                             <td className="border-r border-black border-t p-1"></td>
                                             <td className="border-r border-black border-t p-1"></td>
-                                            <td className="border-r-0 border-black border-t p-1 text-right font-bold px-2">{formattedTotal}</td>
+                                            <td className="border-r-0 border-black border-t p-1 text-right font-bold px-2">{formattedTaxable}</td>
+                                        </tr>
+
+                                        {/* CGST Row */}
+                                        <tr className="align-bottom">
+                                            <td colSpan={6} className="border-r border-black p-1 text-right font-bold px-4">CGST 2.5%</td>
+                                            <td className="border-r-0 border-black p-1 text-right font-bold px-2">{cgst}</td>
+                                        </tr>
+
+                                        {/* SGST Row */}
+                                        <tr className="align-bottom">
+                                            <td colSpan={6} className="border-r border-black p-1 text-right font-bold px-4">SGST 2.5%</td>
+                                            <td className="border-r-0 border-black p-1 text-right font-bold px-2">{sgst}</td>
+                                        </tr>
+
+                                        {/* Final Total */}
+                                        <tr className="align-bottom border-t-2 border-black border-b-2">
+                                            <td colSpan={6} className="border-r border-black p-1 text-right font-bold px-4">Total</td>
+                                            <td className="border-r-0 border-black p-1 text-right font-bold px-2">₹ {formattedFinalTotal}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -216,7 +237,7 @@ export default async function PurchaseInvoicePrintPage({ params }: { params: Pro
                                 <div>
                                     <p className="text-[10px]">Amount Chargeable (in words)</p>
                                     <p className="font-bold underline tracking-wide">
-                                        INR {numberToWords(totalAmount)} Only
+                                        INR {numberToWords(finalTotalAmount)} Only
                                     </p>
                                 </div>
                                 <div className="text-right italic">

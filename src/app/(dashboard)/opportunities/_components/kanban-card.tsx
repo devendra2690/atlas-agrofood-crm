@@ -86,7 +86,7 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
 
     // Group submissions by product name
     const groupedSubmissions = optimisticSubmissions?.length > 0 ? optimisticSubmissions.reduce((acc: any, sub: any) => {
-        const productName = sub.sample?.project?.commodity?.name || sub.sample?.project?.name || "Sample";
+        const productName = sub.opportunityItem?.productName || sub.sample?.project?.commodity?.name || sub.sample?.project?.name || "Sample";
         if (!acc[productName]) {
             acc[productName] = [];
         }
@@ -279,7 +279,7 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
                         {["OPEN", "QUALIFICATION", "PROPOSAL", "NEGOTIATION"].includes(opportunity.status) && (
                             <div onClick={(e) => e.stopPropagation()}>
                                 <CollectSampleDialog
-                                    opportunityId={opportunity.id}
+                                    opportunity={opportunity}
                                     companies={partners || []}
                                     trigger={
                                         <Button

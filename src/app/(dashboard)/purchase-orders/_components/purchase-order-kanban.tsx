@@ -25,7 +25,7 @@ type PurchaseOrderWithRelations = Omit<PurchaseOrder, 'totalAmount' | 'quantity'
     totalAmount: number;
     quantity: number | null;
     vendor: { name: string };
-    project: { name: string };
+    project: { name: string; commodity?: { name: string } | null };
     sample?: any;
 };
 
@@ -242,6 +242,13 @@ function DraggableCard({ order }: { order: PurchaseOrderWithRelations }) {
 }
 
 function OrderCard({ order, isOverlay }: { order: PurchaseOrderWithRelations, isOverlay?: boolean }) {
+    // Extracted specific commodity from the linked sample submission
+    const sampleSubmission = order.sample?.submissions?.[0];
+    const commodityName = sampleSubmission?.opportunityItem?.productName ||
+        sampleSubmission?.opportunityItem?.commodity?.name ||
+        order.project?.commodity?.name ||
+        null;
+
     return (
         <Card className={`shadow-sm ${isOverlay ? 'shadow-xl bg-white scale-105' : ''}`}>
             <CardContent className="p-3">
@@ -251,6 +258,12 @@ function OrderCard({ order, isOverlay }: { order: PurchaseOrderWithRelations, is
                     </div>
                     {isOverlay && <Badge>{order.status}</Badge>}
                 </div>
+
+                {commodityName && (
+                    <div className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 mb-2 inline-block">
+                        {commodityName}
+                    </div>
+                )}
 
                 <div className="text-xs text-muted-foreground mb-3 space-y-1">
                     <div className="flex justify-between">

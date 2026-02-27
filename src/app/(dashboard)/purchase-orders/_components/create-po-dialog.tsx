@@ -72,7 +72,14 @@ export function CreatePurchaseOrderDialog({
         const all = [
             ...(selectedProject.samples || []),
             ...(selectedProject.salesOpportunities?.flatMap((opp: any) =>
-                opp.sampleSubmissions?.map((sub: any) => sub.sample) || []
+                opp.sampleSubmissions?.map((sub: any) => {
+                    if (!sub.sample) return null;
+                    return {
+                        ...sub.sample,
+                        opportunityItem: sub.opportunityItem,
+                        opportunityItemId: sub.opportunityItemId
+                    };
+                }).filter(Boolean) || []
             ) || [])
         ];
         const unique = Array.from(new Map(all.filter(Boolean).filter(s => s.vendor?.id === vendorId || s.vendorId === vendorId).map(s => [s.id, s])).values());
@@ -183,7 +190,7 @@ export function CreatePurchaseOrderDialog({
                                 <Label>Commodity / Item <span className="text-red-500">*</span></Label>
                                 <Combobox
                                     options={availableSamples.map((s: any) => ({
-                                        label: s?.project?.commodity?.name || s?.id?.substring(0, 8) || 'Unknown Item',
+                                        label: s?.opportunityItem?.productName || s?.opportunityItem?.commodity?.name || s?.project?.commodity?.name || s?.id?.substring(0, 8) || 'Unknown Item',
                                         value: s?.id
                                     }))}
                                     value={sampleId}
@@ -200,14 +207,15 @@ export function CreatePurchaseOrderDialog({
                             if (qty <= 0) return null;
 
                             const selectedSample = availableSamples.find((s: any) => s.id === sampleId);
-                            const selectedCommodityName = selectedSample?.project?.commodity?.name;
+                            const selectedCommodityName = selectedSample?.opportunityItem?.productName || selectedSample?.opportunityItem?.commodity?.name || selectedSample?.project?.commodity?.name;
 
                             const totalDemand = selectedProject.salesOpportunities
                                 .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
                                 .reduce((sum: number, opp: any) => {
                                     if (opp.items && opp.items.length > 0) {
                                         return sum + opp.items.reduce((itemSum: number, item: any) => {
-                                            if (selectedCommodityName && item.commodity?.name && item.commodity.name !== selectedCommodityName) {
+                                            const itemName = item.productName || item.commodity?.name;
+                                            if (selectedCommodityName && itemName && itemName !== selectedCommodityName) {
                                                 return itemSum;
                                             }
                                             return itemSum + (Number(item.procurementQuantity) || Number(item.quantity) || 0);
@@ -219,7 +227,7 @@ export function CreatePurchaseOrderDialog({
                             const currentProcured = selectedProject.purchaseOrders
                                 .filter((po: any) => po.status !== 'CANCELLED')
                                 .reduce((sum: number, po: any) => {
-                                    const poCommodityName = po.sample?.project?.commodity?.name;
+                                    const poCommodityName = po.sample?.opportunityItem?.productName || po.sample?.opportunityItem?.commodity?.name || po.sample?.project?.commodity?.name;
                                     if (selectedCommodityName && poCommodityName && poCommodityName !== selectedCommodityName) {
                                         return sum;
                                     }

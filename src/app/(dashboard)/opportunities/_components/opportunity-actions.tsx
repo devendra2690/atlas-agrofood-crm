@@ -6,7 +6,7 @@ import {
     DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Pencil, Trash, CheckCircle2, Loader2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash, CheckCircle2, Loader2, FileText } from "lucide-react";
 import { useState } from "react";
 import { OpportunityDialog } from "./opportunity-dialog";
 import { deleteOpportunity } from "@/app/actions/opportunity";
@@ -66,7 +66,7 @@ export function OpportunityActions({ opportunity, companies, partners, commoditi
     return (
         <div className="flex items-center gap-2">
             {["OPEN", "QUALIFICATION", "PROPOSAL", "NEGOTIATION"].includes(opportunity.status) && (
-                <CollectSampleDialog opportunityId={opportunity.id} companies={partners} />
+                <CollectSampleDialog opportunity={opportunity} companies={partners} />
             )}
             <DropdownMenu open={open} onOpenChange={setOpen}>
                 <DropdownMenuTrigger asChild>
@@ -81,11 +81,15 @@ export function OpportunityActions({ opportunity, companies, partners, commoditi
                             e.preventDefault();
                             handleCreateOrder();
                         }}
-                        disabled={creatingOrder || opportunity.status !== 'CLOSED_WON'}
+                        disabled={creatingOrder || opportunity.status !== 'CLOSED_WON' || (opportunity.salesOrders && opportunity.salesOrders.length > 0)}
                         className="font-medium text-green-700 focus:text-green-800 data-[disabled]:text-muted-foreground"
                     >
                         {creatingOrder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                        Create Sales Order
+                        {opportunity.salesOrders && opportunity.salesOrders.length > 0 ? "Order Already Created" : "Create Sales Order"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.open(`/opportunities/${opportunity.id}/print-po`, '_blank')}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Print Proforma Invoice
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
