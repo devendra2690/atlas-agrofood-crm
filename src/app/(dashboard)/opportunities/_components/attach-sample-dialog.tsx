@@ -49,9 +49,13 @@ export function AttachSampleDialog({ open, onOpenChange, opportunity }: AttachSa
             commodityId: commodityId
         });
         if (result.success && result.data) {
-            // Filter to only show VENDOR samples (exclude PARTNER samples)
-            const vendorSamples = result.data.filter((s: any) => s.vendor?.type === 'VENDOR');
-            setSamples(vendorSamples);
+            // Filter to only show VENDOR samples and where project status is SOURCING
+            const validSamples = result.data.filter((s: any) => {
+                const isVendor = s.vendor?.type === 'VENDOR';
+                const isSourcing = s.project?.status === 'SOURCING';
+                return isVendor && isSourcing;
+            });
+            setSamples(validSamples);
         }
         setLoading(false);
     }

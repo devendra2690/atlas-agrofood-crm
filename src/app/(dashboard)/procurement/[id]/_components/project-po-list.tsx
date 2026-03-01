@@ -71,7 +71,7 @@ export function ProjectPOList({ purchaseOrders }: ProjectPOListProps) {
                                 </div>
                             </TableCell>
                             <TableCell>
-                                {po.quantity ? `${Number(po.quantity.toFixed(3))} MT` : '-'}
+                                {po.quantity ? `${Number(po.quantity).toLocaleString(undefined, { maximumFractionDigits: 5 })} MT` : '-'}
                             </TableCell>
                             <TableCell className="font-medium">
                                 ₹{po.totalAmount.toLocaleString()}

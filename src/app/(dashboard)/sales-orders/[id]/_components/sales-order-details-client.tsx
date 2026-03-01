@@ -78,7 +78,8 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
             const totalShipped = order.shipments.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0);
 
             const isFullPaid = Math.abs(totalPaid - order.totalAmount) < 1.0;
-            const isFullQty = Math.abs(totalShipped - order.opportunity.quantity) < 0.01;
+            const targetQty = order.opportunity?.items?.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0) || 0;
+            const isFullQty = Math.round(totalShipped * 1000) >= Math.round(targetQty * 1000);
 
             if (!isFullPaid || !isFullQty) {
                 setPendingStatus(value);
@@ -248,7 +249,9 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                             <div className="border-t my-1"></div>
                                             <div className="flex justify-between">
                                                 <span>Order Quantity:</span>
-                                                <span>{order.opportunity.quantity} MT</span>
+                                                <span>
+                                                    {order.opportunity?.items?.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0) || 0} MT
+                                                </span>
                                             </div>
                                             <div className="flex justify-between text-yellow-600">
                                                 <span>Total Shipped:</span>

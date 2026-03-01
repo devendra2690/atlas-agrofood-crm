@@ -50,16 +50,18 @@ export function ProjectStatusSelector({ projectId, currentStatus, projectName }:
         }
     };
 
-    // Custom trigger to look like a badge but clickable
+    // Custom trigger to look like a badge
     return (
         <Select onValueChange={handleStatusChange} value={currentStatus} disabled={isPending}>
-            <SelectTrigger className="w-fit h-auto p-0 border-none bg-transparent focus:ring-0">
-                <Badge
-                    variant={currentStatus === 'SOURCING' ? 'default' : 'secondary'}
-                    className={`mt-1 hover:opacity-80 cursor-pointer flex gap-1 items-center pr-2 ${currentStatus === 'COMPLETED' ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                >
-                    {currentStatus}
-                </Badge>
+            <SelectTrigger
+                className={`w-fit h-auto px-2.5 py-0.5 mt-1 border-transparent rounded-full text-xs font-semibold focus:ring-0 cursor-pointer ${currentStatus === 'SOURCING'
+                        ? 'bg-primary text-primary-foreground hover:bg-primary/80'
+                        : currentStatus === 'COMPLETED'
+                            ? 'bg-green-600 text-white hover:bg-green-700'
+                            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    }`}
+            >
+                <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
                 <SelectItem value="SOURCING">SOURCING</SelectItem>

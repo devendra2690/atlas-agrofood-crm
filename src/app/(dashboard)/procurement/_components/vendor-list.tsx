@@ -70,8 +70,11 @@ export function VendorList({ projectVendors, samples = [], isFulfillment = false
                                                     const itemsTotal = (opp.items || [])
                                                         .filter((item: any) => sample.opportunityItemId ? item.id === sample.opportunityItemId : item.commodityId === commodityId)
                                                         .reduce((itemSum: number, item: any) => {
-                                                            const val = isFulfillment ? Number(item.quantity) : (Number(item.procurementQuantity) || Number(item.quantity));
-                                                            return itemSum + (val || 0);
+                                                            const isVendorSupply = sample?.vendor?.type === 'VENDOR';
+                                                            const demandValue = isVendorSupply
+                                                                ? (Number(item.procurementQuantity) || Number(item.quantity) || 0)
+                                                                : (Number(item.quantity) || 0);
+                                                            return itemSum + demandValue;
                                                         }, 0);
                                                     return sum + itemsTotal;
                                                 }, 0);
@@ -87,7 +90,9 @@ export function VendorList({ projectVendors, samples = [], isFulfillment = false
                                                         if (matchedItems.length > 0) {
                                                             return sum + matchedItems.reduce((matchSum: number, it: any) => matchSum + (Number(it.quantity) || 0), 0);
                                                         }
+                                                        return sum; // Stop here if it has items but none match, do not apply fallback legacy logic
                                                     }
+
                                                     const poItemId = po.sample?.submissions?.[0]?.opportunityItemId;
                                                     if (sample.opportunityItemId && poItemId) return sum + (poItemId === sample.opportunityItemId ? (Number(po.quantity) || 0) : 0);
                                                     if (po.sample?.project?.commodityId === commodityId) return sum + (Number(po.quantity) || 0);

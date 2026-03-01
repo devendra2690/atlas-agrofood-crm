@@ -207,7 +207,10 @@ export async function getAllSamples(filters?: {
                         }
                     },
                     project: {
-                        include: {
+                        select: {
+                            id: true,
+                            name: true,
+                            status: true,
                             commodity: true
                         }
                     }
@@ -270,8 +273,41 @@ export async function updateSubmissionStatus(id: string, status: SampleStatus) {
     try {
         const submission = await prisma.sampleSubmission.update({
             where: { id },
-            data: { status }
+            data: { status },
+            include: {
+                opportunity: true,
+                sample: {
+                    include: {
+                        vendor: true
+                    }
+                }
+            }
         });
+
+        // If the sample is approved by the client and the opportunity already generated a fulfillment project
+        if (status === 'CLIENT_APPROVED' && submission.opportunity?.procurementProjectId) {
+            try {
+                // Link the sample's vendor to the fulfillment project
+                await prisma.projectVendor.create({
+                    data: {
+                        projectId: submission.opportunity.procurementProjectId,
+                        vendorId: submission.sample.vendorId,
+                    }
+                });
+
+                await logActivity({
+                    action: "CREATE",
+                    entityType: "ProjectVendor",
+                    entityId: submission.opportunity.procurementProjectId,
+                    details: `Auto-linked vendor ${submission.sample.vendor?.name} to fulfillment project after sample approval`
+                });
+            } catch (linkError: any) {
+                // Ignore P2002 (Unique constraint failed) if the vendor is already linked
+                if (linkError.code !== 'P2002') {
+                    console.error("Failed to auto-link vendor to fulfillment project:", linkError);
+                }
+            }
+        }
 
         await logActivity({
             action: "STATUS_CHANGE",
@@ -282,7 +318,7 @@ export async function updateSubmissionStatus(id: string, status: SampleStatus) {
 
         revalidatePath("/opportunities");
         revalidatePath("/procurement");
-        return { success: true, data: submission };
+        return { success: true, data: JSON.parse(JSON.stringify(submission)) };
     } catch (error) {
         console.error("Failed to update submission status:", error);
         return { success: false, error: "Failed to update status" };

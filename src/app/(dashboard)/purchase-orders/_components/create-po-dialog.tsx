@@ -46,6 +46,7 @@ export function CreatePurchaseOrderDialog({
         commodityName: string;
         opportunityItemId?: string;
         quantity: string;
+        maxQuantity?: number;
         rate: string;
         amount: string;
     }[]>([]);
@@ -94,23 +95,71 @@ export function CreatePurchaseOrderDialog({
 
     useEffect(() => {
         if (open) {
+            setProjectId(defaultProjectId || "");
+            setVendorId(defaultVendorId || "");
             loadProjects();
         }
-    }, [open]);
+    }, [open, defaultProjectId, defaultVendorId]);
 
     // Auto-populate items when vendor or availableSamples change
     useEffect(() => {
         if (vendorId && availableSamples.length > 0) {
             if (open) { // only auto-populate when dialog is open
-                setItems(availableSamples.map((s: any) => ({
-                    sampleId: s.id,
-                    commodityId: s.opportunityItem?.commodityId || s.project?.commodityId || selectedProject?.commodityId || "",
-                    commodityName: s.opportunityItem?.productName || s.opportunityItem?.commodity?.name || s.project?.commodity?.name || s.id.substring(0, 8),
-                    opportunityItemId: s.opportunityItemId || undefined,
-                    quantity: "",
-                    rate: s.priceQuoted ? String(s.priceQuoted) : "",
-                    amount: ""
-                })));
+                setItems(availableSamples.map((s: any) => {
+                    const commodityId = s.opportunityItem?.commodityId || s.project?.commodityId || selectedProject?.commodityId || "";
+                    let maxQuantity = undefined;
+
+                    if (selectedProject && selectedProject.salesOpportunities && commodityId) {
+                        const itemDemand = selectedProject.salesOpportunities
+                            .filter((opp: any) => opp.status === 'OPEN' || opp.status === 'CLOSED_WON')
+                            .reduce((sum: number, opp: any) => {
+                                const itemsTotal = (opp.items || [])
+                                    .filter((item: any) => s.opportunityItemId ? item.id === s.opportunityItemId : item.commodityId === commodityId)
+                                    .reduce((itemSum: number, item: any) => {
+                                        const isVendorSupply = s?.vendor?.type === 'VENDOR';
+                                        const demandValue = isVendorSupply
+                                            ? (Number(item.procurementQuantity) || Number(item.quantity) || 0)
+                                            : (Number(item.quantity) || 0);
+                                        return itemSum + demandValue;
+                                    }, 0);
+                                return sum + itemsTotal;
+                            }, 0);
+
+                        const itemProcured = (selectedProject.purchaseOrders || [])
+                            .filter((po: any) => po.status !== 'CANCELLED')
+                            .reduce((sum: number, po: any) => {
+                                if (po.items && po.items.length > 0) {
+                                    const matchedItems = po.items.filter((it: any) => {
+                                        if (s.opportunityItemId && it.opportunityItemId) return it.opportunityItemId === s.opportunityItemId;
+                                        return it.commodityId === commodityId;
+                                    });
+                                    if (matchedItems.length > 0) {
+                                        return sum + matchedItems.reduce((matchSum: number, it: any) => matchSum + (Number(it.quantity) || 0), 0);
+                                    }
+                                    return sum; // Stop here if it has items but none match, do not apply fallback legacy logic
+                                }
+                                const poItemId = po.sample?.submissions?.[0]?.opportunityItemId;
+                                if (s.opportunityItemId && poItemId) return sum + (poItemId === s.opportunityItemId ? (Number(po.quantity) || 0) : 0);
+                                if (po.sample?.project?.commodityId === commodityId) return sum + (Number(po.quantity) || 0);
+                                return sum;
+                            }, 0);
+
+                        maxQuantity = Math.max(0, itemDemand - itemProcured);
+                        // Due to floating point differences, round to 5 decimal places to avoid visual bugs like 0.0045 -> 0.005
+                        maxQuantity = Math.round(maxQuantity * 100000) / 100000;
+                    }
+
+                    return {
+                        sampleId: s.id,
+                        commodityId,
+                        commodityName: s.opportunityItem?.productName || s.opportunityItem?.commodity?.name || s.project?.commodity?.name || s.id.substring(0, 8),
+                        opportunityItemId: s.opportunityItemId || undefined,
+                        quantity: "",
+                        maxQuantity,
+                        rate: s.priceQuoted ? String(s.priceQuoted) : "",
+                        amount: ""
+                    };
+                }));
             }
         } else if (!vendorId) {
             setItems([]);
@@ -126,12 +175,23 @@ export function CreatePurchaseOrderDialog({
 
     const updateItem = (index: number, field: string, value: string) => {
         const newItems = [...items];
-        (newItems[index] as any)[field] = value;
+        let val = value;
+
+        // Enforce max quantity limit
+        if (field === 'quantity') {
+            const maxVal = newItems[index].maxQuantity;
+            if (maxVal !== undefined && parseFloat(val) > maxVal) {
+                val = maxVal.toString();
+                toast.error(`Cannot order more than remaining demand: ${maxVal} MT`);
+            }
+        }
+
+        (newItems[index] as any)[field] = val;
 
         // Auto-calculate amount
         if (field === 'quantity' || field === 'rate') {
-            const qty = parseFloat(field === 'quantity' ? value : newItems[index].quantity) || 0;
-            const rate = parseFloat(field === 'rate' ? value : newItems[index].rate) || 0;
+            const qty = parseFloat(field === 'quantity' ? val : newItems[index].quantity) || 0;
+            const rate = parseFloat(field === 'rate' ? val : newItems[index].rate) || 0;
             if (qty > 0 && rate > 0) {
                 newItems[index].amount = (qty * 1000 * rate).toFixed(2);
             } else {
@@ -257,7 +317,12 @@ export function CreatePurchaseOrderDialog({
                                             {item.commodityName}
                                         </div>
                                         <div className="col-span-4">
-                                            <Label className="text-xs text-slate-500">Quantity (MT)</Label>
+                                            <Label className="text-xs text-slate-500">
+                                                Quantity (MT)
+                                                {item.maxQuantity !== undefined && (
+                                                    <span className="text-blue-600 ml-1 block mt-0.5">Max: {item.maxQuantity} MT</span>
+                                                )}
+                                            </Label>
                                             <Input
                                                 type="number"
                                                 placeholder="0.00"

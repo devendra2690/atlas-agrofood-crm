@@ -44,7 +44,12 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
             return {
                 ...sub.sample,
                 opportunityItemId: sub.opportunityItemId,
-                opportunityItem: sub.opportunityItem,
+                opportunityItem: sub.opportunityItem ? {
+                    ...sub.opportunityItem,
+                    targetPrice: sub.opportunityItem.targetPrice?.toNumber ? sub.opportunityItem.targetPrice.toNumber() : sub.opportunityItem.targetPrice,
+                    quantity: sub.opportunityItem.quantity?.toNumber ? sub.opportunityItem.quantity.toNumber() : sub.opportunityItem.quantity,
+                    procurementQuantity: sub.opportunityItem.procurementQuantity?.toNumber ? sub.opportunityItem.procurementQuantity.toNumber() : sub.opportunityItem.procurementQuantity
+                } : undefined,
                 // Override sample status with submission status so VendorList sees the approval
                 status: sub.status === 'CLIENT_APPROVED' ? 'CLIENT_APPROVED' : sub.sample.status
             };
@@ -54,7 +59,10 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
     const allSamples = [...(project.samples || []), ...opportunitySamples];
 
     // Deduplicate by ID
-    const uniqueSamples = Array.from(new Map(allSamples.map((s: any) => [s.id, s])).values());
+    let uniqueSamples = Array.from(new Map(allSamples.map((s: any) => [s.id, s])).values());
+
+    // Deep clone to strip any lingering Prisma Decimal or Date objects before passing to Client Components
+    uniqueSamples = JSON.parse(JSON.stringify(uniqueSamples));
 
     return (
         <div className="space-y-6">
@@ -140,7 +148,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                         return (
                                             <>
                                                 <div className="text-2xl font-bold flex items-center gap-2 text-amber-600">
-                                                    {balance.toFixed(2)} MT
+                                                    {balance.toLocaleString(undefined, { maximumFractionDigits: 5 })} MT
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">Remaining to Procure</p>
                                             </>
@@ -150,7 +158,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                     return (
                                         <>
                                             <div className="text-2xl font-bold flex items-center gap-2 text-blue-600">
-                                                {Math.abs(balance).toFixed(2)} MT
+                                                {Math.abs(balance).toLocaleString(undefined, { maximumFractionDigits: 5 })} MT
                                             </div>
                                             <p className="text-xs text-muted-foreground">Surplus (Excess Procured)</p>
                                         </>
@@ -235,6 +243,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                                             if (matchedItems.length > 0) {
                                                                                 return sum + matchedItems.reduce((matchSum: number, it: any) => matchSum + (Number(it.quantity) || 0), 0);
                                                                             }
+                                                                            return sum;
                                                                         }
                                                                         const poItemId = po.sample?.submissions?.[0]?.opportunityItemId;
                                                                         if (item.id && poItemId) return sum + (poItemId === item.id ? (Number(po.quantity) || 0) : 0);
@@ -383,7 +392,12 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                     <AddVendorDialog projectId={project.id} />
                                 </CardHeader>
                                 <CardContent>
-                                    <VendorList projectVendors={project.projectVendors} samples={uniqueSamples} isFulfillment={isFulfillment} project={project} />
+                                    <VendorList
+                                        projectVendors={JSON.parse(JSON.stringify(project.projectVendors || []))}
+                                        samples={uniqueSamples}
+                                        isFulfillment={isFulfillment}
+                                        project={JSON.parse(JSON.stringify(project))}
+                                    />
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -400,7 +414,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                         <SampleBoard
                                             initialSamples={uniqueSamples}
                                             projectId={project.id}
-                                            projectVendors={project.projectVendors || []}
+                                            projectVendors={JSON.parse(JSON.stringify(project.projectVendors || []))}
                                         />
                                     </CardContent>
                                 </Card>

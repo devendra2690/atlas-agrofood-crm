@@ -501,6 +501,12 @@ export async function getProcurementProject(id: string) {
                 priceQuoted: sample.priceQuoted?.toNumber(),
                 submissions: (sample.submissions || []).map((sub: any) => ({
                     ...sub,
+                    opportunityItem: sub.opportunityItem ? {
+                        ...sub.opportunityItem,
+                        targetPrice: sub.opportunityItem.targetPrice?.toNumber(),
+                        quantity: sub.opportunityItem.quantity?.toNumber(),
+                        procurementQuantity: sub.opportunityItem.procurementQuantity?.toNumber()
+                    } : null,
                     opportunity: {
                         ...sub.opportunity,
                         items: sub.opportunity?.items?.map((it: any) => ({
