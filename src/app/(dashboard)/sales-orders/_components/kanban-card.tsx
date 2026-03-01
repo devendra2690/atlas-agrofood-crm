@@ -69,7 +69,7 @@ export function SalesOrderKanbanCard({ order }: SalesOrderKanbanCardProps) {
                 <CardContent className="p-3 pt-2">
                     <div className="flex justify-between items-end mb-2">
                         <div className="text-sm font-bold text-slate-800">
-                            ₹{order.totalAmount?.toLocaleString()}
+                            ₹{(order.totalAmount * 1.05)?.toLocaleString()}
                         </div>
                         <div className="flex items-center text-[10px] text-muted-foreground">
                             <Calendar className="mr-1 h-3 w-3" />

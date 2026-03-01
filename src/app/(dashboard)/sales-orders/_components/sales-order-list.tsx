@@ -55,7 +55,7 @@ export function SalesOrderList({ orders }: SalesOrderListProps) {
                                     <span className="text-muted-foreground">{order.opportunity.productName}</span>
                                 </TableCell>
                                 <TableCell className="font-semibold text-slate-700">
-                                    ₹{order.totalAmount.toLocaleString()}
+                                    ₹{(order.totalAmount * 1.05).toLocaleString()}
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
