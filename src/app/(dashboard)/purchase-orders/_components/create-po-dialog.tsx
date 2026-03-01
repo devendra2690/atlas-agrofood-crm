@@ -366,11 +366,25 @@ export function CreatePurchaseOrderDialog({
                                     <span className="text-sm text-muted-foreground">
                                         {items.filter(it => parseFloat(it.quantity) > 0).length} items selected
                                     </span>
-                                    <div className="text-right">
-                                        <span className="text-sm font-medium text-slate-500 mr-2">Order Total:</span>
-                                        <span className="text-lg font-bold">
-                                            ₹{items.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                        </span>
+                                    <div className="text-right space-y-1">
+                                        <div>
+                                            <span className="text-sm font-medium text-slate-500 mr-2">Subtotal:</span>
+                                            <span className="text-sm font-medium">
+                                                ₹{items.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span className="text-sm font-medium text-slate-500 mr-2">GST (5%):</span>
+                                            <span className="text-sm font-medium text-slate-600">
+                                                ₹{(items.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0) * 0.05).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                        <div className="pt-1 border-t">
+                                            <span className="text-sm font-bold text-slate-700 mr-2">Grand Total:</span>
+                                            <span className="text-lg font-bold text-black">
+                                                ₹{(items.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0) * 1.05).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

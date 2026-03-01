@@ -48,6 +48,7 @@ enum OpportunityStatus {
 enum ProjectStatus {
   SOURCING
   COMPLETED
+  CANCELLED
 }
 
 enum SampleStatus {

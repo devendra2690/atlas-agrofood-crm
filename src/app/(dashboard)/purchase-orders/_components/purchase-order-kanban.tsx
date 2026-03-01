@@ -294,7 +294,7 @@ function OrderCard({ order, isOverlay }: { order: PurchaseOrderWithRelations, is
 
                 <div className="pt-2 border-t flex justify-between items-center">
                     <div className="font-bold text-sm">
-                        {formatCurrency(Number(order.totalAmount))}
+                        {formatCurrency(Number(order.totalAmount) * 1.05)}
                     </div>
                     <div className="bg-slate-100 text-xs px-2 py-0.5 rounded text-slate-600 font-mono">
                         #{order.id.slice(0, 5)}

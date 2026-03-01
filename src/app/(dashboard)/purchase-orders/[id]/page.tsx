@@ -119,9 +119,27 @@ export default async function PurchaseOrderDetailsPage({ params }: PageProps) {
                                         </tbody>
                                         <tfoot className="border-t bg-slate-50/50">
                                             <tr>
-                                                <td colSpan={3} className="px-4 py-3 font-semibold text-right">Total</td>
-                                                <td className="px-4 py-3 font-bold text-right text-base">
+                                                <td colSpan={3} className="px-4 py-3 font-medium text-right text-slate-500">Subtotal</td>
+                                                <td className="px-4 py-3 font-semibold text-right text-base">
                                                     ₹{order.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td colSpan={3} className="px-4 py-2 font-medium text-right text-slate-500">CGST (2.5%)</td>
+                                                <td className="px-4 py-2 font-semibold text-right text-base">
+                                                    ₹{Number(order.totalAmount * 0.025).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td colSpan={3} className="px-4 py-2 font-medium text-right text-slate-500">SGST (2.5%)</td>
+                                                <td className="px-4 py-2 font-semibold text-right text-base">
+                                                    ₹{Number(order.totalAmount * 0.025).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                            </tr>
+                                            <tr className="border-t bg-slate-100">
+                                                <td colSpan={3} className="px-4 py-3 font-bold text-right text-lg">Grand Total</td>
+                                                <td className="px-4 py-3 font-bold text-right text-xl text-black">
+                                                    ₹{Number(order.totalAmount * 1.05).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </td>
                                             </tr>
                                         </tfoot>

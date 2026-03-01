@@ -99,7 +99,7 @@ export function PurchaseOrderList({ orders }: PurchaseOrderListProps) {
                                     })()}
                                 </TableCell>
                                 <TableCell className="font-semibold text-slate-700">
-                                    ₹{order.totalAmount.toLocaleString()}
+                                    ₹{(Number(order.totalAmount) * 1.05).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">

@@ -74,7 +74,7 @@ export function ProjectPOList({ purchaseOrders }: ProjectPOListProps) {
                                 {po.quantity ? `${Number(po.quantity).toLocaleString(undefined, { maximumFractionDigits: 5 })} MT` : '-'}
                             </TableCell>
                             <TableCell className="font-medium">
-                                ₹{po.totalAmount.toLocaleString()}
+                                ₹{(Number(po.totalAmount) * 1.05).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell>
                                 <Badge variant="outline">{po.status}</Badge>
