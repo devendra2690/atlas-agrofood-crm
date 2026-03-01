@@ -142,7 +142,7 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-slate-500">Total Value</p>
-                                    <p className="text-lg font-mono font-bold">₹{order.totalAmount.toLocaleString()}</p>
+                                    <p className="font-mono text-base font-bold text-slate-900">₹{(order.totalAmount * 1.05).toLocaleString()}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-slate-500">Created At</p>
@@ -309,9 +309,9 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                                     </p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="font-mono font-bold">₹{inf.totalAmount.toLocaleString()}</p>
+                                                    <p className="font-mono font-bold">₹{(inf.totalAmount * 1.05).toLocaleString()}</p>
                                                     <p className="text-xs text-slate-500">
-                                                        {inf.pendingAmount > 0 ? `Pending: ₹${inf.pendingAmount.toLocaleString()}` : "Paid"}
+                                                        {inf.pendingAmount > 0 ? `Pending: ₹${(inf.pendingAmount * 1.05).toLocaleString()}` : "Paid"}
                                                     </p>
                                                     <div className="flex items-center justify-end gap-2 mt-2">
                                                         <Button variant="outline" size="sm" className="h-8" asChild>
