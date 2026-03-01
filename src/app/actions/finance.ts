@@ -304,13 +304,17 @@ export async function generateInvoiceFromSalesOrder(salesOrderId: string) {
 
         // 3. Create Invoice
         const session = await auth();
+
+        // Ensure GST is captured natively as the actual billable amount 
+        const amountWithGST = new Decimal(so.totalAmount.toNumber() * 1.05);
+
         const invoice = await prisma.invoice.create({
             data: {
                 createdById: session?.user?.id,
                 updatedById: session?.user?.id,
                 salesOrderId: so.id,
-                totalAmount: so.totalAmount,
-                pendingAmount: so.totalAmount, // Initially full amount pending
+                totalAmount: amountWithGST,
+                pendingAmount: amountWithGST, // Initially full amount pending
                 dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days
                 status: 'UNPAID'
             }

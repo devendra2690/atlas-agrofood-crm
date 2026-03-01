@@ -309,9 +309,9 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                                     </p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="font-mono font-bold">₹{(inf.totalAmount * 1.05).toLocaleString()}</p>
+                                                    <p className="font-mono font-bold">₹{inf.totalAmount.toLocaleString()}</p>
                                                     <p className="text-xs text-slate-500">
-                                                        {inf.pendingAmount > 0 ? `Pending: ₹${(inf.pendingAmount * 1.05).toLocaleString()}` : "Paid"}
+                                                        {inf.pendingAmount > 0 ? `Pending: ₹${inf.pendingAmount.toLocaleString()}` : "Paid"}
                                                     </p>
                                                     <div className="flex items-center justify-end gap-2 mt-2">
                                                         <Button variant="outline" size="sm" className="h-8" asChild>
