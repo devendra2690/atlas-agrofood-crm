@@ -93,7 +93,7 @@ export function SalesOrderFinancials({ salesOrderId, financials, transactions }:
                         <IndianRupee className="h-4 w-4 text-emerald-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{(financials.revenue * 1.05).toLocaleString()}</div>
+                        <div className="text-2xl font-bold">₹{financials.revenue.toLocaleString()}</div>
                         <p className="text-xs text-muted-foreground">Invoiced Amount</p>
                     </CardContent>
                 </Card>
@@ -120,11 +120,11 @@ export function SalesOrderFinancials({ salesOrderId, financials, transactions }:
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
-                        <TrendingUp className={`h-4 w-4 ${((financials.revenue * 1.05) - financials.cogs - financials.otherExpenses) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`} />
+                        <TrendingUp className={`h-4 w-4 ${((financials.revenue) - (financials.cogs) - financials.otherExpenses) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`} />
                     </CardHeader>
                     <CardContent>
-                        <div className={`text-2xl font-bold ${((financials.revenue * 1.05) - financials.cogs - financials.otherExpenses) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            ₹{((financials.revenue * 1.05) - financials.cogs - financials.otherExpenses).toLocaleString()}
+                        <div className={`text-2xl font-bold ${((financials.revenue) - (financials.cogs) - financials.otherExpenses) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            ₹{((financials.revenue) - (financials.cogs) - financials.otherExpenses).toLocaleString()}
                         </div>
                         <p className="text-xs text-muted-foreground">Realized Profit</p>
                     </CardContent>

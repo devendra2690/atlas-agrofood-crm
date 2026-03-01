@@ -591,12 +591,13 @@ export async function getSalesOrderFinancials(salesOrderId: string) {
 
         // 4. Net Profit
         const totalRevenue = revenue.plus(otherIncome);
-        const totalCost = cogs.plus(otherExpenses);
+        const actualCogs = cogs.mul(1.05); // Include 5% GST on Purchase Orders
+        const totalCost = actualCogs.plus(otherExpenses);
         const netProfit = totalRevenue.minus(totalCost);
 
         return {
             revenue: revenue.toNumber(),
-            cogs: cogs.toNumber(),
+            cogs: actualCogs.toNumber(),
             otherExpenses: otherExpenses.toNumber(),
             netProfit: netProfit.toNumber()
         };
