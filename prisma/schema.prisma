@@ -142,6 +142,7 @@ model User {
   updatedGRNs GRN[] @relation("UpdatedBy")
   createdInteractions InteractionLog[] @relation("CreatedInteraction")
   updatedInteractions InteractionLog[] @relation("UpdatedInteraction")
+  createdDocuments Document[] @relation("CreatedDocuments")
 
   // Splitwise Relations
   expensesPaid Expense[] @relation("ExpensesPaid")
@@ -281,6 +282,7 @@ model Company {
   sampleRecords     SampleRecord[]     // Samples provided
   commodities       Commodity[]
   vendorVarieties   VendorVariety[]
+  documents         Document[]
 
   createdById String?
   updatedById String?
@@ -432,6 +434,27 @@ model Commodity {
    
    salesUser     User      @relation(fields: [salesUserId], references: [id])
  }
+
+model Document {
+  id          String    @id @default(uuid())
+  title       String
+  type        String    // e.g., "License", "Contract"
+  fileUrl     String    // The uploaded file URL
+  expiryDate  DateTime? // Optional expiry tracking
+  details     String?   @db.Text
+  
+  companyId   String?
+  company     Company?  @relation(fields: [companyId], references: [id])
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  createdById String?
+  createdBy   User?     @relation("CreatedDocuments", fields: [createdById], references: [id])
+
+  @@index([companyId])
+  @@index([type])
+}
 
 model Product {
   id   String @id @default(uuid())

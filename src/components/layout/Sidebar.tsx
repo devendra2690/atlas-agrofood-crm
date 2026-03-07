@@ -78,6 +78,7 @@ const sidebarItems = [
         items: [
             { name: "Tasks", href: "/tasks", icon: ClipboardList },
             { name: "Discussions", href: "/notes", icon: MessageSquare },
+            { name: "Documents", href: "/documents", icon: FileText },
             { name: "Marketing", href: "/marketing", icon: Megaphone },
         ]
     },
