@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 interface SearchInputProps {
     placeholder?: string;
     className?: string;
+    paramName?: string;
 }
 
-export function SearchInput({ placeholder, className }: SearchInputProps) {
+export function SearchInput({ placeholder, className, paramName = "query" }: SearchInputProps) {
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const { replace } = useRouter();
@@ -19,9 +20,9 @@ export function SearchInput({ placeholder, className }: SearchInputProps) {
     const handleSearch = useDebouncedCallback((term: string) => {
         const params = new URLSearchParams(searchParams);
         if (term) {
-            params.set("query", term);
+            params.set(paramName, term);
         } else {
-            params.delete("query");
+            params.delete(paramName);
         }
         params.set("page", "1"); // Reset pagination
 
@@ -33,7 +34,7 @@ export function SearchInput({ placeholder, className }: SearchInputProps) {
             <Input
                 placeholder={placeholder || "Search..."}
                 className="h-9"
-                defaultValue={searchParams.get("query")?.toString()}
+                defaultValue={searchParams.get(paramName)?.toString()}
                 onChange={(e) => handleSearch(e.target.value)}
             />
             <Button size="icon" variant="ghost" className="pointer-events-none">

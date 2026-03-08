@@ -20,6 +20,7 @@ import { Receipt } from "lucide-react";
 import { deleteInvoice, deleteTransaction } from "@/app/actions/finance";
 import { auth } from "@/auth";
 import { DeleteWithConfirmation } from "@/components/common/delete-with-confirmation";
+import { SearchInput } from "@/components/search-input";
 
 export default async function InvoicesPage({
     searchParams,
@@ -30,6 +31,8 @@ export default async function InvoicesPage({
     const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
     const limit = 10;
     const status = typeof params.status === 'string' ? params.status : undefined;
+    const invoiceSearch = typeof params.invoiceSearch === 'string' ? params.invoiceSearch : undefined;
+    const incomeSearch = typeof params.incomeSearch === 'string' ? params.incomeSearch : undefined;
 
     const session = await auth();
     const isAdmin = session?.user?.role === 'ADMIN';
@@ -37,9 +40,10 @@ export default async function InvoicesPage({
     const { data: invoices, success, pagination } = await getInvoices({
         page,
         limit,
-        status
+        status,
+        search: invoiceSearch
     });
-    const otherIncome = await getOtherIncomeTransactions();
+    const otherIncome = await getOtherIncomeTransactions({ search: incomeSearch });
     const salesOrders = await getSalesOrdersForSelection();
 
     if (!success || !invoices) {
@@ -80,7 +84,12 @@ export default async function InvoicesPage({
                         </Card>
                     </div>
 
-                    <InvoiceFilters />
+                    <div className="flex flex-col sm:flex-row gap-4 items-center mb-6">
+                        <InvoiceFilters />
+                        <div className="w-full sm:w-[300px]">
+                            <SearchInput paramName="invoiceSearch" placeholder="Search by Client or Invoice ID..." />
+                        </div>
+                    </div>
 
                     <Card>
                         <CardHeader>
@@ -203,8 +212,11 @@ export default async function InvoicesPage({
                     </div>
 
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle>Manual Income Transactions</CardTitle>
+                            <div className="w-[300px]">
+                                <SearchInput paramName="incomeSearch" placeholder="Search by Income Name..." />
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <Table>

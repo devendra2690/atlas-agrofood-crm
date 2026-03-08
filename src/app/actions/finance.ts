@@ -143,6 +143,7 @@ export async function getInvoices(filters?: {
     page?: number;
     limit?: number;
     status?: string;
+    search?: string;
 }) {
     try {
         const page = filters?.page || 1;
@@ -152,6 +153,12 @@ export async function getInvoices(filters?: {
         const where: any = {};
         if (filters?.status && filters.status !== 'all') {
             where.status = filters.status;
+        }
+        if (filters?.search) {
+            where.OR = [
+                { id: { contains: filters.search, mode: 'insensitive' } },
+                { salesOrder: { client: { name: { contains: filters.search, mode: 'insensitive' } } } }
+            ];
         }
 
         const [invoices, total] = await prisma.$transaction([
@@ -726,13 +733,19 @@ export async function getSalesOrdersForSelection() {
     }
 }
 
-export async function getOtherIncomeTransactions() {
+export async function getOtherIncomeTransactions(filters?: { search?: string }) {
     try {
+        const where: any = {
+            type: 'CREDIT',
+            invoiceId: null // Only manually added income (can be linked to SO)
+        };
+
+        if (filters?.search) {
+            where.description = { contains: filters.search, mode: 'insensitive' };
+        }
+
         const transactions = await prisma.transaction.findMany({
-            where: {
-                type: 'CREDIT',
-                invoiceId: null // Only manually added income (can be linked to SO)
-            },
+            where,
             orderBy: { date: 'desc' },
             include: {
                 salesOrder: { select: { client: { select: { name: true } } } }
@@ -754,14 +767,20 @@ export async function getOtherIncomeTransactions() {
     }
 }
 
-export async function getOtherExpenseTransactions() {
+export async function getOtherExpenseTransactions(filters?: { search?: string }) {
     try {
+        const where: any = {
+            type: 'DEBIT',
+            billId: null, // As bill payment creates transaction with billId
+            // We NOW allow salesOrderId to be present
+        };
+
+        if (filters?.search) {
+            where.description = { contains: filters.search, mode: 'insensitive' };
+        }
+
         const transactions = await prisma.transaction.findMany({
-            where: {
-                type: 'DEBIT',
-                billId: null, // As bill payment creates transaction with billId
-                // We NOW allow salesOrderId to be present
-            },
+            where,
             orderBy: { date: 'desc' },
             include: {
                 salesOrder: { select: { client: { select: { name: true } } } }

@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { BillFilters } from "./_components/bill-filters";
+import { SearchInput } from "@/components/search-input";
 import { auth } from "@/auth";
 import { DeleteWithConfirmation } from "@/components/common/delete-with-confirmation";
 
@@ -24,6 +25,7 @@ export default async function BillsPage({
     const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
     const limit = 10;
     const status = typeof params.status === 'string' ? params.status : undefined;
+    const expenseSearch = typeof params.expenseSearch === 'string' ? params.expenseSearch : undefined;
 
     const session = await auth();
     const isAdmin = session?.user?.role === 'ADMIN';
@@ -33,7 +35,7 @@ export default async function BillsPage({
         limit,
         status
     });
-    const otherExpenses = await getOtherExpenseTransactions();
+    const otherExpenses = await getOtherExpenseTransactions({ search: expenseSearch });
     const salesOrders = await getSalesOrdersForSelection();
 
     const totalOtherExpense = otherExpenses.reduce((sum, tx) => sum + tx.amount, 0);
@@ -75,8 +77,11 @@ export default async function BillsPage({
                     </div>
 
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle>Manual Expense Transactions</CardTitle>
+                            <div className="w-[300px]">
+                                <SearchInput paramName="expenseSearch" placeholder="Search by Expense Name..." />
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <div className="overflow-x-auto">
