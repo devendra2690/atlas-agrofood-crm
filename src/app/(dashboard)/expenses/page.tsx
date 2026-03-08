@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { getBalances, getExpensesFeed } from "@/app/actions/expense";
+import { getBalances, getExpensesFeed, getGlobalBalances } from "@/app/actions/expense";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { AddExpenseDialog } from "./_components/add-expense-dialog";
 import { SettleUpDialog } from "./_components/settle-up-dialog";
-import { Receipt, HandCoins, ArrowRightLeft } from "lucide-react";
+import { Receipt, HandCoins, ArrowRightLeft, Database } from "lucide-react";
 
 export default async function ExpensesPage() {
     const session = await auth();
@@ -18,6 +18,8 @@ export default async function ExpensesPage() {
     // Build the data dependencies
     const balances = await getBalances();
     const feed = await getExpensesFeed();
+    const globalBalancesRes = session.user.role === 'ADMIN' ? await getGlobalBalances() : { data: null };
+    const globalDebts = globalBalancesRes.data || [];
     const users = await prisma.user.findMany({ select: { id: true, name: true, image: true, email: true } });
 
     const netBalance = balances.data?.netBalance || 0;
@@ -84,6 +86,57 @@ export default async function ExpensesPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {session.user.role === 'ADMIN' && (
+                <div className="mb-6">
+                    <Card className="border-blue-200 shadow-sm">
+                        <CardHeader className="bg-blue-50/50 border-b pb-4">
+                            <CardTitle className="flex items-center gap-2">
+                                <Database className="h-5 w-5 text-blue-500" />
+                                Company-Wide Balances (Admin View)
+                            </CardTitle>
+                            <CardDescription>Global overview of who owes who across all users.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                            {globalDebts.length === 0 ? (
+                                <div className="text-center py-6 text-muted-foreground">
+                                    No outstanding debts company-wide! 🎉
+                                </div>
+                            ) : (
+                                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                                    {globalDebts.map((debt: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 border rounded-lg bg-slate-50/50">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Avatar className="h-5 w-5">
+                                                        <AvatarImage src={debt.borrower?.image || ""} />
+                                                        <AvatarFallback className="text-[10px]">{debt.borrower?.name?.charAt(0) || "?"}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="text-sm font-medium">{debt.borrower?.name}</span>
+                                                </div>
+                                                <div className="text-[10px] text-muted-foreground flex items-center gap-1 pl-1">
+                                                    <span className="text-red-500 font-semibold">owes</span>
+                                                    <ArrowRightLeft className="h-3 w-3" />
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Avatar className="h-5 w-5">
+                                                        <AvatarImage src={debt.lender?.image || ""} />
+                                                        <AvatarFallback className="text-[10px]">{debt.lender?.name?.charAt(0) || "?"}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="text-sm font-medium">{debt.lender?.name}</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-lg font-bold text-slate-700">
+                                                {formatCurrency(debt.amount)}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
 
             <div className="grid gap-6 md:grid-cols-2">
                 {/* Pairwise Balances List */}

@@ -219,3 +219,101 @@ export async function getBalances() {
         return { success: false, data: null };
     }
 }
+
+export async function getGlobalBalances() {
+    try {
+        const session = await auth();
+        if (!session?.user?.id || session.user.role !== 'ADMIN') {
+            return { success: false, data: null, error: "Unauthorized" };
+        }
+
+        // 1. Get ALL expenses and splits
+        const allExpenses = await prisma.expense.findMany({
+            include: { splits: true }
+        });
+
+        // 2. Get ALL settlements
+        const allSettlements = await prisma.expenseSettlement.findMany();
+
+        // Pairwise balances map: "userA_userB" -> Amount User A owes User B
+        // We will normalize the key so userA < userB alphabetically, and the amount represents net flow A->B
+        // Wait, a simpler approach: A flat map of { borrowerId, lenderId } -> positive amount
+        const balances: Record<string, Record<string, number>> = {};
+
+        const addDebt = (borrowerId: string, lenderId: string, amount: number) => {
+            if (borrowerId === lenderId) return;
+            if (!balances[borrowerId]) balances[borrowerId] = {};
+            balances[borrowerId][lenderId] = (balances[borrowerId][lenderId] || 0) + amount;
+        };
+
+        const reduceDebt = (borrowerId: string, lenderId: string, amount: number) => {
+            if (borrowerId === lenderId) return;
+            if (!balances[borrowerId]) balances[borrowerId] = {};
+            balances[borrowerId][lenderId] = (balances[borrowerId][lenderId] || 0) - amount;
+        };
+
+        // Process Expenses
+        for (const exp of allExpenses) {
+            const lenderId = exp.paidById;
+            for (const split of exp.splits) {
+                const borrowerId = split.userId;
+                if (borrowerId !== lenderId) {
+                    addDebt(borrowerId, lenderId, Number(split.owedAmount));
+                }
+            }
+        }
+
+        // Process Settlements (Settlement from Payer to Payee reduces Payer's debt to Payee)
+        for (const st of allSettlements) {
+            const payerId = st.payerId; // Borrower paying back
+            const payeeId = st.payeeId; // Lender receiving money
+            reduceDebt(payerId, payeeId, Number(st.amount));
+        }
+
+        // Resolve net debts (if A owes B $100 and B owes A $40, net is A owes B $60)
+        const netDebts: { borrowerId: string; lenderId: string; amount: number }[] = [];
+
+        const userIds = new Set<string>();
+
+        Object.keys(balances).forEach(borrowerId => {
+            Object.keys(balances[borrowerId]).forEach(lenderId => {
+                const amountAtoB = balances[borrowerId][lenderId] || 0;
+                const amountBtoA = balances[lenderId]?.[borrowerId] || 0;
+
+                if (borrowerId < lenderId) { // Process each pair exactly once
+                    const net = amountAtoB - amountBtoA;
+                    if (net > 0) {
+                        netDebts.push({ borrowerId: borrowerId, lenderId: lenderId, amount: net });
+                        userIds.add(borrowerId);
+                        userIds.add(lenderId);
+                    } else if (net < 0) {
+                        netDebts.push({ borrowerId: lenderId, lenderId: borrowerId, amount: Math.abs(net) });
+                        userIds.add(borrowerId);
+                        userIds.add(lenderId);
+                    }
+                }
+            });
+        });
+
+        // Fetch User details
+        const users = await prisma.user.findMany({
+            where: { id: { in: Array.from(userIds) } },
+            select: { id: true, name: true, image: true, email: true }
+        });
+
+        const detailedDebts = netDebts.map(debt => ({
+            borrower: users.find(u => u.id === debt.borrowerId),
+            lender: users.find(u => u.id === debt.lenderId),
+            amount: debt.amount
+        })).sort((a, b) => b.amount - a.amount);
+
+        return {
+            success: true,
+            data: detailedDebts
+        };
+
+    } catch (error) {
+        console.error("Failed to get global balances:", error);
+        return { success: false, data: null };
+    }
+}
