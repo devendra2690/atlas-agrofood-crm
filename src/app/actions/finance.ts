@@ -176,6 +176,9 @@ export async function getInvoices(filters?: {
                             opportunity: { include: { items: true } }
                         }
                     },
+                    items: {
+                        include: { opportunityItem: { include: { commodity: true } } }
+                    },
                     transactions: {
                         select: {
                             id: true,
@@ -294,36 +297,79 @@ export async function updateInvoiceStatus(id: string, status: 'UNPAID' | 'PARTIA
 /**
  * Auto-generates an invoice from a Sales Order
  */
-export async function generateInvoiceFromSalesOrder(salesOrderId: string) {
+export async function generateInvoiceFromSalesOrder(
+    salesOrderId: string,
+    itemsToInvoice?: { opportunityItemId: string; quantity: number; rate: number }[]
+) {
     try {
         // 1. Fetch Sales Order
         const so = await prisma.salesOrder.findUnique({
             where: { id: salesOrderId },
-            include: { invoices: true }
+            include: { invoices: true, opportunity: { include: { items: true } } }
         });
 
         if (!so) return { success: false, error: "Sales Order not found" };
 
-        // 2. Check if already invoiced (Prevent duplicates for now, or allow partials later)
-        if (so.invoices.length > 0) {
-            return { success: false, error: "Invoice already exists for this order" };
-        }
+        // 2. Allow multiple invoices per order now, so remove the duplicate check block.
 
         // 3. Create Invoice
         const session = await auth();
 
+        // DEV Defense: Check if session user actually exists in DB (to prevent P2003 on stale JWTs after DB reset)
+        let validUserId: string | undefined = undefined;
+        if (session?.user?.id) {
+            const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+            if (userExists) {
+                validUserId = session.user.id;
+            }
+        }
+
+        let baseAmount = 0;
+        let invoiceItemsData: any[] = [];
+
+        if (itemsToInvoice && itemsToInvoice.length > 0) {
+            // Partial Invoice Logic
+            for (const item of itemsToInvoice) {
+                const amount = item.quantity * item.rate;
+                baseAmount += amount;
+                invoiceItemsData.push({
+                    opportunityItemId: item.opportunityItemId,
+                    quantity: new Decimal(item.quantity),
+                    rate: new Decimal(item.rate),
+                    amount: new Decimal(amount)
+                });
+            }
+        } else {
+            // Full Invoice Fallback
+            baseAmount = so.totalAmount.toNumber();
+            for (const item of so.opportunity?.items || []) {
+                const qty = item.quantity ? item.quantity.toNumber() : 0;
+                const rate = item.targetPrice ? item.targetPrice.toNumber() : 0;
+                const amount = qty * rate;
+                invoiceItemsData.push({
+                    opportunityItemId: item.id,
+                    quantity: new Decimal(qty),
+                    rate: new Decimal(rate),
+                    amount: new Decimal(amount)
+                });
+            }
+        }
+
         // Ensure GST is captured natively as the actual billable amount 
-        const amountWithGST = new Decimal(so.totalAmount.toNumber() * 1.05);
+        const amountWithGST = new Decimal(baseAmount * 1.05);
 
         const invoice = await prisma.invoice.create({
             data: {
-                createdById: session?.user?.id,
-                updatedById: session?.user?.id,
+                createdById: validUserId,
+                updatedById: validUserId,
                 salesOrderId: so.id,
                 totalAmount: amountWithGST,
                 pendingAmount: amountWithGST, // Initially full amount pending
                 dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days
-                status: 'UNPAID'
+                status: 'UNPAID',
+                items: {
+                    create: invoiceItemsData
+                }
             }
         });
 
@@ -337,9 +383,9 @@ export async function generateInvoiceFromSalesOrder(salesOrderId: string) {
         revalidatePath(`/sales-orders/${salesOrderId}`);
         return { success: true, data: safeInvoice };
 
-    } catch (error) {
-        console.error("Failed to generate invoice:", error);
-        return { success: false, error: "Failed to generate invoice" };
+    } catch (error: any) {
+        console.error("Failed to generate invoice. Prisma Error:", error.message || error);
+        return { success: false, error: error.message || "Failed to generate invoice" };
     }
 }
 

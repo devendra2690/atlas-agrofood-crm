@@ -10,6 +10,15 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
     const invoice = await prisma.invoice.findUnique({
         where: { id },
         include: {
+            items: {
+                include: {
+                    opportunityItem: {
+                        include: {
+                            commodity: true
+                        }
+                    }
+                }
+            },
             salesOrder: {
                 include: {
                     client: true,
@@ -35,19 +44,8 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
     const { opportunity, client } = salesOrder;
 
     let taxableAmount = 0;
-    opportunity.items.forEach(item => {
-        const qtyMT = item.quantity ? Number(item.quantity) : 0;
-        const price = item.targetPrice ? Number(item.targetPrice) : 0;
-
-        let amount = 0;
-        if (item.priceType === 'TOTAL_AMOUNT') {
-            amount = price;
-        } else if (item.priceType === 'PER_KG') {
-            amount = (qtyMT * 1000) * price;
-        } else {
-            amount = qtyMT * price;
-        }
-        taxableAmount += amount;
+    invoice.items.forEach(invItem => {
+        taxableAmount += invItem.amount ? Number(invItem.amount) : 0;
     });
 
     const formattedTaxable = taxableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -153,28 +151,25 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
                         </tr>
                     </thead>
                     <tbody>
-                        {opportunity.items.map((item, index) => {
-                            const qtyMT = item.quantity ? Number(item.quantity) : 0;
-                            const price = item.targetPrice ? Number(item.targetPrice) : 0;
+                        {invoice.items.map((invItem, index) => {
+                            const item = invItem.opportunityItem;
+                            const qtyMT = invItem.quantity ? Number(invItem.quantity) : 0;
+                            const price = invItem.rate ? Number(invItem.rate) : 0;
+                            const amount = invItem.amount ? Number(invItem.amount) : 0;
 
-                            let amount = 0;
                             let displayQty = qtyMT;
                             let unitStr = "MT";
 
                             if (item.priceType === 'TOTAL_AMOUNT') {
-                                amount = price;
                                 unitStr = "-";
                                 displayQty = 0;
                             } else if (item.priceType === 'PER_KG') {
                                 displayQty = qtyMT * 1000;
                                 unitStr = "kg";
-                                amount = displayQty * price;
-                            } else {
-                                amount = qtyMT * price;
                             }
 
                             return (
-                                <tr key={item.id} className="align-top h-8">
+                                <tr key={invItem.id} className="align-top h-8">
                                     <td className="border-r border-black p-1 text-center">{index + 1}</td>
                                     <td className="border-r border-black p-1 px-2 font-bold">{item.commodity?.name || "Item"}</td>
                                     <td className="border-r border-black p-1 text-center">{/* HSN */}</td>

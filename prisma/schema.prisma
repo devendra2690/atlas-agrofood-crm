@@ -560,6 +560,7 @@ model SalesOpportunityItem {
 
   sampleSubmissions  SampleSubmission[]
   purchaseOrderItems PurchaseOrderItem[]
+  invoiceItems       InvoiceItem[]
 
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
@@ -743,6 +744,7 @@ model Invoice {
   updatedAt     DateTime      @updatedAt
 
   salesOrder SalesOrder    @relation(fields: [salesOrderId], references: [id])
+  items      InvoiceItem[]
   transactions Transaction[]
 
   createdById String?
@@ -754,6 +756,25 @@ model Invoice {
   @@index([createdAt])
   @@index([status])
 
+}
+
+model InvoiceItem {
+  id                 String               @id @default(uuid())
+  invoiceId          String
+  opportunityItemId  String
+  
+  quantity           Decimal
+  rate               Decimal
+  amount             Decimal
+  
+  invoice            Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  opportunityItem    SalesOpportunityItem @relation(fields: [opportunityItemId], references: [id])
+  
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([invoiceId])
+  @@index([opportunityItemId])
 }
 
 model Bill {

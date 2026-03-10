@@ -220,7 +220,9 @@ export async function getSalesOrder(id: string) {
             where: { id },
             include: {
                 client: true,
-                invoices: true,
+                invoices: {
+                    include: { items: true }
+                },
                 shipments: {
                     orderBy: { createdAt: 'desc' }
                 },
@@ -336,7 +338,13 @@ export async function getSalesOrder(id: string) {
             invoices: order.invoices.map(inv => ({
                 ...inv,
                 totalAmount: inv.totalAmount.toNumber(),
-                pendingAmount: inv.pendingAmount.toNumber()
+                pendingAmount: inv.pendingAmount.toNumber(),
+                items: inv.items?.map((it: any) => ({
+                    ...it,
+                    quantity: it.quantity?.toNumber(),
+                    rate: it.rate?.toNumber(),
+                    amount: it.amount?.toNumber()
+                })) || []
             })),
             shipments: order.shipments.map(s => ({
                 ...s,

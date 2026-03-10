@@ -17,7 +17,7 @@ import { useState, useEffect } from "react";
 import { Link as LinkIcon, ExternalLink, Loader2, FilePlus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Added Dialog import
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SalesOrderFinancials } from "./sales-order-financials";
@@ -285,8 +285,8 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                     <Card className="col-span-3">
                         <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle>Invoices</CardTitle>
-                            {(!order.invoices || order.invoices.length === 0) && ["CONFIRMED", "IN_PROGRESS", "SHIPPED", "DELIVERED", "COMPLETED"].includes(order.status) && (
-                                <GenerateInvoiceAction orderId={order.id} />
+                            {["CONFIRMED", "IN_PROGRESS", "SHIPPED", "DELIVERED", "COMPLETED"].includes(order.status) && (
+                                <GenerateInvoiceAction order={order} />
                             )}
                         </CardHeader>
                         <CardContent>
@@ -490,15 +490,66 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
 
 
 
-function GenerateInvoiceAction({ orderId }: { orderId: string }) {
+function GenerateInvoiceAction({ order }: { order: any }) {
     const [loading, setLoading] = useState(false);
+    const [open, setOpen] = useState(false);
+
+    // Calculate previously invoiced quantities to cap the inputs
+    const invoicedQtyMap: Record<string, number> = {};
+    if (order.invoices && order.invoices.length > 0) {
+        for (const inv of order.invoices) {
+            if (inv.items) {
+                for (const invItem of inv.items) {
+                    if (!invoicedQtyMap[invItem.opportunityItemId]) invoicedQtyMap[invItem.opportunityItemId] = 0;
+                    invoicedQtyMap[invItem.opportunityItemId] += Number(invItem.quantity || 0);
+                }
+            }
+        }
+    }
+
+    // Initialize state with remaining available quantities
+    const [selectedItems, setSelectedItems] = useState<Record<string, { selected: boolean, quantity: number, maxQty: number, rate: number }>>({});
+
+    useEffect(() => {
+        if (open && order.opportunity?.items) {
+            const initial: Record<string, { selected: boolean, quantity: number, maxQty: number, rate: number }> = {};
+            order.opportunity.items.forEach((item: any) => {
+                const totalQty = Number(item.quantity || 0);
+                const invoicedQty = invoicedQtyMap[item.id] || 0;
+                const remainingQty = Math.max(0, totalQty - invoicedQty);
+                // default to 0 to force user to select how many they want to invoice
+                initial[item.id] = {
+                    selected: remainingQty > 0, // auto select if there's remaining
+                    quantity: remainingQty,
+                    maxQty: remainingQty,
+                    rate: Number(item.targetPrice || 0)
+                };
+            });
+            setSelectedItems(initial);
+        }
+    }, [open, order]);
 
     async function handleGenerate() {
+        // filter out only the ticked items that have > 0 quantity
+        const payloadItems = Object.entries(selectedItems)
+            .filter(([_, state]) => state.selected && state.quantity > 0)
+            .map(([id, state]) => ({
+                opportunityItemId: id,
+                quantity: state.quantity,
+                rate: state.rate
+            }));
+
+        if (payloadItems.length === 0) {
+            toast.error("Please select at least one item with a quantity greater than 0");
+            return;
+        }
+
         setLoading(true);
         try {
-            const result = await generateInvoiceFromSalesOrder(orderId);
+            const result = await generateInvoiceFromSalesOrder(order.id, payloadItems);
             if (result.success) {
-                toast.success("Invoice generated successfully");
+                toast.success("Partial Invoice generated successfully");
+                setOpen(false);
             } else {
                 toast.error(result.error || "Failed to generate invoice");
             }
@@ -509,10 +560,103 @@ function GenerateInvoiceAction({ orderId }: { orderId: string }) {
         }
     }
 
+    // Check if fully invoiced
+    const fullyInvoiced = order.opportunity?.items?.every((item: any) => {
+        const total = Number(item.quantity || 0);
+        const invoiced = invoicedQtyMap[item.id] || 0;
+        return invoiced >= total;
+    });
+
+    if (fullyInvoiced) {
+        return <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Fully Invoiced</Badge>;
+    }
+
     return (
-        <Button size="sm" onClick={handleGenerate} disabled={loading}>
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FilePlus className="mr-2 h-4 w-4" />}
-            Generate Invoice
-        </Button>
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm">
+                    <FilePlus className="mr-2 h-4 w-4" />
+                    Generate Invoice
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Generate Partial Invoice</DialogTitle>
+                    <DialogDescription>
+                        Select the specific items and quantities you want to include in this invoice.
+                        Remaining quantities are calculated automatically.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                    {order.opportunity?.items?.map((item: any) => {
+                        const state = selectedItems[item.id];
+                        if (!state || state.maxQty <= 0) return null; // already fully billed
+
+                        return (
+                            <div key={item.id} className="flex items-center gap-4 p-3 border rounded-lg bg-slate-50">
+                                <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-gray-300"
+                                    checked={state.selected}
+                                    onChange={(e) => setSelectedItems(prev => ({ ...prev, [item.id]: { ...prev[item.id], selected: e.target.checked } }))}
+                                />
+                                <div className="flex-1">
+                                    <p className="font-semibold text-sm">{item.productName || item.commodity?.name || "Item"}</p>
+                                    <p className="text-xs text-slate-500">Rate: ₹{state.rate.toLocaleString()} / MT</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex flex-col text-right">
+                                        <span className="text-xs text-slate-500 font-medium">Quantity (MT)</span>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                step="0.001"
+                                                min="0.001"
+                                                max={state.maxQty}
+                                                className="w-24 px-2 py-1 text-sm border rounded-md text-right focus:ring-1 focus:ring-blue-500 outline-none"
+                                                value={state.quantity}
+                                                onChange={(e) => setSelectedItems(prev => ({
+                                                    ...prev,
+                                                    [item.id]: { ...prev[item.id], quantity: Math.min(state.maxQty, Number(e.target.value)) }
+                                                }))}
+                                                disabled={!state.selected}
+                                            />
+                                            <span className="text-xs text-slate-400">/ {state.maxQty}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="w-24 text-right">
+                                    <p className="text-xs text-slate-500 font-medium">Amount</p>
+                                    <p className="font-mono text-sm font-semibold text-slate-700">
+                                        {(() => {
+                                            let finalAmount = 0;
+                                            if (state.selected) {
+                                                if (item.priceType === 'PER_KG') {
+                                                    finalAmount = (state.quantity * 1000) * state.rate;
+                                                } else if (item.priceType === 'TOTAL_AMOUNT') {
+                                                    finalAmount = state.rate;
+                                                } else {
+                                                    finalAmount = state.quantity * state.rate;
+                                                }
+                                            }
+                                            return `₹${finalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+                                        })()}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Cancel</Button>
+                    <Button onClick={handleGenerate} disabled={loading}>
+                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Generate Invoice
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
