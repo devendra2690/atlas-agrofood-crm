@@ -221,7 +221,13 @@ export async function getSalesOrder(id: string) {
             include: {
                 client: true,
                 invoices: {
-                    include: { items: true }
+                    include: {
+                        items: {
+                            include: {
+                                opportunityItem: { include: { commodity: true } }
+                            }
+                        }
+                    }
                 },
                 shipments: {
                     orderBy: { createdAt: 'desc' }
@@ -343,7 +349,14 @@ export async function getSalesOrder(id: string) {
                     ...it,
                     quantity: it.quantity?.toNumber(),
                     rate: it.rate?.toNumber(),
-                    amount: it.amount?.toNumber()
+                    amount: it.amount?.toNumber(),
+                    // Pass down the nested product/commodity info for UI rendering
+                    opportunityItem: it.opportunityItem ? {
+                        ...it.opportunityItem,
+                        targetPrice: it.opportunityItem.targetPrice?.toNumber() || 0,
+                        quantity: it.opportunityItem.quantity?.toNumber() || 0,
+                        procurementQuantity: it.opportunityItem.procurementQuantity?.toNumber() || 0
+                    } : null
                 })) || []
             })),
             shipments: order.shipments.map(s => ({

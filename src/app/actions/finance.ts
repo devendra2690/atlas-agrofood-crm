@@ -299,7 +299,7 @@ export async function updateInvoiceStatus(id: string, status: 'UNPAID' | 'PARTIA
  */
 export async function generateInvoiceFromSalesOrder(
     salesOrderId: string,
-    itemsToInvoice?: { opportunityItemId: string; quantity: number; rate: number }[]
+    itemsToInvoice?: { opportunityItemId: string; quantity: number; rate: number; priceType: string }[]
 ) {
     try {
         // 1. Fetch Sales Order
@@ -330,7 +330,17 @@ export async function generateInvoiceFromSalesOrder(
         if (itemsToInvoice && itemsToInvoice.length > 0) {
             // Partial Invoice Logic
             for (const item of itemsToInvoice) {
-                const amount = item.quantity * item.rate;
+                let amount = 0;
+                if (item.priceType === 'PER_KG') {
+                    // rate is per KG, quantity is in MT. 1 MT = 1000 KG
+                    amount = (item.quantity * 1000) * item.rate;
+                } else if (item.priceType === 'TOTAL_AMOUNT') {
+                    amount = item.rate;
+                } else {
+                    // PER_MT
+                    amount = item.quantity * item.rate;
+                }
+
                 baseAmount += amount;
                 invoiceItemsData.push({
                     opportunityItemId: item.opportunityItemId,
@@ -416,7 +426,6 @@ export async function updateInvoiceDocument(id: string, documentUrl: string) {
         return { success: false, error: "Failed to update invoice document" };
     }
 }
-
 // --- Transaction Actions ---
 
 export async function recordInvoicePayment(data: { invoiceId: string; amount: number; date: Date; receipts?: string[] }) {
@@ -933,26 +942,43 @@ export async function getProfitabilityAnalytics() {
 export async function deleteInvoice(id: string) {
     try {
         const session = await auth();
-        if (session?.user?.role !== 'ADMIN') {
-            return { success: false, error: "Unauthorized: Admin access required" };
+        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+        const invoice = await prisma.invoice.findUnique({
+            where: { id },
+            include: { salesOrder: true }
+        });
+
+        if (!invoice) return { success: false, error: "Invoice not found" };
+
+        // The user policy: "can be done till order is not completed, once it is done you cannot modify anything for that order"
+        if (['COMPLETED', 'DELIVERED'].includes(invoice.salesOrder.status)) {
+            // Let Admin override? The user said "you cannot modify anything". So block it across the board.
+            if (session.user.role !== 'ADMIN') {
+                return { success: false, error: "Cannot delete an invoice for a completed or delivered order." };
+            }
         }
 
-        await prisma.invoice.delete({
-            where: { id }
+        // Must delete related records manually because schema lacks onDelete: Cascade for these
+        await prisma.$transaction(async (tx) => {
+            await tx.transaction.deleteMany({ where: { invoiceId: id } });
+            await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
+            await tx.invoice.delete({ where: { id } });
         });
 
         await logActivity({
             action: "DELETE",
             entityType: "Invoice",
             entityId: id,
-            details: "Deleted invoice"
+            details: `Deleted invoice for amount ₹${invoice.totalAmount}`
         });
 
         revalidatePath('/invoices');
+        revalidatePath(`/sales-orders/${invoice.salesOrderId}`);
         return { success: true };
-    } catch (error) {
-        console.error("Failed to delete invoice:", error);
-        return { success: false, error: "Failed to delete invoice" };
+    } catch (error: any) {
+        console.error("Failed to delete invoice:", error.message || error);
+        return { success: false, error: error.message || "Failed to delete invoice" };
     }
 }
 

@@ -14,14 +14,14 @@ import {
 import { updateSalesOrderStatus } from "@/app/actions/order";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
-import { Link as LinkIcon, ExternalLink, Loader2, FilePlus } from "lucide-react";
+import { Link as LinkIcon, ExternalLink, Loader2, FilePlus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SalesOrderFinancials } from "./sales-order-financials";
-import { generateInvoiceFromSalesOrder } from "@/app/actions/finance";
+import { generateInvoiceFromSalesOrder, deleteInvoice } from "@/app/actions/finance";
 import { RecordPaymentDialog } from "./record-payment-dialog";
 import { InvoiceDocumentAttachment } from "@/app/(dashboard)/invoices/_components/invoice-document-attachment";
 interface SalesOrderDetailsClientProps {
@@ -142,7 +142,8 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-slate-500">Total Value</p>
-                                    <p className="font-mono text-base font-bold text-slate-900">₹{(order.totalAmount * 1.05).toLocaleString()}</p>
+                                    <p className="font-mono text-base font-bold text-slate-900">₹{order.totalAmount.toLocaleString()}</p>
+                                    <p className="text-xs text-slate-500 mt-0.5">With 5% GST: <span className="font-medium text-slate-700">₹{(order.totalAmount * 1.05).toLocaleString()}</span></p>
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-slate-500">Created At</p>
@@ -178,7 +179,18 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                                         </div>
                                                         <div className="text-right">
                                                             <p className="font-mono text-slate-700">₹{item.targetPrice?.toLocaleString() || '-'} <span className="text-xs text-slate-500 ml-1">/{item.priceType === 'PER_MT' ? 'MT' : item.priceType === 'PER_KG' ? 'KG' : 'Total'}</span></p>
-                                                            <p className="text-sm font-medium text-blue-600 mt-1">{item.quantity} MT</p>
+                                                            <div className="flex items-center justify-end gap-2 mt-1 border-slate-200">
+                                                                <p className="text-sm font-medium text-blue-600">{item.quantity} MT</p>
+                                                                <p className="text-sm font-semibold text-slate-800 border-l pl-2 border-slate-300">
+                                                                    = ₹{(() => {
+                                                                        const price = item.targetPrice || 0;
+                                                                        const qty = item.quantity || 0;
+                                                                        if (item.priceType === 'PER_KG') return (price * qty * 1000).toLocaleString();
+                                                                        if (item.priceType === 'TOTAL_AMOUNT') return price.toLocaleString();
+                                                                        return (price * qty).toLocaleString();
+                                                                    })()}
+                                                                </p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 );
@@ -283,13 +295,20 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
 
                     {/* Invoices Section - Moved to Overview for visibility */}
                     <Card className="col-span-3">
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle>Invoices</CardTitle>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <div>
+                                <CardTitle>Invoices</CardTitle>
+                                {order.invoices && order.invoices.length > 0 && (
+                                    <p className="text-sm text-slate-500 mt-1">
+                                        Total Invoiced: <span className="font-semibold text-slate-700">₹{order.invoices.reduce((sum: number, inv: any) => sum + (inv.totalAmount || 0), 0).toLocaleString()}</span>
+                                    </p>
+                                )}
+                            </div>
                             {["CONFIRMED", "IN_PROGRESS", "SHIPPED", "DELIVERED", "COMPLETED"].includes(order.status) && (
                                 <GenerateInvoiceAction order={order} />
                             )}
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-4">
                             {(!order.invoices || order.invoices.length === 0) ? (
                                 <div className="text-sm text-slate-500 text-center py-4">
                                     No invoices generated yet.
@@ -307,6 +326,21 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                                     <p className="text-sm text-slate-500 mt-1">
                                                         Due: {inf.dueDate ? format(new Date(inf.dueDate), "MMM d") : "-"}
                                                     </p>
+                                                    {inf.items && inf.items.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mt-2">
+                                                            {inf.items.map((it: any, i: number) => {
+                                                                const isKg = it.opportunityItem?.priceType === 'PER_KG';
+                                                                const displayQty = isKg ? (it.quantity || 0) * 1000 : (it.quantity || 0);
+                                                                const unit = isKg ? 'KG' : (it.opportunityItem?.priceType === 'PER_MT' ? 'MT' : 'Units');
+
+                                                                return (
+                                                                    <Badge key={i} variant="secondary" className="text-xs font-normal">
+                                                                        {it.opportunityItem?.productName || it.opportunityItem?.commodity?.name || 'Item'} ({displayQty} {unit})
+                                                                    </Badge>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="font-mono font-bold">₹{inf.totalAmount.toLocaleString()}</p>
@@ -321,6 +355,20 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                                         </Button>
                                                         {inf.pendingAmount > 0 && (
                                                             <RecordPaymentDialog invoice={inf} />
+                                                        )}
+                                                        {(!["COMPLETED", "DELIVERED"].includes(order.status) && inf.pendingAmount === inf.totalAmount) && (
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50" onClick={async () => {
+                                                                if (confirm("Are you sure you want to delete this invoice? This will remove all associated partial invoice records.")) {
+                                                                    const res = await deleteInvoice(inf.id);
+                                                                    if (res.success) {
+                                                                        toast.success("Invoice deleted successfully");
+                                                                    } else {
+                                                                        toast.error(res.error || "Failed to delete invoice");
+                                                                    }
+                                                                }
+                                                            }}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
                                                         )}
                                                     </div>
                                                 </div>
@@ -508,11 +556,11 @@ function GenerateInvoiceAction({ order }: { order: any }) {
     }
 
     // Initialize state with remaining available quantities
-    const [selectedItems, setSelectedItems] = useState<Record<string, { selected: boolean, quantity: number, maxQty: number, rate: number }>>({});
+    const [selectedItems, setSelectedItems] = useState<Record<string, { selected: boolean, quantity: number, maxQty: number, rate: number, priceType: string }>>({});
 
     useEffect(() => {
         if (open && order.opportunity?.items) {
-            const initial: Record<string, { selected: boolean, quantity: number, maxQty: number, rate: number }> = {};
+            const initial: Record<string, { selected: boolean, quantity: number, maxQty: number, rate: number, priceType: string }> = {};
             order.opportunity.items.forEach((item: any) => {
                 const totalQty = Number(item.quantity || 0);
                 const invoicedQty = invoicedQtyMap[item.id] || 0;
@@ -522,7 +570,8 @@ function GenerateInvoiceAction({ order }: { order: any }) {
                     selected: remainingQty > 0, // auto select if there's remaining
                     quantity: remainingQty,
                     maxQty: remainingQty,
-                    rate: Number(item.targetPrice || 0)
+                    rate: Number(item.targetPrice || 0),
+                    priceType: item.priceType || 'PER_KG'
                 };
             });
             setSelectedItems(initial);
@@ -536,7 +585,8 @@ function GenerateInvoiceAction({ order }: { order: any }) {
             .map(([id, state]) => ({
                 opportunityItemId: id,
                 quantity: state.quantity,
-                rate: state.rate
+                rate: state.rate,
+                priceType: state.priceType
             }));
 
         if (payloadItems.length === 0) {

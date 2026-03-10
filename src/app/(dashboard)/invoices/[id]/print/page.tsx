@@ -165,7 +165,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
                                 displayQty = 0;
                             } else if (item.priceType === 'PER_KG') {
                                 displayQty = qtyMT * 1000;
-                                unitStr = "kg";
+                                unitStr = "KG";
                             }
 
                             return (
