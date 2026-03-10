@@ -74,32 +74,84 @@ export async function createSettlement(data: {
     }
 }
 
-export async function getExpensesFeed() {
+export async function getExpensesFeed(filters?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    userId?: string;
+}) {
     try {
         const session = await auth();
-        if (!session?.user?.id) return { success: false, data: [] };
+        if (!session?.user?.id) return { success: false, data: [], pagination: undefined };
 
-        // Fetch expenses AND settlements, and merge them for a timeline feed
-        const expenses = await prisma.expense.findMany({
-            include: {
-                paidBy: { select: { name: true, image: true, id: true } },
-                splits: {
-                    include: { user: { select: { name: true, image: true, id: true } } }
-                }
-            },
-            orderBy: { date: 'desc' },
-            take: 50
-        });
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 10;
+        const search = filters?.search?.toLowerCase();
+        const userId = filters?.userId && filters.userId !== "all" ? filters.userId : undefined;
 
-        const settlements = await prisma.expenseSettlement.findMany({
-            include: {
-                payer: { select: { name: true, image: true, id: true } },
-                payee: { select: { name: true, image: true, id: true } }
-            },
-            orderBy: { date: 'desc' },
-            take: 50
-        });
+        const expenseWhere: any = {};
+        const settlementWhere: any = {};
 
+        // 1. Search Query
+        if (search) {
+            expenseWhere.description = { contains: search, mode: "insensitive" };
+            settlementWhere.OR = [
+                { method: { contains: search, mode: "insensitive" } },
+                { notes: { contains: search, mode: "insensitive" } },
+                { payer: { name: { contains: search, mode: "insensitive" } } },
+                { payee: { name: { contains: search, mode: "insensitive" } } }
+            ];
+        }
+
+        // 2. User Filter (Either Payer, Payee, or Splitter)
+        if (userId) {
+            expenseWhere.OR = [
+                { paidById: userId },
+                { splits: { some: { userId: userId } } }
+            ];
+
+            // Re-apply search explicitly inside User Filter's AND clause if necessary for Prisma structure
+            if (search) {
+                expenseWhere.AND = [{ description: { contains: search, mode: "insensitive" } }];
+                delete expenseWhere.description;
+
+                const oldSettlementOR = settlementWhere.OR;
+                settlementWhere.AND = [
+                    { OR: oldSettlementOR },
+                    { OR: [{ payerId: userId }, { payeeId: userId }] }
+                ];
+                delete settlementWhere.OR;
+            } else {
+                settlementWhere.OR = [
+                    { payerId: userId },
+                    { payeeId: userId }
+                ];
+            }
+        }
+
+        // Fetch expenses AND settlements
+        const [expenses, settlements] = await Promise.all([
+            prisma.expense.findMany({
+                where: expenseWhere,
+                include: {
+                    paidBy: { select: { name: true, image: true, id: true } },
+                    splits: {
+                        include: { user: { select: { name: true, image: true, id: true } } }
+                    }
+                },
+                orderBy: { date: 'desc' }
+            }),
+            prisma.expenseSettlement.findMany({
+                where: settlementWhere,
+                include: {
+                    payer: { select: { name: true, image: true, id: true } },
+                    payee: { select: { name: true, image: true, id: true } }
+                },
+                orderBy: { date: 'desc' }
+            })
+        ]);
+
+        // Merge them for a timeline feed
         const feed = [
             ...expenses.map(e => ({ type: 'EXPENSE', date: e.date, data: e })),
             ...settlements.map(s => ({ type: 'SETTLEMENT', date: s.date, data: s }))
@@ -107,10 +159,24 @@ export async function getExpensesFeed() {
 
         feed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-        return { success: true, data: feed };
+        // Pagination
+        const total = feed.length;
+        const skip = (page - 1) * limit;
+        const paginatedFeed = feed.slice(skip, skip + limit);
+
+        return {
+            success: true,
+            data: paginatedFeed,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
     } catch (error) {
         console.error("Failed to get feed:", error);
-        return { success: false, data: [] };
+        return { success: false, data: [], pagination: undefined };
     }
 }
 

@@ -9,15 +9,36 @@ import { formatDistanceToNow } from "date-fns";
 import { AddExpenseDialog } from "./_components/add-expense-dialog";
 import { SettleUpDialog } from "./_components/settle-up-dialog";
 import { Receipt, HandCoins, ArrowRightLeft, Database } from "lucide-react";
+import { SearchInput } from "@/components/search-input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from "@/components/ui/select";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { FilterControls } from "./_components/filter-controls";
 
-export default async function ExpensesPage() {
+export default async function ExpensesPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
     const session = await auth();
     if (!session?.user?.id) return null;
     const myUserId = session.user.id;
+    const params = await searchParams;
+    const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
+    const search = typeof params.search === 'string' ? params.search : undefined;
+    const filterUser = typeof params.filterUser === 'string' ? params.filterUser : undefined;
 
     // Build the data dependencies
     const balances = await getBalances();
-    const feed = await getExpensesFeed();
+    const feedRes = await getExpensesFeed({ page, limit: 10, search, userId: filterUser });
+    const feed = feedRes.data || [];
+    const pagination = feedRes.pagination;
+
     const globalBalancesRes = session.user.role === 'ADMIN' ? await getGlobalBalances() : { data: null };
     const globalDebts = globalBalancesRes.data || [];
     const users = await prisma.user.findMany({ select: { id: true, name: true, image: true, email: true } });
@@ -178,18 +199,22 @@ export default async function ExpensesPage() {
 
                 {/* Feed */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Activity</CardTitle>
-                        <CardDescription>Timeline of expenses and settlements.</CardDescription>
+                    <CardHeader className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between pb-2">
+                        <div>
+                            <CardTitle>Recent Activity</CardTitle>
+                            <CardDescription>Timeline of expenses and settlements.</CardDescription>
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        {feed.data?.length === 0 ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                                No activity yet. Click Add Expense to start!
+                    <CardContent className="space-y-4">
+                        <FilterControls users={users} filterUser={filterUser} />
+
+                        {feed.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground border rounded-lg bg-slate-50 border-dashed">
+                                No activity found matching these filters.
                             </div>
                         ) : (
                             <div className="space-y-6">
-                                {feed.data?.map((item: any, idx: number) => {
+                                {feed.map((item: any) => {
                                     if (item.type === 'EXPENSE') {
                                         const exp = item.data;
                                         return (
@@ -239,6 +264,17 @@ export default async function ExpensesPage() {
                                         );
                                     }
                                 })}
+                            </div>
+                        )}
+
+                        {pagination && (
+                            <div className="mt-4">
+                                <PaginationControls
+                                    hasNextPage={pagination.page < pagination.totalPages}
+                                    hasPrevPage={pagination.page > 1}
+                                    totalPages={pagination.totalPages}
+                                    currentPage={pagination.page}
+                                />
                             </div>
                         )}
                     </CardContent>
