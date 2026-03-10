@@ -103,12 +103,9 @@ export async function getExpensesFeed(filters?: {
             ];
         }
 
-        // 2. User Filter (Either Payer, Payee, or Splitter)
+        // 2. User Filter (Strict: Only filter by who PAID the expense or settlement)
         if (userId) {
-            expenseWhere.OR = [
-                { paidById: userId },
-                { splits: { some: { userId: userId } } }
-            ];
+            expenseWhere.paidById = userId;
 
             // Re-apply search explicitly inside User Filter's AND clause if necessary for Prisma structure
             if (search) {
@@ -118,14 +115,11 @@ export async function getExpensesFeed(filters?: {
                 const oldSettlementOR = settlementWhere.OR;
                 settlementWhere.AND = [
                     { OR: oldSettlementOR },
-                    { OR: [{ payerId: userId }, { payeeId: userId }] }
+                    { payerId: userId }
                 ];
                 delete settlementWhere.OR;
             } else {
-                settlementWhere.OR = [
-                    { payerId: userId },
-                    { payeeId: userId }
-                ];
+                settlementWhere.payerId = userId;
             }
         }
 
