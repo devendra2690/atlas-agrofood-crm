@@ -45,8 +45,35 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
     const { salesOrder } = invoice;
     const { opportunity, client } = salesOrder;
 
+    let itemsToRender = invoice.items || [];
+
+    // Fallback for legacy invoices generated before InvoiceItem schema existed
+    if (itemsToRender.length === 0 && opportunity?.items) {
+        itemsToRender = opportunity.items.map((optItem: any) => {
+            const qty = optItem.quantity ? Number(optItem.quantity) : 0;
+            const price = optItem.targetPrice ? Number(optItem.targetPrice) : 0;
+            let amount = 0;
+            if (optItem.priceType === 'PER_KG') {
+                amount = price * qty * 1000;
+            } else if (optItem.priceType === 'TOTAL_AMOUNT') {
+                amount = price;
+            } else {
+                amount = price * qty;
+            }
+            return {
+                id: `legacy-${optItem.id}`,
+                invoiceId: invoice.id,
+                opportunityItemId: optItem.id,
+                quantity: qty,
+                rate: price,
+                amount: amount,
+                opportunityItem: optItem
+            } as any;
+        });
+    }
+
     let taxableAmount = 0;
-    invoice.items.forEach(invItem => {
+    itemsToRender.forEach((invItem: any) => {
         taxableAmount += invItem.amount ? Number(invItem.amount) : 0;
     });
 
@@ -153,7 +180,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
                         </tr>
                     </thead>
                     <tbody>
-                        {invoice.items.map((invItem, index) => {
+                        {itemsToRender.map((invItem: any, index: number) => {
                             const item = invItem.opportunityItem;
                             const qtyMT = invItem.quantity ? Number(invItem.quantity) : 0;
                             const price = invItem.rate ? Number(invItem.rate) : 0;
