@@ -127,11 +127,13 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
                             <td className="border-t border-r border-black p-2 align-top h-[100px]">
                                 <p className="font-semibold text-[10px]">Buyer (Bill to)</p>
                                 <p className="font-bold uppercase text-[12px]">{client.name}</p>
+                                {client.address && <p className="text-[11px] whitespace-pre-line leading-tight mt-1">{client.address}</p>}
                                 {client.gstNumber && <p className="mt-1 text-[11px]"><span className="font-semibold">GSTIN/UIN:</span> {client.gstNumber}</p>}
                             </td>
                             <td className="border-t border-black p-2 align-top">
                                 <p className="font-semibold text-[10px]">Consignee (Ship to)</p>
                                 <p className="font-bold uppercase text-[12px]">{client.name}</p>
+                                {client.address && <p className="text-[11px] whitespace-pre-line leading-tight mt-1">{client.address}</p>}
                                 {client.gstNumber && <p className="mt-1 text-[11px]"><span className="font-semibold">GSTIN/UIN:</span> {client.gstNumber}</p>}
                             </td>
                         </tr>

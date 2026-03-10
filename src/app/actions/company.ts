@@ -14,6 +14,7 @@ export type CompanyFormData = {
     email?: string;
     website?: string;
     contactName?: string;
+    address?: string;
     countryId?: string;
     stateId?: string;
     cityId?: string;
@@ -76,6 +77,9 @@ export async function createCompany(data: CompanyFormData) {
 
         const contactName = cleanString(data.contactName);
         if (contactName) createData.contactName = contactName;
+
+        const address = cleanString(data.address);
+        if (address) createData.address = address;
 
         const countryId = cleanString(data.countryId);
         if (countryId) createData.country = { connect: { id: countryId } };
@@ -172,6 +176,7 @@ export async function updateCompany(id: string, data: CompanyFormData) {
         updateData.email = cleanString(data.email);
         updateData.website = cleanString(data.website);
         updateData.contactName = cleanString(data.contactName);
+        updateData.address = cleanString(data.address);
         const countryId = cleanString(data.countryId);
         if (countryId) updateData.country = { connect: { id: countryId } };
         else updateData.country = { disconnect: true };

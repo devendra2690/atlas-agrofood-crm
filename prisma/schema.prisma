@@ -260,6 +260,7 @@ model Company {
   email     String?
   website   String?   // NEW
   contactName String? // NEW
+  address   String?   // NEW
   gstNumber   String? // NEW
   country   Country? @relation(fields: [countryId], references: [id])
   countryId String?

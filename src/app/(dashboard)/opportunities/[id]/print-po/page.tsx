@@ -112,11 +112,13 @@ export default async function PrintOpportunityPOPage({ params }: { params: Promi
                             <td className="border-t border-r border-black p-2 align-top h-[100px]">
                                 <p className="font-semibold text-[10px]">Buyer (Bill to)</p>
                                 <p className="font-bold uppercase text-[12px]">{opportunity.company.name}</p>
+                                {opportunity.company.address && <p className="text-[11px] whitespace-pre-line leading-tight mt-1">{opportunity.company.address}</p>}
                                 {opportunity.company.gstNumber && <p className="mt-1 text-[11px]"><span className="font-semibold">GSTIN/UIN:</span> {opportunity.company.gstNumber}</p>}
                             </td>
                             <td className="border-t border-black p-2 align-top">
                                 <p className="font-semibold text-[10px]">Consignee (Ship to)</p>
                                 <p className="font-bold uppercase text-[12px]">{opportunity.company.name}</p>
+                                {opportunity.company.address && <p className="text-[11px] whitespace-pre-line leading-tight mt-1">{opportunity.company.address}</p>}
                                 {opportunity.company.gstNumber && <p className="mt-1 text-[11px]"><span className="font-semibold">GSTIN/UIN:</span> {opportunity.company.gstNumber}</p>}
                             </td>
                         </tr>

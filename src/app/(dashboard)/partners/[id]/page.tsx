@@ -116,8 +116,9 @@ export default async function PartnerDetailsPage({ params }: { params: { id: str
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium">Address</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {[company.city?.name, company.state?.name, company.country?.name].filter(Boolean).join(", ") || "N/A"}
+                                    <p className="text-sm text-muted-foreground whitespace-pre-line">
+                                        {company.address ? `${company.address}\n` : ''}
+                                        {[company.city?.name, company.state?.name, company.country?.name].filter(Boolean).join(", ") || (company.address ? "" : "N/A")}
                                     </p>
                                 </div>
                             </div>

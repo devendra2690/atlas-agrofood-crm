@@ -31,6 +31,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { createCompany, updateCompany } from "@/app/actions/company";
 import { getCommodities } from "@/app/actions/commodity";
 import { getCountries, getStates, getCities } from "@/app/actions/location";
@@ -60,6 +61,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
         website: string;
         contactName: string;
         gstNumber: string;
+        address: string;
     }>({
         name: "",
         type: defaultType,
@@ -68,6 +70,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
         website: "",
         contactName: "",
         gstNumber: "",
+        address: "",
     });
 
     // Location State
@@ -95,6 +98,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                 website: company.website || "",
                 contactName: company.contactName || "",
                 gstNumber: company.gstNumber || "",
+                address: company.address || "",
             });
             // Pre-select commodities
             if (company.commodities) {
@@ -168,6 +172,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                 website: formData.website || undefined,
                 contactName: formData.contactName || undefined,
                 gstNumber: formData.gstNumber || undefined,
+                address: formData.address || undefined,
                 countryId: countryId || undefined,
                 stateId: stateId || undefined,
                 cityId: cityId || undefined,
@@ -184,7 +189,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
             if (result.success) {
                 setOpen(false);
                 if (!isEditMode) {
-                    setFormData({ name: "", type: defaultType, phone: "", email: "", website: "", contactName: "", gstNumber: "" });
+                    setFormData({ name: "", type: defaultType, phone: "", email: "", website: "", contactName: "", gstNumber: "", address: "" });
                     setCountryId("");
                     setStateId("");
                     setCityId("");
@@ -316,6 +321,18 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                             </div>
 
                             {/* Location Fields */}
+                            <div className="grid grid-cols-[120px_1fr] items-start gap-4">
+                                <Label htmlFor="address" className="text-right mt-3 whitespace-nowrap">
+                                    Street Address
+                                </Label>
+                                <Textarea
+                                    id="address"
+                                    value={formData.address}
+                                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                    className="resize-none"
+                                    rows={3}
+                                />
+                            </div>
                             <div className="grid grid-cols-[120px_1fr] items-center gap-4">
                                 <Label className="text-right">Country</Label>
                                 <Select value={countryId} onValueChange={handleCountryChange}>

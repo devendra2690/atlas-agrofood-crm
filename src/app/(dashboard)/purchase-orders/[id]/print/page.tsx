@@ -154,13 +154,14 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
 
                         {/* Row 7: Supplier Box overlaps left side */}
                         <tr className="align-top">
-                            <td className="w-1/2 border border-black p-1 px-2 border-r-2 leading-snug">
-                                <p className="text-[10px] underline mb-1">Supplier (Vendor)</p>
-                                <p className="font-bold text-[13px]">{order.vendor.name}</p>
-                                <p>{[order.vendor.city?.name, order.vendor.state?.name, order.vendor.country?.name].filter(Boolean).join(", ")}</p>
-                                {order.vendor.gstNumber && <p className="mt-1"><span className="font-semibold">GSTIN/UIN:</span> {order.vendor.gstNumber}</p>}
-                                {order.vendor.phone && <p>Contact: {order.vendor.phone}</p>}
-                                {order.vendor.email && <p>Email: {order.vendor.email}</p>}
+                            <td className="border border-black p-2 align-top h-[120px]">
+                                <p className="font-bold text-sm mb-1">Supplier (Vendor)</p>
+                                <p className="font-bold uppercase">{order.vendor.name}</p>
+                                {order.vendor.address && <p className="whitespace-pre-line leading-tight text-[11px] mt-1">{order.vendor.address}</p>}
+                                <p className="text-[11px] mt-1">{[order.vendor.city?.name, order.vendor.state?.name, order.vendor.country?.name].filter(Boolean).join(", ")}</p>
+                                {order.vendor.gstNumber && <p className="mt-1 text-[11px]"><span className="font-semibold">GSTIN/UIN:</span> {order.vendor.gstNumber}</p>}
+                                {order.vendor.phone && <p className="text-[11px]">Contact: {order.vendor.phone}</p>}
+                                {order.vendor.email && <p className="text-[11px]">Email: {order.vendor.email}</p>}
                             </td>
                         </tr>
                     </tbody>
