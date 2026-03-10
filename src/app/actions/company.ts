@@ -50,8 +50,8 @@ export async function createCompany(data: CompanyFormData) {
             });
 
             if (userExists) {
-                createData.createdById = session.user.id;
-                createData.updatedById = session.user.id;
+                createData.createdBy = { connect: { id: session.user.id } };
+                createData.updatedBy = { connect: { id: session.user.id } };
             } else {
                 console.warn(`[createCompany] Session User ID ${session.user.id} not found in DB. Skipping createdBy/updatedBy.`);
             }
@@ -78,13 +78,13 @@ export async function createCompany(data: CompanyFormData) {
         if (contactName) createData.contactName = contactName;
 
         const countryId = cleanString(data.countryId);
-        if (countryId) createData.countryId = countryId;
+        if (countryId) createData.country = { connect: { id: countryId } };
 
         const stateId = cleanString(data.stateId);
-        if (stateId) createData.stateId = stateId;
+        if (stateId) createData.state = { connect: { id: stateId } };
 
         const cityId = cleanString(data.cityId);
-        if (cityId) createData.cityId = cityId;
+        if (cityId) createData.city = { connect: { id: cityId } };
 
         const gstNumber = cleanString(data.gstNumber);
         if (gstNumber) createData.gstNumber = gstNumber;
@@ -150,7 +150,7 @@ export async function updateCompany(id: string, data: CompanyFormData) {
             });
 
             if (userExists) {
-                updateData.updatedById = session.user.id;
+                updateData.updatedBy = { connect: { id: session.user.id } };
             } else {
                 console.warn(`[updateCompany] Session User ID ${session.user.id} not found in DB. Skipping updatedById.`);
             }
@@ -172,9 +172,17 @@ export async function updateCompany(id: string, data: CompanyFormData) {
         updateData.email = cleanString(data.email);
         updateData.website = cleanString(data.website);
         updateData.contactName = cleanString(data.contactName);
-        updateData.countryId = cleanString(data.countryId);
-        updateData.stateId = cleanString(data.stateId);
-        updateData.cityId = cleanString(data.cityId);
+        const countryId = cleanString(data.countryId);
+        if (countryId) updateData.country = { connect: { id: countryId } };
+        else updateData.country = { disconnect: true };
+
+        const stateId = cleanString(data.stateId);
+        if (stateId) updateData.state = { connect: { id: stateId } };
+        else updateData.state = { disconnect: true };
+
+        const cityId = cleanString(data.cityId);
+        if (cityId) updateData.city = { connect: { id: cityId } };
+        else updateData.city = { disconnect: true };
         updateData.gstNumber = cleanString(data.gstNumber);
 
         if (data.commodityIds && Array.isArray(data.commodityIds)) {

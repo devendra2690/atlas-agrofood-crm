@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Building, Mail, Phone, Calendar, Briefcase, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Building, Mail, Phone, Calendar, Briefcase, ShoppingCart, FileText } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
@@ -102,6 +102,15 @@ export default async function CompanyDetailsPage({ params }: { params: { id: str
                                     <p className="text-sm text-muted-foreground">
                                         {[company.city?.name, company.state?.name, company.country?.name].filter(Boolean).join(", ") || "N/A"}
                                     </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center">
+                                    <FileText className="h-4 w-4 text-slate-500" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium">GST Number</p>
+                                    <p className="text-sm text-muted-foreground">{company.gstNumber || "N/A"}</p>
                                 </div>
                             </div>
 
