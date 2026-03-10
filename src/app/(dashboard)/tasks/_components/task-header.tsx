@@ -2,13 +2,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 import { TaskDialog } from "./task-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SearchInput } from "@/components/search-input";
+import { TaskReportDialog } from "./task-report-dialog";
 
-export function TaskHeader({ currentFilter }: { currentFilter: string }) {
+export function TaskHeader({ currentFilter, isAdmin = false }: { currentFilter: string, isAdmin?: boolean }) {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -37,6 +38,15 @@ export function TaskHeader({ currentFilter }: { currentFilter: string }) {
                         <TabsTrigger value="all">All Tasks</TabsTrigger>
                     </TabsList>
                 </Tabs>
+
+                {isAdmin && (
+                    <TaskReportDialog>
+                        <Button variant="outline">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Generate Task List
+                        </Button>
+                    </TaskReportDialog>
+                )}
 
                 <TaskDialog>
                     <Button>

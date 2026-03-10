@@ -39,7 +39,7 @@ export default async function TasksPage({
 
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">
-            <TaskHeader currentFilter={filter} />
+            <TaskHeader currentFilter={filter} isAdmin={session?.user?.role === 'ADMIN'} />
             <Suspense fallback={<div>Loading tasks...</div>}>
                 <TaskList tasks={tasks || []} currentUser={session?.user} />
             </Suspense>

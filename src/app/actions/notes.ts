@@ -326,3 +326,31 @@ export async function getTodos(filters?: {
         return { success: false, error: "Failed to load notes" };
     }
 }
+
+export async function getTaskReportData() {
+    try {
+        const session = await auth();
+        if (session?.user?.role !== 'ADMIN') {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        const tasks = await prisma.todo.findMany({
+            where: {
+                type: 'TASK',
+                status: { not: 'COMPLETED' },
+                dueDate: { not: null }
+            },
+            include: {
+                assignedTo: {
+                    select: { name: true }
+                }
+            },
+            orderBy: { dueDate: 'asc' }
+        });
+
+        return { success: true, data: tasks };
+    } catch (error) {
+        console.error("Failed to fetch task report data:", error);
+        return { success: false, error: "Failed to load task report data" };
+    }
+}
