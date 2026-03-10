@@ -59,6 +59,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
         email: string;
         website: string;
         contactName: string;
+        gstNumber: string;
     }>({
         name: "",
         type: defaultType,
@@ -66,6 +67,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
         email: "",
         website: "",
         contactName: "",
+        gstNumber: "",
     });
 
     // Location State
@@ -92,6 +94,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                 email: company.email || "",
                 website: company.website || "",
                 contactName: company.contactName || "",
+                gstNumber: company.gstNumber || "",
             });
             // Pre-select commodities
             if (company.commodities) {
@@ -164,6 +167,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                 email: formData.email || undefined,
                 website: formData.website || undefined,
                 contactName: formData.contactName || undefined,
+                gstNumber: formData.gstNumber || undefined,
                 countryId: countryId || undefined,
                 stateId: stateId || undefined,
                 cityId: cityId || undefined,
@@ -180,7 +184,7 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
             if (result.success) {
                 setOpen(false);
                 if (!isEditMode) {
-                    setFormData({ name: "", type: defaultType, phone: "", email: "", website: "", contactName: "" });
+                    setFormData({ name: "", type: defaultType, phone: "", email: "", website: "", contactName: "", gstNumber: "" });
                     setCountryId("");
                     setStateId("");
                     setCityId("");
@@ -298,6 +302,16 @@ export function CompanyDialog({ company, trigger, defaultType = "PROSPECT", init
                                     id="contactName"
                                     value={formData.contactName}
                                     onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+                                />
+                            </div>
+                            <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                                <Label htmlFor="gstNumber" className="text-right whitespace-nowrap">
+                                    GST Number
+                                </Label>
+                                <Input
+                                    id="gstNumber"
+                                    value={formData.gstNumber}
+                                    onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value })}
                                 />
                             </div>
 

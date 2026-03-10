@@ -158,6 +158,7 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
                                 <p className="text-[10px] underline mb-1">Supplier (Vendor)</p>
                                 <p className="font-bold text-[13px]">{order.vendor.name}</p>
                                 <p>{[order.vendor.city?.name, order.vendor.state?.name, order.vendor.country?.name].filter(Boolean).join(", ")}</p>
+                                {order.vendor.gstNumber && <p className="mt-1"><span className="font-semibold">GSTIN/UIN:</span> {order.vendor.gstNumber}</p>}
                                 {order.vendor.phone && <p>Contact: {order.vendor.phone}</p>}
                                 {order.vendor.email && <p>Email: {order.vendor.email}</p>}
                             </td>

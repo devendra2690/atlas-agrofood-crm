@@ -17,6 +17,7 @@ export type CompanyFormData = {
     countryId?: string;
     stateId?: string;
     cityId?: string;
+    gstNumber?: string;
     commodityIds?: string[];
 };
 
@@ -84,6 +85,9 @@ export async function createCompany(data: CompanyFormData) {
 
         const cityId = cleanString(data.cityId);
         if (cityId) createData.cityId = cityId;
+
+        const gstNumber = cleanString(data.gstNumber);
+        if (gstNumber) createData.gstNumber = gstNumber;
 
         if (data.commodityIds && Array.isArray(data.commodityIds) && data.commodityIds.length > 0) {
             // Filter out any garbage IDs just in case
@@ -171,6 +175,7 @@ export async function updateCompany(id: string, data: CompanyFormData) {
         updateData.countryId = cleanString(data.countryId);
         updateData.stateId = cleanString(data.stateId);
         updateData.cityId = cleanString(data.cityId);
+        updateData.gstNumber = cleanString(data.gstNumber);
 
         if (data.commodityIds && Array.isArray(data.commodityIds)) {
             const validIds = data.commodityIds.filter(id => cleanString(id) !== null);
