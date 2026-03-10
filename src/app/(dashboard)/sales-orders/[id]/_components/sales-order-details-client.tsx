@@ -320,8 +320,8 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                 <div className="space-y-4">
                                     {order.invoices.map((inf: any) => (
                                         <div key={inf.id} className="flex flex-col border rounded-lg p-3 bg-slate-50">
-                                            <div className="flex items-center justify-between">
-                                                <div>
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2">
                                                         <p className="font-semibold">{inf.id.slice(0, 8).toUpperCase()}</p>
                                                         <Badge variant={inf.status === 'PAID' ? 'default' : 'outline'}>{inf.status}</Badge>
