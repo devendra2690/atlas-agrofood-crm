@@ -14,7 +14,8 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
                 include: {
                     opportunityItem: {
                         include: {
-                            commodity: true
+                            commodity: true,
+                            varietyForm: true
                         }
                     }
                 }
@@ -26,7 +27,8 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
                         include: {
                             items: {
                                 include: {
-                                    commodity: true
+                                    commodity: true,
+                                    varietyForm: true
                                 }
                             }
                         }
@@ -171,7 +173,10 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
                             return (
                                 <tr key={invItem.id} className="align-top h-8">
                                     <td className="border-r border-black p-1 text-center">{index + 1}</td>
-                                    <td className="border-r border-black p-1 px-2 font-bold">{item.commodity?.name || "Item"}</td>
+                                    <td className="border-r border-black p-1 px-2 font-bold">
+                                        {item.commodity?.name || "Item"}
+                                        {item.varietyForm?.formName && <span className="font-normal text-xs ml-1">({item.varietyForm.formName})</span>}
+                                    </td>
                                     <td className="border-r border-black p-1 text-center">{/* HSN */}</td>
                                     <td className="border-r border-black p-1 text-right font-bold">
                                         {displayQty > 0 ? displayQty.toLocaleString('en-IN', { maximumFractionDigits: 3 }) : ""} {displayQty > 0 ? unitStr : ""}

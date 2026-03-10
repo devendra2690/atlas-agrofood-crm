@@ -175,7 +175,10 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                                 return (
                                                     <div key={item.id || idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border">
                                                         <div>
-                                                            <p className="font-semibold text-slate-800">{item.productName || "Unknown Item"}</p>
+                                                            <p className="font-semibold text-slate-800">
+                                                                {item.productName || "Unknown Item"}
+                                                                {item.varietyForm?.formName && <span className="text-sm font-medium text-slate-500 ml-1">({item.varietyForm.formName})</span>}
+                                                            </p>
                                                         </div>
                                                         <div className="text-right">
                                                             <p className="font-mono text-slate-700">₹{item.targetPrice?.toLocaleString() || '-'} <span className="text-xs text-slate-500 ml-1">/{item.priceType === 'PER_MT' ? 'MT' : item.priceType === 'PER_KG' ? 'KG' : 'Total'}</span></p>
@@ -335,7 +338,7 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
 
                                                                 return (
                                                                     <Badge key={i} variant="secondary" className="text-xs font-normal">
-                                                                        {it.opportunityItem?.productName || it.opportunityItem?.commodity?.name || 'Item'} ({displayQty} {unit})
+                                                                        {it.opportunityItem?.productName || it.opportunityItem?.commodity?.name || 'Item'} {it.opportunityItem?.varietyForm?.formName ? `(${it.opportunityItem.varietyForm.formName}) ` : ''} - {displayQty} {unit}
                                                                     </Badge>
                                                                 );
                                                             })}
@@ -652,7 +655,10 @@ function GenerateInvoiceAction({ order }: { order: any }) {
                                     onChange={(e) => setSelectedItems(prev => ({ ...prev, [item.id]: { ...prev[item.id], selected: e.target.checked } }))}
                                 />
                                 <div className="flex-1">
-                                    <p className="font-semibold text-sm">{item.productName || item.commodity?.name || "Item"}</p>
+                                    <p className="font-semibold text-sm">
+                                        {item.productName || item.commodity?.name || "Item"}
+                                        {item.varietyForm?.formName && <span className="text-xs font-medium text-slate-500 ml-1">({item.varietyForm.formName})</span>}
+                                    </p>
                                     <p className="text-xs text-slate-500">Rate: ₹{state.rate.toLocaleString()} / MT</p>
                                 </div>
                                 <div className="flex items-center gap-2">

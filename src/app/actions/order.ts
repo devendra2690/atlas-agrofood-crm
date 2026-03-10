@@ -224,7 +224,7 @@ export async function getSalesOrder(id: string) {
                     include: {
                         items: {
                             include: {
-                                opportunityItem: { include: { commodity: true } }
+                                opportunityItem: { include: { commodity: true, varietyForm: true } }
                             }
                         }
                     }
@@ -234,7 +234,11 @@ export async function getSalesOrder(id: string) {
                 },
                 opportunity: {
                     include: {
-                        items: true,
+                        items: {
+                            include: {
+                                varietyForm: true
+                            }
+                        },
                         procurementProject: {
                             include: {
                                 purchaseOrders: {
