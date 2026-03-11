@@ -116,7 +116,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                         (!sub.opportunityItemId && !item.commodityId))
                                                 );
                                                 if (approvedSub) {
-                                                    const isVendorSupply = approvedSub.sample?.vendor?.type === 'VENDOR';
+                                                    const isVendorSupply = ['VENDOR', 'PARTNER'].includes(approvedSub.sample?.vendor?.type as string);
                                                     const demandValue = isVendorSupply
                                                         ? (Number(item.procurementQuantity) || Number(item.quantity) || 0)
                                                         : (Number(item.quantity) || 0);
@@ -187,7 +187,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                             (!sub.opportunityItemId && !item.commodityId)
                                                         );
                                                         if (approvedSub) {
-                                                            const isVendorSupply = approvedSub.sample?.vendor?.type === 'VENDOR';
+                                                            const isVendorSupply = ['VENDOR', 'PARTNER'].includes(approvedSub.sample?.vendor?.type as string);
                                                             const demandValue = isVendorSupply
                                                                 ? (Number(item.procurementQuantity) || Number(item.quantity) || 0)
                                                                 : (Number(item.quantity) || 0);
@@ -228,7 +228,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                                     (!sub.opportunityItemId && sub.sample?.project?.commodityId === item.commodityId) ||
                                                                     (!sub.opportunityItemId && !item.commodityId)
                                                                 );
-                                                                const isVendorSupply = approvedSub?.sample?.vendor?.type === 'VENDOR';
+                                                                const isVendorSupply = ['VENDOR', 'PARTNER'].includes(approvedSub?.sample?.vendor?.type as string);
                                                                 const itemDemand = isVendorSupply
                                                                     ? (Number(item.procurementQuantity) || Number(item.quantity) || 0)
                                                                     : (Number(item.quantity) || 0);
@@ -295,7 +295,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                         <TabsList className="grid w-full grid-cols-4">
                             {!isSampleProject && <TabsTrigger value="opportunities">Demand</TabsTrigger>}
                             {!isSampleProject && <TabsTrigger value="purchase-orders">Purchase Orders</TabsTrigger>}
-                            <TabsTrigger value="vendors">Vendors</TabsTrigger>
+                            <TabsTrigger value="vendors">Suppliers</TabsTrigger>
                             {isSampleProject && <TabsTrigger value="samples">Samples</TabsTrigger>}
                         </TabsList>
 
@@ -386,7 +386,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between">
                                     <div>
-                                        <CardTitle>Shortlisted Vendors</CardTitle>
+                                        <CardTitle>Shortlisted Suppliers</CardTitle>
                                         <CardDescription>Suppliers for this project.</CardDescription>
                                     </div>
                                     <AddVendorDialog projectId={project.id} />

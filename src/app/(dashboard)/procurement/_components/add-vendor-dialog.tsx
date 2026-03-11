@@ -47,11 +47,11 @@ export function AddVendorDialog({ projectId }: AddVendorDialogProps) {
         try {
             const result = await addVendorToProject(projectId, selectedVendorId);
             if (result.success) {
-                toast.success("Vendor added successfully");
+                toast.success("Supplier added successfully");
                 setOpen(false);
                 setSelectedVendorId("");
             } else {
-                toast.error("Failed to add vendor");
+                toast.error("Failed to add supplier");
             }
         } catch (error) {
             console.error(error);
@@ -66,19 +66,19 @@ export function AddVendorDialog({ projectId }: AddVendorDialogProps) {
             <DialogTrigger asChild>
                 <Button size="sm">
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Vendor
+                    Add Supplier
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Add Vendor to Project</DialogTitle>
+                    <DialogTitle>Add Supplier to Project</DialogTitle>
                     <DialogDescription>
-                        Select a vendor to source materials from.
+                        Select a supplier to source materials from.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label>Select Vendor</Label>
+                        <Label>Select Supplier</Label>
                         <Combobox
                             options={vendors.map(v => {
                                 const locationParts = [v.city?.name, v.state?.name, v.country?.name].filter(Boolean);
@@ -90,15 +90,15 @@ export function AddVendorDialog({ projectId }: AddVendorDialogProps) {
                             })}
                             value={selectedVendorId}
                             onChange={setSelectedVendorId}
-                            placeholder="Select vendor..."
-                            searchPlaceholder="Search vendor..."
-                            emptyMessage="No available vendors found"
+                            placeholder="Select supplier..."
+                            searchPlaceholder="Search supplier..."
+                            emptyMessage="No available suppliers found"
                         />
                     </div>
                 </div>
                 <DialogFooter>
                     <Button onClick={handleAdd} disabled={loading || !selectedVendorId}>
-                        {loading ? "Adding..." : "Add Vendor"}
+                        {loading ? "Adding..." : "Add Supplier"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

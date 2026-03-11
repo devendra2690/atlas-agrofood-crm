@@ -96,7 +96,8 @@ export async function getProjectSamples(projectId: string) {
         const samples = await prisma.sampleRecord.findMany({
             where: { projectId },
             include: {
-                vendor: true
+                vendor: true,
+                shipments: true
             },
             orderBy: { receivedDate: 'desc' } // or createdAt if we had it, but ID sort of works or nulls last? 
             // We don't have createdAt on SampleRecord based on schema view, let's check schema again. 
@@ -213,7 +214,8 @@ export async function getAllSamples(filters?: {
                             status: true,
                             commodity: true
                         }
-                    }
+                    },
+                    shipments: true
                 }
             }),
             prisma.sampleRecord.count({ where })

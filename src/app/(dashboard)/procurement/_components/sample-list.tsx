@@ -12,6 +12,8 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { SendSampleSheet } from "./send-sample-sheet";
+import { SampleShipmentDialog } from "./sample-shipment-dialog";
+import { ShipmentDocumentAttachment } from "../../logistics/_components/shipment-document-attachment";
 // ...
 interface SampleListProps {
     samples: any[];
@@ -106,6 +108,39 @@ export function SampleList({ samples }: SampleListProps) {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Inbound Shipment Section */}
+                            {sample.shipments && sample.shipments.length > 0 && (
+                                <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-md max-w-lg">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start justify-between">
+                                        <div>
+                                            <div className="text-sm font-semibold flex items-center gap-1.5 text-slate-700">
+                                                <Truck className="h-4 w-4 text-blue-600" /> Courier Details
+                                            </div>
+                                            <div className="text-xs text-slate-600 mt-1.5 space-y-0.5">
+                                                <div><span className="font-medium text-slate-800">Carrier:</span> {sample.shipments[0].carrier}</div>
+                                                {sample.shipments[0].trackingNumber && (
+                                                    <div><span className="font-medium text-slate-800">Tracking (AWB):</span> {sample.shipments[0].trackingNumber}</div>
+                                                )}
+                                                {sample.shipments[0].eta && (
+                                                    <div><span className="font-medium text-slate-800">ETA:</span> {format(new Date(sample.shipments[0].eta), "PP")}</div>
+                                                )}
+                                                {sample.shipments[0].notes && (
+                                                    <div className="italic mt-1">"{sample.shipments[0].notes}"</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="mt-2 sm:mt-0 min-w-[200px]">
+                                            <ShipmentDocumentAttachment 
+                                                shipmentId={sample.shipments[0].id} 
+                                                documents={sample.shipments[0].documents || []} 
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -123,15 +158,7 @@ export function SampleList({ samples }: SampleListProps) {
 
                         {/* Actions based on Status */}
                         {sample.status === 'REQUESTED' && (
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleStatusUpdate(sample.id, 'SENT')}
-                                disabled={loadingId === sample.id}
-                            >
-                                {loadingId === sample.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4 mr-2" />}
-                                Mark Sent
-                            </Button>
+                            <SampleShipmentDialog sampleId={sample.id} />
                         )}
 
                         {sample.status === 'SENT' && (

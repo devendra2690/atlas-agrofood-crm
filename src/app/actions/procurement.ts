@@ -643,7 +643,7 @@ export async function getAvailableVendors(projectId: string) {
         // Get vendors NOT already linked to this project
         // AND match the commodity if project has one
         const where: any = {
-            type: "VENDOR",
+            type: { in: ["VENDOR", "PARTNER"] },
             projectVendors: {
                 none: {
                     projectId: projectId

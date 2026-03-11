@@ -16,7 +16,7 @@ export function VendorList({ projectVendors, samples = [], isFulfillment = false
     if (projectVendors.length === 0) {
         return (
             <div className="text-center py-8 text-muted-foreground">
-                No vendors added yet. Add a vendor to start sourcing.
+                No suppliers added yet. Add a supplier to start sourcing.
             </div>
         );
     }

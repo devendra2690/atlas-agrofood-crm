@@ -636,6 +636,7 @@ model SampleRecord {
 
   purchaseOrders PurchaseOrder[] 
   submissions    SampleSubmission[]
+  shipments      Shipment[]
 
   createdById String?
   updatedById String?
@@ -838,9 +839,11 @@ model Shipment {
   id              String   @id @default(uuid())
   purchaseOrderId String?   // Removed @unique to allow multiple, made optional for Polymorphism
   salesOrderId    String?
+  sampleRecordId  String?
 
   purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
   salesOrder      SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+  sampleRecord    SampleRecord?  @relation(fields: [sampleRecordId], references: [id])
 
   carrier         String?
   trackingNumber  String?
