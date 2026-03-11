@@ -318,9 +318,9 @@ export function CreatePurchaseOrderDialog({
                                         </div>
                                         <div className="col-span-4">
                                             <Label className="text-xs text-slate-500">
-                                                Quantity (MT)
+                                                Quantity
                                                 {item.maxQuantity !== undefined && (
-                                                    <span className="text-blue-600 ml-1 block mt-0.5">Max: {item.maxQuantity} MT</span>
+                                                    <span className="text-blue-600 ml-1 block mt-0.5">Max: {item.maxQuantity}</span>
                                                 )}
                                             </Label>
                                             <Input

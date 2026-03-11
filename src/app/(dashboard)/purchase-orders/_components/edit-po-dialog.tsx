@@ -79,7 +79,7 @@ export function EditPurchaseOrderDialog({ order }: EditPurchaseOrderDialogProps)
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label>Quantity (MT)</Label>
+                        <Label>Quantity</Label>
                         <Input
                             type="number"
                             placeholder="0.00"
@@ -94,7 +94,7 @@ export function EditPurchaseOrderDialog({ order }: EditPurchaseOrderDialogProps)
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>Rate (per MT)</Label>
+                        <Label>Rate (per unit)</Label>
                         <Input
                             type="number"
                             placeholder="0.00"

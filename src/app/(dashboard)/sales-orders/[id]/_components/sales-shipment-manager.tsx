@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,9 +21,10 @@ interface SalesShipmentManagerProps {
     orderStatus: string;
     shipments: any[];
     invoiceCount: number;
+    orderQuantityUnit?: string;
 }
 
-export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceCount }: SalesShipmentManagerProps) {
+export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceCount, orderQuantityUnit }: SalesShipmentManagerProps) {
     const [isShipmentOpen, setIsShipmentOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -36,6 +38,7 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
     const [trackingNumber, setTrackingNumber] = useState("");
     const [eta, setEta] = useState("");
     const [quantity, setQuantity] = useState("");
+    const [quantityUnit, setQuantityUnit] = useState(orderQuantityUnit || "MT");
     const [notes, setNotes] = useState("");
 
     if (!mounted) return null;
@@ -51,7 +54,7 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
             salesOrderId: orderId,
             carrier,
             trackingNumber,
-            quantity: quantity ? parseFloat(quantity) : undefined,
+            quantity: quantity ? (quantityUnit === 'KG' ? parseFloat((parseFloat(quantity) / 1000).toFixed(5)) : parseFloat(quantity)) : undefined,
             eta: eta ? new Date(eta) : undefined,
             notes
         });
@@ -118,15 +121,29 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                     <Input type="date" value={eta} onChange={(e) => setEta(e.target.value)} disabled={invoiceCount === 0} />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label>Quantity (MT) <span className="text-red-500">*</span></Label>
-                                    <Input
-                                        type="number"
-                                        step="0.01"
-                                        value={quantity}
-                                        onChange={(e) => setQuantity(e.target.value)}
-                                        placeholder="e.g. 10.5"
-                                        disabled={invoiceCount === 0}
-                                    />
+                                    <Label>Quantity <span className="text-red-500">*</span></Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            type="number"
+                                            step="0.001"
+                                            value={quantity}
+                                            onChange={(e) => setQuantity(e.target.value)}
+                                            placeholder="e.g. 10.5"
+                                            disabled={invoiceCount === 0}
+                                            className="flex-1"
+                                        />
+                                        <div className="w-24">
+                                            <Select value={quantityUnit} onValueChange={setQuantityUnit} disabled={invoiceCount === 0}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Unit" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="MT">MT</SelectItem>
+                                                    <SelectItem value="KG">KG</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Notes</Label>
@@ -154,7 +171,7 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                 <TableHead>Date Added</TableHead>
                                 <TableHead>Carrier</TableHead>
                                 <TableHead>Tracking #</TableHead>
-                                <TableHead>Qty</TableHead>
+                                <TableHead>Qty ({orderQuantityUnit || 'MT'})</TableHead>
                                 <TableHead>ETA</TableHead>
                                 <TableHead>Notes</TableHead>
                                 <TableHead>Documents</TableHead>

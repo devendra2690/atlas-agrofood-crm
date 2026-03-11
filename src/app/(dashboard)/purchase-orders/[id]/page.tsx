@@ -94,7 +94,7 @@ export default async function PurchaseOrderDetailsPage({ params }: PageProps) {
                                         <thead className="bg-slate-50 border-b">
                                             <tr>
                                                 <th className="px-4 py-3 font-medium text-slate-500">Item</th>
-                                                <th className="px-4 py-3 font-medium text-slate-500 text-right">Quantity (MT)</th>
+                                                <th className="px-4 py-3 font-medium text-slate-500 text-right">Quantity</th>
                                                 <th className="px-4 py-3 font-medium text-slate-500 text-right">Rate (₹/kg)</th>
                                                 <th className="px-4 py-3 font-medium text-slate-500 text-right">Amount</th>
                                             </tr>
