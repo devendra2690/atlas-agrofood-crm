@@ -29,6 +29,7 @@ export type OpportunityItemData = {
     targetPrice?: number;
     priceType?: "PER_KG" | "PER_MT" | "TOTAL_AMOUNT";
     quantity?: number;
+    quantityUnit?: "MT" | "KG";
     procurementQuantity?: number;
     notes?: string;
 };
@@ -95,6 +96,7 @@ export async function createOpportunity(data: OpportunityFormData) {
                 ...item,
                 procurementQuantity: procQty,
                 priceType: item.priceType || "PER_KG",
+                quantityUnit: item.quantityUnit || "MT",
             };
         }));
 
@@ -179,6 +181,7 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
                 ...item,
                 procurementQuantity: procQty,
                 priceType: item.priceType || "PER_KG",
+                quantityUnit: item.quantityUnit || "MT",
             };
         }));
 
@@ -241,6 +244,7 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
                             targetPrice: item.targetPrice,
                             priceType: item.priceType,
                             quantity: item.quantity,
+                            quantityUnit: item.quantityUnit,
                             procurementQuantity: item.procurementQuantity,
                             notes: item.notes
                         }
@@ -253,6 +257,7 @@ export async function updateOpportunity(id: string, data: OpportunityFormData) {
                         targetPrice: item.targetPrice,
                         priceType: item.priceType!,
                         quantity: item.quantity,
+                        quantityUnit: item.quantityUnit,
                         procurementQuantity: item.procurementQuantity,
                         notes: item.notes
                     }))
@@ -506,6 +511,7 @@ function sanitizeOpportunity(opp: any) {
             ...item,
             targetPrice: item.targetPrice && typeof item.targetPrice.toNumber === 'function' ? item.targetPrice.toNumber() : item.targetPrice,
             quantity: item.quantity && typeof item.quantity.toNumber === 'function' ? item.quantity.toNumber() : item.quantity,
+            quantityUnit: item.quantityUnit,
             procurementQuantity: item.procurementQuantity && typeof item.procurementQuantity.toNumber === 'function' ? item.procurementQuantity.toNumber() : item.procurementQuantity,
         })),
         sampleSubmissions: opp.sampleSubmissions?.map((sub: any) => ({

@@ -91,12 +91,15 @@ export function KanbanCard({ opportunity, companies, partners, onClick, onAttach
             if (!item.targetPrice || !item.quantity) return null;
             const price = Number(item.targetPrice);
             const qty = Number(item.quantity);
-            if (item.priceType === 'PER_KG') {
-                total += price * (qty * 1000);
-            } else if (item.priceType === 'PER_MT') {
-                total += price * qty;
-            } else if (item.priceType === 'TOTAL_AMOUNT') {
+            const qtyUnit = item.quantityUnit || 'MT';
+            if (item.priceType === 'TOTAL_AMOUNT') {
                 total += price;
+            } else if (item.priceType === 'PER_KG') {
+                const qtyInKG = qtyUnit === 'MT' ? (qty * 1000) : qty;
+                total += price * qtyInKG;
+            } else if (item.priceType === 'PER_MT') {
+                const qtyInMT = qtyUnit === 'KG' ? (qty / 1000) : qty;
+                total += price * qtyInMT;
             } else {
                 return null;
             }

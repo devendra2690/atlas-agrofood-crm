@@ -503,6 +503,11 @@ enum OpportunityPriceType {
   TOTAL_AMOUNT
 }
 
+enum QuantityUnit {
+  MT
+  KG
+}
+
 model SalesOpportunity {
   id                 String            @id @default(uuid())
   companyId          String
@@ -544,6 +549,7 @@ model SalesOpportunityItem {
   targetPrice        Decimal?
   priceType          OpportunityPriceType @default(PER_KG)
   quantity           Decimal?
+  quantityUnit       QuantityUnit       @default(MT)
   procurementQuantity Decimal?       // Calculated raw material needed based on yield
   notes              String?
 

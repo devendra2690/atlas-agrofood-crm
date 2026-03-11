@@ -21,16 +21,21 @@ export default async function PrintOpportunityPOPage({ params }: { params: Promi
 
     let taxableAmount = 0;
     opportunity.items.forEach(item => {
-        const qtyMT = item.quantity ? Number(item.quantity) : 0;
+        const rawQty = item.quantity ? Number(item.quantity) : 0;
+        const qtyUnit = item.quantityUnit || 'MT';
         const price = item.targetPrice ? Number(item.targetPrice) : 0;
 
         let amount = 0;
         if (item.priceType === 'TOTAL_AMOUNT') {
             amount = price;
         } else if (item.priceType === 'PER_KG') {
-            amount = (qtyMT * 1000) * price;
+            const qtyInKG = qtyUnit === 'MT' ? rawQty * 1000 : rawQty;
+            amount = qtyInKG * price;
+        } else if (item.priceType === 'PER_MT') {
+            const qtyInMT = qtyUnit === 'KG' ? rawQty / 1000 : rawQty;
+            amount = qtyInMT * price;
         } else {
-            amount = qtyMT * price;
+            amount = rawQty * price;
         }
         taxableAmount += amount;
     });
@@ -139,25 +144,26 @@ export default async function PrintOpportunityPOPage({ params }: { params: Promi
                     </thead>
                     <tbody>
                         {opportunity.items.map((item, index) => {
-                            const qtyMT = item.quantity ? Number(item.quantity) : 0;
+                            const rawQty = item.quantity ? Number(item.quantity) : 0;
+                            const qtyUnit = item.quantityUnit || 'MT';
                             const price = item.targetPrice ? Number(item.targetPrice) : 0;
 
                             let amount = 0;
-                            let displayQty = qtyMT;
-                            let unitStr = "MT";
+                            let displayQty = rawQty;
+                            let unitStr: string = qtyUnit;
 
                             if (item.priceType === 'TOTAL_AMOUNT') {
                                 amount = price;
                                 unitStr = "-";
                                 displayQty = 0;
                             } else if (item.priceType === 'PER_KG') {
-                                displayQty = qtyMT * 1000;
-                                amount = displayQty * price;
-                                unitStr = "KG";
+                                const qtyInKG = qtyUnit === 'MT' ? rawQty * 1000 : rawQty;
+                                amount = qtyInKG * price;
+                            } else if (item.priceType === 'PER_MT') {
+                                const qtyInMT = qtyUnit === 'KG' ? rawQty / 1000 : rawQty;
+                                amount = qtyInMT * price;
                             } else {
-                                displayQty = qtyMT;
-                                amount = displayQty * price;
-                                unitStr = "MT";
+                                amount = rawQty * price;
                             }
 
                             return (

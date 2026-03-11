@@ -330,15 +330,19 @@ export async function generateInvoiceFromSalesOrder(
         if (itemsToInvoice && itemsToInvoice.length > 0) {
             // Partial Invoice Logic
             for (const item of itemsToInvoice) {
+                const originalItem = so.opportunity?.items?.find((i: any) => i.id === item.opportunityItemId);
+                const qtyUnit = originalItem?.quantityUnit || 'MT';
                 let amount = 0;
-                if (item.priceType === 'PER_KG') {
-                    // rate is per KG, quantity is in MT. 1 MT = 1000 KG
-                    amount = (item.quantity * 1000) * item.rate;
-                } else if (item.priceType === 'TOTAL_AMOUNT') {
+
+                if (item.priceType === 'TOTAL_AMOUNT') {
                     amount = item.rate;
+                } else if (item.priceType === 'PER_KG') {
+                    const qtyInKG = qtyUnit === 'MT' ? (item.quantity * 1000) : item.quantity;
+                    amount = qtyInKG * item.rate;
                 } else {
                     // PER_MT
-                    amount = item.quantity * item.rate;
+                    const qtyInMT = qtyUnit === 'KG' ? (item.quantity / 1000) : item.quantity;
+                    amount = qtyInMT * item.rate;
                 }
 
                 baseAmount += amount;

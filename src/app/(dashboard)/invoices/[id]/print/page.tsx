@@ -52,11 +52,16 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
         itemsToRender = opportunity.items.map((optItem: any) => {
             const qty = optItem.quantity ? Number(optItem.quantity) : 0;
             const price = optItem.targetPrice ? Number(optItem.targetPrice) : 0;
+            const qtyUnit = optItem.quantityUnit || 'MT';
             let amount = 0;
-            if (optItem.priceType === 'PER_KG') {
-                amount = price * qty * 1000;
-            } else if (optItem.priceType === 'TOTAL_AMOUNT') {
+            if (optItem.priceType === 'TOTAL_AMOUNT') {
                 amount = price;
+            } else if (optItem.priceType === 'PER_KG') {
+                const qtyInKG = qtyUnit === 'MT' ? qty * 1000 : qty;
+                amount = qtyInKG * price;
+            } else if (optItem.priceType === 'PER_MT') {
+                const qtyInMT = qtyUnit === 'KG' ? qty / 1000 : qty;
+                amount = qtyInMT * price;
             } else {
                 amount = price * qty;
             }
@@ -182,19 +187,17 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
                     <tbody>
                         {itemsToRender.map((invItem: any, index: number) => {
                             const item = invItem.opportunityItem;
-                            const qtyMT = invItem.quantity ? Number(invItem.quantity) : 0;
+                            const qtyUnit = item?.quantityUnit || 'MT';
+                            const rawQty = invItem.quantity ? Number(invItem.quantity) : 0;
                             const price = invItem.rate ? Number(invItem.rate) : 0;
                             const amount = invItem.amount ? Number(invItem.amount) : 0;
 
-                            let displayQty = qtyMT;
-                            let unitStr = "MT";
+                            let displayQty = rawQty;
+                            let unitStr = qtyUnit;
 
                             if (item.priceType === 'TOTAL_AMOUNT') {
                                 unitStr = "-";
                                 displayQty = 0;
-                            } else if (item.priceType === 'PER_KG') {
-                                displayQty = qtyMT * 1000;
-                                unitStr = "KG";
                             }
 
                             return (

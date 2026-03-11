@@ -183,13 +183,21 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                                         <div className="text-right">
                                                             <p className="font-mono text-slate-700">₹{item.targetPrice?.toLocaleString() || '-'} <span className="text-xs text-slate-500 ml-1">/{item.priceType === 'PER_MT' ? 'MT' : item.priceType === 'PER_KG' ? 'KG' : 'Total'}</span></p>
                                                             <div className="flex items-center justify-end gap-2 mt-1 border-slate-200">
-                                                                <p className="text-sm font-medium text-blue-600">{item.quantity} MT</p>
+                                                                <p className="text-sm font-medium text-blue-600">{item.quantity} {item.quantityUnit || 'MT'}</p>
                                                                 <p className="text-sm font-semibold text-slate-800 border-l pl-2 border-slate-300">
                                                                     = ₹{(() => {
                                                                         const price = item.targetPrice || 0;
                                                                         const qty = item.quantity || 0;
-                                                                        if (item.priceType === 'PER_KG') return (price * qty * 1000).toLocaleString();
+                                                                        const qtyUnit = item.quantityUnit || 'MT';
                                                                         if (item.priceType === 'TOTAL_AMOUNT') return price.toLocaleString();
+                                                                        if (item.priceType === 'PER_KG') {
+                                                                            const qtyInKG = qtyUnit === 'MT' ? (qty * 1000) : qty;
+                                                                            return (price * qtyInKG).toLocaleString();
+                                                                        }
+                                                                        if (item.priceType === 'PER_MT') {
+                                                                            const qtyInMT = qtyUnit === 'KG' ? (qty / 1000) : qty;
+                                                                            return (price * qtyInMT).toLocaleString();
+                                                                        }
                                                                         return (price * qty).toLocaleString();
                                                                     })()}
                                                                 </p>
@@ -659,11 +667,11 @@ function GenerateInvoiceAction({ order }: { order: any }) {
                                         {item.productName || item.commodity?.name || "Item"}
                                         {item.varietyForm?.formName && <span className="text-xs font-medium text-slate-500 ml-1">({item.varietyForm.formName})</span>}
                                     </p>
-                                    <p className="text-xs text-slate-500">Rate: ₹{state.rate.toLocaleString()} / MT</p>
+                                    <p className="text-xs text-slate-500">Rate: ₹{state.rate.toLocaleString()} / {item.quantityUnit || 'MT'}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="flex flex-col text-right">
-                                        <span className="text-xs text-slate-500 font-medium">Quantity (MT)</span>
+                                        <span className="text-xs text-slate-500 font-medium">Quantity ({item.quantityUnit || 'MT'})</span>
                                         <div className="flex items-center gap-2">
                                             <input
                                                 type="number"
@@ -688,10 +696,15 @@ function GenerateInvoiceAction({ order }: { order: any }) {
                                         {(() => {
                                             let finalAmount = 0;
                                             if (state.selected) {
-                                                if (item.priceType === 'PER_KG') {
-                                                    finalAmount = (state.quantity * 1000) * state.rate;
-                                                } else if (item.priceType === 'TOTAL_AMOUNT') {
+                                                const qtyUnit = item.quantityUnit || 'MT';
+                                                if (item.priceType === 'TOTAL_AMOUNT') {
                                                     finalAmount = state.rate;
+                                                } else if (item.priceType === 'PER_KG') {
+                                                    const qtyInKG = qtyUnit === 'MT' ? (state.quantity * 1000) : state.quantity;
+                                                    finalAmount = qtyInKG * state.rate;
+                                                } else if (item.priceType === 'PER_MT') {
+                                                    const qtyInMT = qtyUnit === 'KG' ? (state.quantity / 1000) : state.quantity;
+                                                    finalAmount = qtyInMT * state.rate;
                                                 } else {
                                                     finalAmount = state.quantity * state.rate;
                                                 }

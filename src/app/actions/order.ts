@@ -65,12 +65,17 @@ export async function createSalesOrder(opportunityId: string) {
                 if (hasApprovedSample) {
                     const price = item.targetPrice?.toNumber() || 0;
                     const qty = item.quantity?.toNumber() || 0;
-                    if (item.priceType === 'PER_KG') {
-                        totalAmount += price * (qty * 1000); // Convert MT to Kg
-                    } else if (item.priceType === 'TOTAL_AMOUNT') {
+                    const qtyUnit = item.quantityUnit || 'MT';
+
+                    if (item.priceType === 'TOTAL_AMOUNT') {
                         totalAmount += price;
+                    } else if (item.priceType === 'PER_KG') {
+                        const qtyInKG = qtyUnit === 'MT' ? (qty * 1000) : qty;
+                        totalAmount += price * qtyInKG;
                     } else {
-                        totalAmount += price * qty; // PER_MT or default
+                        // PER_MT or default
+                        const qtyInMT = qtyUnit === 'KG' ? (qty / 1000) : qty;
+                        totalAmount += price * qtyInMT;
                     }
                 }
             }

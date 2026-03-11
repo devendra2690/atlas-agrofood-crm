@@ -63,6 +63,7 @@ export type OpportunityItemData = {
     targetPrice: string;
     priceType: "PER_KG" | "PER_MT" | "TOTAL_AMOUNT";
     quantity: string;
+    quantityUnit: "MT" | "KG";
     procurementQuantity: string;
     notes: string;
 };
@@ -116,11 +117,12 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                     targetPrice: it.targetPrice?.toString() || "",
                     priceType: it.priceType || "PER_KG",
                     quantity: it.quantity?.toString() || "",
+                    quantityUnit: it.quantityUnit || "MT",
                     procurementQuantity: it.procurementQuantity?.toString() || "",
                     notes: it.notes || ""
                 })));
             } else {
-                setItems([{ localId: Math.random().toString(), productName: "", commodityId: "", varietyId: "", varietyFormId: "", targetPrice: "", priceType: "PER_KG", quantity: "", procurementQuantity: "", notes: "" }]);
+                setItems([{ localId: Math.random().toString(), productName: "", commodityId: "", varietyId: "", varietyFormId: "", targetPrice: "", priceType: "PER_KG", quantity: "", quantityUnit: "MT", procurementQuantity: "", notes: "" }]);
             }
         }
     }, [initialData, open]);
@@ -161,7 +163,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
         }
 
         // Auto-calc proc qty
-        if (['quantity', 'commodityId', 'varietyId', 'varietyFormId'].includes(field)) {
+        if (['quantity', 'quantityUnit', 'commodityId', 'varietyId', 'varietyFormId'].includes(field)) {
             const it = newItems[index];
             if (it.quantity && it.commodityId) {
                 const commodity = availableCommodities.find(c => c.id === it.commodityId);
@@ -191,7 +193,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
         setItems(newItems);
     };
 
-    const addItem = () => setItems([...items, { localId: Math.random().toString(), productName: "", commodityId: "", varietyId: "", varietyFormId: "", targetPrice: "", priceType: "PER_KG", quantity: "", procurementQuantity: "", notes: "" }]);
+    const addItem = () => setItems([...items, { localId: Math.random().toString(), productName: "", commodityId: "", varietyId: "", varietyFormId: "", targetPrice: "", priceType: "PER_KG", quantity: "", quantityUnit: "MT", procurementQuantity: "", notes: "" }]);
     const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index));
 
     async function handleSubmit(e: React.FormEvent) {
@@ -220,6 +222,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                 targetPrice: parseFloat(item.targetPrice),
                 priceType: item.priceType,
                 quantity: parseFloat(item.quantity),
+                quantityUnit: item.quantityUnit,
                 procurementQuantity: item.procurementQuantity ? parseFloat(item.procurementQuantity) : undefined,
                 notes: item.notes
             }));
@@ -247,7 +250,7 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                 router.refresh();
                 if (!initialData) {
                     setCompanyId("");
-                    setItems([{ localId: Math.random().toString(), productName: "", commodityId: "", varietyId: "", varietyFormId: "", targetPrice: "", priceType: "PER_KG", quantity: "", procurementQuantity: "", notes: "" }]);
+                    setItems([{ localId: Math.random().toString(), productName: "", commodityId: "", varietyId: "", varietyFormId: "", targetPrice: "", priceType: "PER_KG", quantity: "", quantityUnit: "MT", procurementQuantity: "", notes: "" }]);
                 }
             } else {
                 toast.error(result.error || "Failed to save opportunity");
@@ -401,7 +404,8 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
                             // Energy Calculation
                             const baseUnits = commodityObj?.baseBatchElectricityUnits || 0;
                             const formMultiplier = formObj?.formElectricityMultiplier || 0;
-                            const finishedQtyKG = (parseFloat(item.quantity) || 0) * 1000;
+                            let finishedQtyKG = parseFloat(item.quantity) || 0;
+                            if (item.quantityUnit === 'MT') finishedQtyKG *= 1000;
                             const grindingUnits = finishedQtyKG * formMultiplier;
                             const totalEnergyUnits = baseUnits + grindingUnits;
                             const elecRateVal = parseFloat(electricityRate) || 8.50;
@@ -475,15 +479,27 @@ export function OpportunityDialog({ companies, commodities, initialData, open: c
 
                                         <div className="grid md:grid-cols-2 gap-4">
                                             <div className="grid gap-2">
-                                                <Label>Quantity (MT) <span className="text-red-500">*</span></Label>
-                                                <Input
-                                                    type="number"
-                                                    value={item.quantity}
-                                                    onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                                                />
+                                                <Label>Quantity <span className="text-red-500">*</span></Label>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        type="number"
+                                                        className="flex-1"
+                                                        value={item.quantity}
+                                                        onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                                                    />
+                                                    <Select value={item.quantityUnit} onValueChange={(val: any) => handleItemChange(index, 'quantityUnit', val)}>
+                                                        <SelectTrigger className="w-[90px]">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="MT">MT</SelectItem>
+                                                            <SelectItem value="KG">KG</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
                                             </div>
                                             <div className="grid gap-2">
-                                                <Label>Raw Material Needed (MT) <span className="text-red-500">*</span></Label>
+                                                <Label>Raw Material Needed ({item.quantityUnit}) <span className="text-red-500">*</span></Label>
                                                 <Input
                                                     type="number"
                                                     value={item.procurementQuantity}
