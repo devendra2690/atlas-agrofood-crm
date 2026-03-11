@@ -12,6 +12,7 @@ export type ShipmentData = {
     carrier?: string;
     trackingNumber?: string;
     quantity?: number;
+    quantityUnit?: string;
     eta?: Date;
     notes?: string;
 };
@@ -32,6 +33,15 @@ export type GRNData = {
 export async function createShipment(data: ShipmentData) {
     try {
         const session = await auth();
+        
+        let validUserId = undefined;
+        if (session?.user?.id) {
+            const userExists = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
+            if (!userExists) {
+                return { success: false, error: "Authentication mismatch: Your browser session is from a different environment. Please Log Out and Log In again." };
+            }
+            validUserId = session.user.id;
+        }
 
         if (data.salesOrderId) {
             // SALES ORDER LOGIC
@@ -56,10 +66,15 @@ export async function createShipment(data: ShipmentData) {
 
             // QUANTITY VALIDATION
             if (data.quantity) {
-                const totalQuantity = salesOrder.opportunity?.items?.reduce((sum: any, it: any) => sum + (it.quantityUnit === 'KG' ? (Number(it.quantity) / 1000) : (Number(it.quantity) || 0)), 0) || 0;
+                const totalQuantity = salesOrder.opportunity?.items?.reduce((sum: number, it: any) => {
+                    const parsedQty = typeof it.quantity?.toNumber === 'function' ? it.quantity.toNumber() : Number(it.quantity || 0);
+                    return sum + (it.quantityUnit === 'KG' ? (parsedQty / 1000) : parsedQty);
+                }, 0) || 0;
 
                 const currentShipped = salesOrder.shipments.reduce((sum: any, s: any) => sum + (s.quantity?.toNumber() || 0), 0);
-                const newTotal = currentShipped + data.quantity;
+                // Normalize the proposed New Shipment into MT for mathematical comparison
+                const shipmentQuantityInMT = data.quantityUnit === 'KG' ? (data.quantity / 1000) : data.quantity;
+                const newTotal = currentShipped + shipmentQuantityInMT;
 
                 // Tolerance for floating point?
                 const isMismatch = Math.abs(newTotal - totalQuantity) > 0.001;
@@ -67,7 +82,7 @@ export async function createShipment(data: ShipmentData) {
                 if (isMismatch && !data.notes) {
                     return {
                         success: false,
-                        error: `Quantity Mismatch: Shipping ${newTotal.toFixed(2)} MT total (Order: ${totalQuantity} MT). You MUST provide notes explaining the difference.`
+                        error: `Quantity Mismatch: Shipping ${Number(newTotal.toFixed(3))} MT total (Order: ${Number(totalQuantity.toFixed(3))} MT). Please add a Note explaining the difference.`
                     };
                 }
             }
@@ -75,8 +90,8 @@ export async function createShipment(data: ShipmentData) {
             // 2. Create Shipment
             const shipment = await prisma.shipment.create({
                 data: {
-                    createdById: session?.user?.id,
-                    updatedById: session?.user?.id,
+                    createdById: validUserId,
+                    updatedById: validUserId,
                     salesOrderId: data.salesOrderId,
                     carrier: data.carrier,
                     trackingNumber: data.trackingNumber,
@@ -116,8 +131,8 @@ export async function createShipment(data: ShipmentData) {
             // PURCHASE ORDER LOGIC
             const shipment = await prisma.shipment.create({
                 data: {
-                    createdById: session?.user?.id,
-                    updatedById: session?.user?.id,
+                    createdById: validUserId,
+                    updatedById: validUserId,
                     purchaseOrderId: data.purchaseOrderId,
                     carrier: data.carrier,
                     trackingNumber: data.trackingNumber,

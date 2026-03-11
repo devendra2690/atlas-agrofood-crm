@@ -54,7 +54,8 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
             salesOrderId: orderId,
             carrier,
             trackingNumber,
-            quantity: quantity ? (quantityUnit === 'KG' ? parseFloat((parseFloat(quantity) / 1000).toFixed(5)) : parseFloat(quantity)) : undefined,
+            quantity: quantity ? parseFloat(quantity) : undefined,
+            quantityUnit,
             eta: eta ? new Date(eta) : undefined,
             notes
         });
