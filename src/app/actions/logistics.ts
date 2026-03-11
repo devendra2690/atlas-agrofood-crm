@@ -184,6 +184,51 @@ export async function updateShipmentStatus(id: string, status: string) {
     }
 }
 
+export async function updateShipmentDocument(shipmentId: string, url: string, action: 'add' | 'remove') {
+    try {
+        const session = await auth();
+        
+        const shipment = await prisma.shipment.findUnique({
+            where: { id: shipmentId }
+        });
+
+        if (!shipment) return { success: false, error: "Shipment not found" };
+
+        let updatedDocuments = [...(shipment.documents || [])];
+
+        if (action === 'add') {
+            updatedDocuments.push(url);
+        } else if (action === 'remove') {
+            updatedDocuments = updatedDocuments.filter(d => d !== url);
+        }
+
+        await prisma.shipment.update({
+            where: { id: shipmentId },
+            data: {
+                documents: updatedDocuments,
+                updatedById: session?.user?.id
+            }
+        });
+
+        await logActivity({
+            action: "UPDATE",
+            entityType: "Shipment",
+            entityId: shipmentId,
+            entityTitle: `Shipment`,
+            details: `${action === 'add' ? 'Added' : 'Removed'} document attachment on shipment.`
+        });
+
+        revalidatePath('/logistics');
+        revalidatePath(`/sales-orders/${shipment.salesOrderId}`);
+        revalidatePath(`/purchase-orders/${shipment.purchaseOrderId}`);
+        
+        return { success: true };
+    } catch (error: any) {
+        console.error("Failed to update shipment documents:", error);
+        return { success: false, error: "Failed to update documents" };
+    }
+}
+
 // --- GRN Actions ---
 
 export async function createGRN(data: GRNData) {

@@ -13,6 +13,7 @@ import { Truck, Plus } from "lucide-react";
 import { createShipment } from "@/app/actions/logistics";
 import { toast } from "sonner";
 import { SalesOrder } from "@prisma/client";
+import { ShipmentDocumentAttachment } from "@/app/(dashboard)/logistics/_components/shipment-document-attachment";
 
 interface SalesShipmentManagerProps {
     orderId: string;
@@ -156,6 +157,7 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                 <TableHead>Qty</TableHead>
                                 <TableHead>ETA</TableHead>
                                 <TableHead>Notes</TableHead>
+                                <TableHead>Documents</TableHead>
                                 <TableHead>Status</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -168,6 +170,9 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                     <TableCell>{shipment.quantity ? `${shipment.quantity} MT` : "-"}</TableCell>
                                     <TableCell>{shipment.eta ? format(new Date(shipment.eta), "MMM d") : "-"}</TableCell>
                                     <TableCell className="max-w-[150px] truncate" title={shipment.notes}>{shipment.notes || "-"}</TableCell>
+                                    <TableCell>
+                                        <ShipmentDocumentAttachment shipmentId={shipment.id} documents={shipment.documents || []} />
+                                    </TableCell>
                                     <TableCell>
                                         <Badge variant="outline" className="flex items-center w-fit gap-1">
                                             <Truck className="h-3 w-3" />

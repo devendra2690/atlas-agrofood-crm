@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { Truck, PackageCheck, Plus } from "lucide-react";
 import { createShipment, createGRN } from "@/app/actions/logistics";
 import { toast } from "sonner";
+import { ShipmentDocumentAttachment } from "@/app/(dashboard)/logistics/_components/shipment-document-attachment";
 
 interface ShipmentManagerProps {
     poId: string;
@@ -251,6 +252,7 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                                     <TableHead>Carrier</TableHead>
                                     <TableHead>Tracking #</TableHead>
                                     <TableHead>ETA</TableHead>
+                                    <TableHead>Documents</TableHead>
                                     <TableHead>Status</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -261,6 +263,9 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                                         <TableCell className="font-medium">{shipment.carrier}</TableCell>
                                         <TableCell>{shipment.trackingNumber || "-"}</TableCell>
                                         <TableCell>{shipment.eta ? format(new Date(shipment.eta), "MMM d") : "-"}</TableCell>
+                                        <TableCell>
+                                            <ShipmentDocumentAttachment shipmentId={shipment.id} documents={shipment.documents || []} />
+                                        </TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className="flex items-center w-fit gap-1">
                                                 <Truck className="h-3 w-3" />
