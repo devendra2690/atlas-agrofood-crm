@@ -32,7 +32,7 @@ export default async function LogisticsPage({
         return <div className="p-8">Failed to load logistics data.</div>;
     }
 
-    const inboundShipments = shipments.filter((s: any) => !!s.purchaseOrder);
+    const inboundShipments = shipments.filter((s: any) => !!s.purchaseOrder || !!s.sampleRecord);
     const outboundShipments = shipments.filter((s: any) => !!s.salesOrder);
 
     return (
@@ -138,13 +138,17 @@ function ShipmentTable({ shipments }: { shipments: any[] }) {
                                     <TableCell>
                                         {s.purchaseOrderId
                                             ? `PO #${s.purchaseOrderId.slice(0, 8).toUpperCase()}`
-                                            : `SO #${s.salesOrderId?.slice(0, 8).toUpperCase()}`
+                                            : s.salesOrderId 
+                                                ? `SO #${s.salesOrderId.slice(0, 8).toUpperCase()}`
+                                                : `SAM #${s.sampleRecordId?.slice(0, 8).toUpperCase()}`
                                         }
                                     </TableCell>
                                     <TableCell>
                                         {s.purchaseOrderId
                                             ? s.purchaseOrder?.vendor?.name
-                                            : s.salesOrder?.client?.name || "N/A"
+                                            : s.salesOrderId
+                                                ? s.salesOrder?.client?.name 
+                                                : s.sampleRecord?.vendor?.name || "N/A"
                                         }
                                     </TableCell>
                                     <TableCell>{s.carrier}</TableCell>
@@ -154,7 +158,11 @@ function ShipmentTable({ shipments }: { shipments: any[] }) {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Link
-                                            href={s.purchaseOrderId ? `/purchase-orders/${s.purchaseOrderId}` : `/sales-orders/${s.salesOrderId}`}
+                                            href={
+                                                s.purchaseOrderId ? `/purchase-orders/${s.purchaseOrderId}` 
+                                                : s.salesOrderId ? `/sales-orders/${s.salesOrderId}`
+                                                : `/procurement` // Currently samples are managed within the generic procurement board
+                                            }
                                             className="text-primary hover:underline"
                                         >
                                             View

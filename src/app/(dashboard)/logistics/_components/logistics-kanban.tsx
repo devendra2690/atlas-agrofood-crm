@@ -32,6 +32,7 @@ type ShipmentWithRelations = Shipment & {
         client: Company;
         opportunity: SalesOpportunity & { items: SalesOpportunityItem[] };
     }) | null;
+    sampleRecord?: any | null;
 };
 
 interface LogisticsKanbanProps {
@@ -211,6 +212,8 @@ function DraggableCard({ shipment }: { shipment: ShipmentWithRelations }) {
             router.push(`/purchase-orders/${shipment.purchaseOrderId}`);
         } else if (shipment.salesOrderId) {
             router.push(`/sales-orders/${shipment.salesOrderId}`);
+        } else if (shipment.sampleRecordId) {
+            router.push(`/procurement`);
         }
     };
 
@@ -230,44 +233,34 @@ function DraggableCard({ shipment }: { shipment: ShipmentWithRelations }) {
 
 function ShipmentCard({ shipment, isOverlay }: { shipment: ShipmentWithRelations, isOverlay?: boolean }) {
     const isPO = !!shipment.purchaseOrder;
-    const relatedOrder = isPO ? shipment.purchaseOrder! : shipment.salesOrder;
-
+    const isSO = !!shipment.salesOrder;
+    const isSample = !!shipment.sampleRecord;
+    
     // Fallback if bad data
-    if (!relatedOrder) {
+    if (!isPO && !isSO && !isSample) {
         return (
             <Card className={`shadow-sm ${isOverlay ? 'shadow-xl bg-white scale-105' : ''}`}>
                 <CardContent className="p-3 text-red-500 text-xs">
-                    Invalid Shipment Data (Missing Order Link)
+                    Invalid Shipment Data (Missing Order/Sample Link)
                 </CardContent>
             </Card>
         );
     }
 
-    const orderId = isPO ? relatedOrder.id : relatedOrder.id;
-    const projectOrProductLabel = isPO ? "Project" : "Product";
-    const projectOrProductValue = isPO
-        ? (shipment.purchaseOrder?.project?.name || "N/A")
-        : (shipment.salesOrder?.opportunity?.items?.[0]?.productName || "Product");
+    const orderId = isPO ? shipment.purchaseOrder!.id : isSO ? shipment.salesOrder!.id : shipment.sampleRecordId!;
 
-    // Just in case schema check: SalesOrder -> Opportunity. 
-    // Opportunity usually has 'title' or 'product' field? 
-    // Wait, let's use client name for Sales Order as primary context if product is not easy access.
-    // Actually Opportunity has 'product' field? 
-    // Let's check Opportunity schema if unsure. But assuming 'title' or 'product' exists.
-    // Checking schema dump... Opportunity has 'product' string field?
-    // Let's just use "Client" for Sales Order instead of "Vendor".
-
-    const contextLabel = isPO ? "Vendor:" : "Client:";
+    const contextLabel = isPO || isSample ? "Supplier:" : "Client:";
     const contextValue = isPO
         ? (shipment.purchaseOrder?.vendor?.name || "N/A")
+        : isSample
+        ? (shipment.sampleRecord?.vendor?.name || "N/A")
         : (shipment.salesOrder?.client?.name || "N/A");
 
-    // For Project/Product line:
-    // PO -> Project Name
-    // SO -> Opportunity Title or just "Sales Order"
-    const secondaryLabel = isPO ? "Project:" : "Opp:";
+    const secondaryLabel = isPO ? "Project:" : isSample ? "Type:" : "Opp:";
     const secondaryValue = isPO
-        ? (shipment.purchaseOrder?.project?.name)
+        ? (shipment.purchaseOrder?.project?.name || "N/A")
+        : isSample
+        ? ("Sample Request")
         : (shipment.salesOrder?.opportunity?.items?.[0]?.productName || "Sales Deal");
 
     return (
@@ -275,7 +268,7 @@ function ShipmentCard({ shipment, isOverlay }: { shipment: ShipmentWithRelations
             <CardContent className="p-3">
                 <div className="flex justify-between items-start mb-2">
                     <div className="font-semibold text-sm truncate w-[70%]">
-                        {isPO ? "PO" : "SO"} #{orderId.slice(0, 8).toUpperCase()}
+                        {isPO ? "PO" : isSample ? "SAM" : "SO"} #{orderId.slice(0, 8).toUpperCase()}
                     </div>
                     {isOverlay && <Badge>{shipment.status}</Badge>}
                 </div>

@@ -452,6 +452,9 @@ export async function getShipments(filters?: {
                             client: true,
                             opportunity: { include: { items: true } }
                         }
+                    },
+                    sampleRecord: {
+                        include: { vendor: true }
                     }
                 }
             }),
@@ -478,14 +481,15 @@ export async function getShipments(filters?: {
                 totalAmount: s.salesOrder.totalAmount.toNumber(),
                 opportunity: {
                     ...s.salesOrder.opportunity,
-                    items: s.salesOrder.opportunity.items?.map((it: any) => ({
+                    items: s.salesOrder.opportunity?.items?.map((it: any) => ({
                         ...it,
-                        quantity: it.quantity?.toNumber(),
-                        targetPrice: it.targetPrice?.toNumber(),
-                        procurementQuantity: it.procurementQuantity?.toNumber()
-                    }))
+                        quantity: typeof it.quantity?.toNumber === 'function' ? it.quantity.toNumber() : Number(it.quantity || 0),
+                        targetPrice: typeof it.targetPrice?.toNumber === 'function' ? it.targetPrice.toNumber() : Number(it.targetPrice || 0),
+                        procurementQuantity: typeof it.procurementQuantity?.toNumber === 'function' ? it.procurementQuantity.toNumber() : Number(it.procurementQuantity || 0)
+                    })) || []
                 }
-            } : null
+            } : null,
+            sampleRecord: s.sampleRecord || null
         }));
 
         return {
