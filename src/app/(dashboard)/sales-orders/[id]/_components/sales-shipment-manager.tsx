@@ -39,6 +39,7 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
     const [eta, setEta] = useState("");
     const [quantity, setQuantity] = useState("");
     const [quantityUnit, setQuantityUnit] = useState(orderQuantityUnit || "MT");
+    const [courierCharge, setCourierCharge] = useState("");
     const [notes, setNotes] = useState("");
 
     if (!mounted) return null;
@@ -56,6 +57,7 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
             trackingNumber,
             quantity: quantity ? parseFloat(quantity) : undefined,
             quantityUnit,
+            courierCharge: courierCharge ? parseFloat(courierCharge) : undefined,
             eta: eta ? new Date(eta) : undefined,
             notes
         });
@@ -67,6 +69,7 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
             setTrackingNumber("");
             setEta("");
             setQuantity("");
+            setCourierCharge("");
             setNotes("");
         } else {
             toast.error(result.error || "Failed to add shipment");
@@ -145,6 +148,16 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                             </Select>
                                         </div>
                                     </div>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Courier Charges (₹) - Out of Pocket</Label>
+                                    <Input 
+                                        type="number" 
+                                        value={courierCharge} 
+                                        onChange={(e) => setCourierCharge(e.target.value)} 
+                                        placeholder="e.g. 1500" 
+                                        disabled={invoiceCount === 0} 
+                                    />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Notes</Label>

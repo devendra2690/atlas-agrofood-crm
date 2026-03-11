@@ -52,7 +52,8 @@ export async function createShipment(data: ShipmentData) {
                 include: {
                     invoices: true,
                     shipments: true,
-                    opportunity: { include: { items: true } }
+                    opportunity: { include: { items: true } },
+                    client: { select: { name: true } }
                 }
             });
 
@@ -103,6 +104,21 @@ export async function createShipment(data: ShipmentData) {
                     status: 'IN_TRANSIT'
                 }
             });
+
+            // 2b. Optional Courier Charges (Out of pocket operations expense)
+            if (data.courierCharge && data.courierCharge > 0) {
+                await prisma.transaction.create({
+                    data: {
+                        createdById: validUserId,
+                        updatedById: validUserId,
+                        type: 'DEBIT',
+                        amount: data.courierCharge,
+                        category: 'Logistics',
+                        description: `Courier charges for Outbound Shipment to ${salesOrder.client?.name || 'Unknown Client'} (SO #${data.salesOrderId.slice(0, 8).toUpperCase()})`,
+                        salesOrderId: data.salesOrderId
+                    }
+                });
+            }
 
             // 3. Auto-update SO status to SHIPPED (if not already further along)
             if (['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(salesOrder.status)) {

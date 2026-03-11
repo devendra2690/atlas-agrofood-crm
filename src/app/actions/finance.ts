@@ -213,9 +213,21 @@ export async function getInvoices(filters?: {
                     }))
                 }
             },
+            items: inv.items.map((item: any) => ({
+                ...item,
+                quantity: typeof item.quantity?.toNumber === 'function' ? item.quantity.toNumber() : Number(item.quantity || 0),
+                rate: typeof item.rate?.toNumber === 'function' ? item.rate.toNumber() : Number(item.rate || 0),
+                amount: typeof item.amount?.toNumber === 'function' ? item.amount.toNumber() : Number(item.amount || 0),
+                opportunityItem: item.opportunityItem ? {
+                    ...item.opportunityItem,
+                    quantity: typeof item.opportunityItem.quantity?.toNumber === 'function' ? item.opportunityItem.quantity.toNumber() : Number(item.opportunityItem.quantity || 0),
+                    targetPrice: typeof item.opportunityItem.targetPrice?.toNumber === 'function' ? item.opportunityItem.targetPrice.toNumber() : Number(item.opportunityItem.targetPrice || 0),
+                    procurementQuantity: typeof item.opportunityItem.procurementQuantity?.toNumber === 'function' ? item.opportunityItem.procurementQuantity.toNumber() : Number(item.opportunityItem.procurementQuantity || 0)
+                } : null
+            })),
             transactions: inv.transactions.map((t: any) => ({
                 id: t.id,
-                amount: t.amount.toNumber(),
+                amount: typeof t.amount?.toNumber === 'function' ? t.amount.toNumber() : Number(t.amount || 0),
                 date: t.date,
                 type: t.type,
                 description: t.description,
