@@ -54,6 +54,7 @@ export default async function PurchaseOrderPrintPage({ params }: { params: Promi
 
     return (
         <div className="p-4 max-w-[210mm] mx-auto bg-white min-h-[297mm] text-black print:p-8 font-sans text-[11px] leading-snug relative">
+            <title>PO-{order.id.substring(0, 8).toUpperCase()} - {order.vendor.name}</title>
             <PrintButton />
 
             {/* Background Watermark */}

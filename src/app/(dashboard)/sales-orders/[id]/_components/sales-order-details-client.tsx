@@ -340,10 +340,15 @@ export function SalesOrderDetailsClient({ order, financials, transactions }: Sal
                                                     {inf.items && inf.items.length > 0 && (
                                                         <div className="flex flex-wrap gap-1 mt-2">
                                                             {inf.items.map((it: any, i: number) => {
-                                                                const isKg = it.opportunityItem?.priceType === 'PER_KG';
-                                                                const displayQty = isKg ? (it.quantity || 0) * 1000 : (it.quantity || 0);
-                                                                const unit = isKg ? 'KG' : (it.opportunityItem?.priceType === 'PER_MT' ? 'MT' : 'Units');
-
+                                                                const qtyUnit = it.opportunityItem?.quantityUnit || 'MT';
+                                                                const isPerKgPrice = it.opportunityItem?.priceType === 'PER_KG';
+                                                                let displayQty = it.quantity || 0;
+                                                                if (isPerKgPrice && qtyUnit === 'MT') {
+                                                                    displayQty = displayQty * 1000;
+                                                                } else if (!isPerKgPrice && qtyUnit === 'KG') {
+                                                                    displayQty = displayQty / 1000;
+                                                                }
+                                                                const unit = isPerKgPrice ? 'KG' : (it.opportunityItem?.priceType === 'PER_MT' ? 'MT' : qtyUnit);
                                                                 return (
                                                                     <Badge key={i} variant="secondary" className="text-xs font-normal">
                                                                         {it.opportunityItem?.productName || it.opportunityItem?.commodity?.name || 'Item'} {it.opportunityItem?.varietyForm?.formName ? `(${it.opportunityItem.varietyForm.formName}) ` : ''} - {displayQty} {unit}

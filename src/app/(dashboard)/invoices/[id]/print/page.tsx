@@ -110,6 +110,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
 
     return (
         <div className="p-4 max-w-[210mm] mx-auto bg-white min-h-[297mm] text-black print:p-8 font-sans text-[11px] leading-snug relative">
+            <title>INV-{invoice.id.substring(0, 8).toUpperCase()} - {client?.name || 'Client'}</title>
             <PrintButton />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden z-0 opacity-10">
                 <img src={atlasLogoBase64} alt="Watermark Logo" className="w-[400px] h-auto object-contain grayscale" />
