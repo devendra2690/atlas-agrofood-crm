@@ -71,6 +71,7 @@ const sidebarItems = [
             { name: "Bills (AP)", href: "/bills", icon: CreditCard },
             { name: "Profitability", href: "/finance", icon: DollarSign },
             { name: "SplitWise", href: "/expenses", icon: Receipt },
+            { name: "Reimbursements", href: "/reimbursements", icon: Receipt },
         ]
     },
     {

@@ -94,6 +94,13 @@ enum BillStatus {
   PAID
 }
 
+enum ReimbursementStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
 enum TransactionType {
   CREDIT
   DEBIT
@@ -151,6 +158,10 @@ model User {
   expenseSplitsOwed ExpenseSplit[] @relation("ExpenseSplitsOwed")
   settlementsPaid ExpenseSettlement[] @relation("SettlementsPaid")
   settlementsReceived ExpenseSettlement[] @relation("SettlementsReceived")
+
+  // Reimbursement Relations
+  reimbursements Reimbursement[] @relation("ReimbursementUser")
+  approvedReimbursements Reimbursement[] @relation("ReimbursementProcessedBy")
 
   @@index([email])
   @@index([role])
@@ -486,6 +497,39 @@ model InteractionLog {
   @@index([userId])
   @@index([date])
 }
+
+// ==========================================
+// EMPLOYEE REIMBURSEMENTS
+// ==========================================
+
+model Reimbursement {
+  id            String              @id @default(uuid())
+  amount        Decimal
+  date          DateTime            @default(now())
+  description   String
+  category      String?  @default("General")
+  receiptUrl    String?
+  status        ReimbursementStatus @default(PENDING)
+  adminNotes    String?
+
+  userId        String
+  user          User                @relation("ReimbursementUser", fields: [userId], references: [id])
+
+  processedById String?
+  processedBy   User?               @relation("ReimbursementProcessedBy", fields: [processedById], references: [id])
+
+  transaction   Transaction?
+  // 1:1 relation handled by @unique on transaction.reimbursementId
+
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([date])
+}
+
+
 
 enum OpportunityType {
   ONE_TIME
@@ -824,10 +868,12 @@ model Transaction {
   invoiceId   String?
   billId      String?
   salesOrderId String? // Link expense directly to a deal
+  reimbursementId String? @unique
 
   invoice Invoice? @relation(fields: [invoiceId], references: [id])
   bill    Bill?    @relation(fields: [billId], references: [id])
   salesOrder SalesOrder? @relation(fields: [salesOrderId], references: [id])
+  reimbursement Reimbursement? @relation(fields: [reimbursementId], references: [id])
 
   createdById String?
   updatedById String?
