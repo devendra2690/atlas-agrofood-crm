@@ -56,7 +56,7 @@ export async function createShipment(data: ShipmentData) {
 
             // QUANTITY VALIDATION
             if (data.quantity) {
-                const totalQuantity = salesOrder.opportunity?.items?.reduce((sum: any, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0;
+                const totalQuantity = salesOrder.opportunity?.items?.reduce((sum: any, it: any) => sum + (it.quantityUnit === 'KG' ? (Number(it.quantity) / 1000) : (Number(it.quantity) || 0)), 0) || 0;
 
                 const currentShipped = salesOrder.shipments.reduce((sum: any, s: any) => sum + (s.quantity?.toNumber() || 0), 0);
                 const newTotal = currentShipped + data.quantity;
