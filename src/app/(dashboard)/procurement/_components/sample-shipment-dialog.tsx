@@ -29,9 +29,9 @@ export function SampleShipmentDialog({ sampleId }: SampleShipmentDialogProps) {
     const [trackingNumber, setTrackingNumber] = useState("");
     const [eta, setEta] = useState("");
     const [notes, setNotes] = useState("");
+    const [courierCharge, setCourierCharge] = useState("");
 
     async function handleCreate() {
-        if (!carrier) return;
 
         setLoading(true);
         try {
@@ -40,7 +40,8 @@ export function SampleShipmentDialog({ sampleId }: SampleShipmentDialogProps) {
                 carrier,
                 trackingNumber,
                 eta: eta ? new Date(eta) : undefined,
-                notes
+                notes,
+                courierCharge: courierCharge ? parseFloat(courierCharge) : undefined
             });
 
             if (result.success) {
@@ -50,6 +51,7 @@ export function SampleShipmentDialog({ sampleId }: SampleShipmentDialogProps) {
                 setTrackingNumber("");
                 setEta("");
                 setNotes("");
+                setCourierCharge("");
             } else {
                 toast.error(result.error || "Failed to save courier details.");
             }
@@ -78,7 +80,7 @@ export function SampleShipmentDialog({ sampleId }: SampleShipmentDialogProps) {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label>Carrier / Courier <span className="text-red-500">*</span></Label>
+                        <Label>Carrier / Courier</Label>
                         <Input
                             placeholder="e.g. DHL, FedEx, India Post"
                             value={carrier}
@@ -109,9 +111,20 @@ export function SampleShipmentDialog({ sampleId }: SampleShipmentDialogProps) {
                             onChange={(e) => setNotes(e.target.value)}
                         />
                     </div>
+                    <div className="grid gap-2">
+                        <Label>Courier Charges (₹) <span className="text-muted-foreground font-normal">(Optional)</span></Label>
+                        <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="e.g. 500"
+                            value={courierCharge}
+                            onChange={(e) => setCourierCharge(e.target.value)}
+                        />
+                    </div>
                 </div>
                 <DialogFooter>
-                    <Button onClick={handleCreate} disabled={loading || !carrier}>
+                    <Button onClick={handleCreate} disabled={loading}>
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {loading ? "Saving..." : "Save Details & Mark Sent"}
                     </Button>

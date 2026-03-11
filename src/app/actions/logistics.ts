@@ -15,6 +15,8 @@ export type ShipmentData = {
     quantityUnit?: string;
     eta?: Date;
     notes?: string;
+    sampleRecordId?: string;
+    courierCharge?: number;
 };
 
 export type GRNData = {
@@ -162,6 +164,63 @@ export async function createShipment(data: ShipmentData) {
                     ...shipment,
                     quantity: shipment.quantity ? shipment.quantity.toNumber() : null
                 }
+            };
+        } else if (data.sampleRecordId) {
+            // SAMPLE LOGIC
+            const sampleRecord = await prisma.sampleRecord.findUnique({
+                where: { id: data.sampleRecordId },
+                include: { vendor: { select: { name: true }} }
+            });
+
+            if (!sampleRecord) return { success: false, error: "Sample Record not found" };
+
+            const shipment = await prisma.shipment.create({
+                data: {
+                    createdById: validUserId,
+                    updatedById: validUserId,
+                    sampleRecordId: data.sampleRecordId,
+                    carrier: data.carrier,
+                    trackingNumber: data.trackingNumber,
+                    eta: data.eta,
+                    notes: data.notes,
+                    status: 'IN_TRANSIT'
+                }
+            });
+
+            // If a courier charge is provided, record it as an Operations Expense
+            if (data.courierCharge && data.courierCharge > 0) {
+                await prisma.transaction.create({
+                    data: {
+                        createdById: validUserId,
+                        updatedById: validUserId,
+                        type: 'DEBIT',
+                        amount: data.courierCharge,
+                        category: 'Logistics',
+                        description: `Courier charges for Sample Shipment from ${sampleRecord.vendor?.name || 'Unknown Supplier'} (${data.carrier || 'No Carrier'})`,
+                    }
+                });
+            }
+
+            if (sampleRecord.status === 'REQUESTED') {
+                await prisma.sampleRecord.update({
+                    where: { id: data.sampleRecordId },
+                    data: { status: 'SENT' }
+                });
+            }
+
+            // Also log the activity
+            await logActivity({
+                action: "CREATE",
+                entityType: "Shipment",
+                entityId: shipment.id,
+                entityTitle: `Shipment for Sample #${data.sampleRecordId.slice(0, 8).toUpperCase()}`,
+                details: `Created sample shipment via ${data.carrier || "Unknown"}${data.courierCharge ? ` (Cost: ₹${data.courierCharge})` : ''}`
+            });
+
+            revalidatePath(`/procurement`);
+            return {
+                success: true,
+                data: shipment
             };
         } else {
             return { success: false, error: "Target order ID missing" };
