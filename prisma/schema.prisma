@@ -104,6 +104,7 @@ enum ReimbursementStatus {
 enum TransactionType {
   CREDIT
   DEBIT
+  LIABILITY
 }
 
 // Models
@@ -518,8 +519,8 @@ model Reimbursement {
   processedById String?
   processedBy   User?               @relation("ReimbursementProcessedBy", fields: [processedById], references: [id])
 
-  transaction   Transaction?
-  // 1:1 relation handled by @unique on transaction.reimbursementId
+  transactions  Transaction[]
+  // 1:M relation to support Liability generation followed by Debit payout
 
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
@@ -868,7 +869,7 @@ model Transaction {
   invoiceId   String?
   billId      String?
   salesOrderId String? // Link expense directly to a deal
-  reimbursementId String? @unique
+  reimbursementId String?
 
   invoice Invoice? @relation(fields: [invoiceId], references: [id])
   bill    Bill?    @relation(fields: [billId], references: [id])

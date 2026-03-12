@@ -102,17 +102,17 @@ export async function getReimbursements(filters?: { status?: string }) {
             include: {
                 user: { select: { name: true, image: true, email: true } },
                 processedBy: { select: { name: true } },
-                transaction: true
+                transactions: true
             }
         });
 
         return reimbursements.map((r: any) => ({
             ...r,
             amount: r.amount.toNumber(),
-            transaction: r.transaction ? {
-                ...r.transaction,
-                amount: r.transaction.amount.toNumber()
-            } : null
+            transactions: r.transactions?.map((tx: any) => ({
+                ...tx,
+                amount: tx.amount.toNumber()
+            })) || []
         }));
     } catch (error) {
         console.error("Failed to fetch reimbursements:", error);
@@ -127,14 +127,42 @@ export async function updateReimbursementStatus(id: string, status: 'APPROVED' |
             return { success: false, error: "Unauthorized. Admin access required." };
         }
 
-        const reimbursement = await prisma.reimbursement.update({
-            where: { id },
-            data: {
-                status,
-                adminNotes,
-                processedById: session.user.id
-            }
-        });
+        const existing = await prisma.reimbursement.findUnique({ where: { id } });
+        if (!existing) return { success: false, error: "Not found" };
+
+        let reimbursement;
+
+        if (status === 'APPROVED' && existing.status !== 'APPROVED') {
+            // Generate LIABILITY when first approved
+            reimbursement = await prisma.reimbursement.update({
+                where: { id },
+                data: {
+                    status,
+                    adminNotes,
+                    processedById: session.user.id,
+                    transactions: {
+                        create: {
+                            type: 'LIABILITY',
+                            amount: existing.amount,
+                            description: `[Owed to Employee] Reimbursement: ${existing.description}`,
+                            category: 'Other Expense', // Fits into the Other Expenses dashboard
+                            createdById: session.user.id,
+                            updatedById: session.user.id
+                        }
+                    }
+                }
+            });
+        } else {
+            // Just update the status normally (e.g. REJECTED)
+            reimbursement = await prisma.reimbursement.update({
+                where: { id },
+                data: {
+                    status,
+                    adminNotes,
+                    processedById: session.user.id
+                }
+            });
+        }
 
         revalidatePath('/expenses/reimbursements');
         revalidatePath('/reimbursements');
@@ -168,8 +196,43 @@ export async function payReimbursement(id: string, adminNotes?: string) {
             return { success: false, error: "Reimbursement is already paid" };
         }
 
-        // Use a transaction to ensure both records are created/updated together
-        const [updatedReimbursement, transaction] = await prisma.$transaction([
+        // Use a transaction to ensure both records are updated together
+        // We will "Settle" the Liability by converting it to a DEBIT (Real cash leaving)
+        // Or if no liability exists (legacy), we just create one.
+        const existingLiability = await prisma.transaction.findFirst({
+            where: { reimbursementId: id, type: 'LIABILITY' }
+        });
+
+        const transactionUpdates = [];
+        
+        if (existingLiability) {
+            transactionUpdates.push(
+                prisma.transaction.update({
+                    where: { id: existingLiability.id },
+                    data: {
+                        type: 'DEBIT',
+                        description: `Reimbursement Paid to ${reimbursement.user.name || reimbursement.user.email}: ${reimbursement.description}`
+                    }
+                })
+            );
+        } else {
+            transactionUpdates.push(
+                prisma.transaction.create({
+                    data: {
+                        type: 'DEBIT',
+                        amount: reimbursement.amount,
+                        description: `Reimbursement to ${reimbursement.user.name || reimbursement.user.email}: ${reimbursement.description}`,
+                        category: 'Other Expense',
+                        receipts: reimbursement.receiptUrl ? [reimbursement.receiptUrl] : [],
+                        reimbursementId: id,
+                        createdById: session.user.id,
+                        updatedById: session.user.id
+                    }
+                })
+            );
+        }
+
+        const [updatedReimbursement] = await prisma.$transaction([
             prisma.reimbursement.update({
                 where: { id },
                 data: {
@@ -178,18 +241,7 @@ export async function payReimbursement(id: string, adminNotes?: string) {
                     processedById: session.user.id
                 }
             }),
-            prisma.transaction.create({
-                data: {
-                    type: 'DEBIT',
-                    amount: reimbursement.amount,
-                    description: `Reimbursement to ${reimbursement.user.name || reimbursement.user.email}: ${reimbursement.description}`,
-                    category: 'Reimbursement',
-                    receipts: reimbursement.receiptUrl ? [reimbursement.receiptUrl] : [],
-                    reimbursementId: id,
-                    createdById: session.user.id,
-                    updatedById: session.user.id
-                }
-            })
+            ...transactionUpdates
         ]);
 
         revalidatePath('/expenses/reimbursements');

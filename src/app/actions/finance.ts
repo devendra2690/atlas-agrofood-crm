@@ -841,7 +841,7 @@ export async function getOtherIncomeTransactions(filters?: { search?: string }) 
 export async function getOtherExpenseTransactions(filters?: { search?: string }) {
     try {
         const where: any = {
-            type: 'DEBIT',
+            type: { in: ['DEBIT', 'LIABILITY'] },
             billId: null, // As bill payment creates transaction with billId
             // We NOW allow salesOrderId to be present
         };
@@ -863,7 +863,7 @@ export async function getOtherExpenseTransactions(filters?: { search?: string })
             amount: tx.amount.toNumber(),
             date: tx.date,
             category: tx.category || "Uncategorized",
-            description: tx.description || "Manual Expense",
+            description: tx.type === 'LIABILITY' ? `[UNPAID] ${tx.description}` : (tx.description || "Manual Expense"),
             linkedTo: tx.salesOrder ? `Order: ${tx.salesOrder.client.name}` : null,
             receipts: tx.receipts || []
         }));
