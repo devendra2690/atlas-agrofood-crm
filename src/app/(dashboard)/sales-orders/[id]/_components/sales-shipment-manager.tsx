@@ -185,7 +185,7 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                 <TableHead>Date Added</TableHead>
                                 <TableHead>Carrier</TableHead>
                                 <TableHead>Tracking #</TableHead>
-                                <TableHead>Qty ({orderQuantityUnit || 'MT'})</TableHead>
+                                <TableHead>Qty</TableHead>
                                 <TableHead>ETA</TableHead>
                                 <TableHead>Notes</TableHead>
                                 <TableHead>Documents</TableHead>
@@ -198,7 +198,7 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                     <TableCell>{format(new Date(shipment.createdAt), "MMM d, yyyy")}</TableCell>
                                     <TableCell className="font-medium">{shipment.carrier}</TableCell>
                                     <TableCell>{shipment.trackingNumber || "-"}</TableCell>
-                                    <TableCell>{shipment.quantity ? `${shipment.quantity} MT` : "-"}</TableCell>
+                                    <TableCell>{shipment.quantity ? `${shipment.quantity} ${shipment.quantityUnit || 'MT'}` : "-"}</TableCell>
                                     <TableCell>{shipment.eta ? format(new Date(shipment.eta), "MMM d") : "-"}</TableCell>
                                     <TableCell className="max-w-[150px] truncate" title={shipment.notes}>{shipment.notes || "-"}</TableCell>
                                     <TableCell>
