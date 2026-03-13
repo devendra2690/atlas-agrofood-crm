@@ -1,11 +1,8 @@
 import { getAllSamples } from "@/app/actions/sample";
 import { SampleList } from "../procurement/_components/sample-list";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FlaskConical } from "lucide-react";
 import { SampleFilters } from "./_components/sample-filters";
 import { getCommodities } from "@/app/actions/commodity";
-
-import { PaginationControls } from "@/components/ui/pagination-controls";
 
 export default async function SamplesPage({
     searchParams,
@@ -17,16 +14,13 @@ export default async function SamplesPage({
     const commodityId = typeof params.commodityId === 'string' ? params.commodityId : undefined;
     const trustLevel = typeof params.trustLevel === 'string' ? params.trustLevel : undefined;
 
-    // Pagination
-    const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
-    const limit = 10;
-
-    const { data: samples, pagination } = await getAllSamples({
+    // Fetch all samples at once — tabs handle the split client-side
+    const { data: samples } = await getAllSamples({
         location,
         commodityId,
         trustLevel,
-        page,
-        limit
+        page: 1,
+        limit: 200
     });
 
     const { data: commodities } = await getCommodities();
@@ -47,25 +41,7 @@ export default async function SamplesPage({
 
             <SampleFilters commodities={commodities || []} />
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>All Samples</CardTitle>
-                    <CardDescription>
-                        Unified view of sample statuses.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <SampleList samples={samples || []} />
-                    {pagination && (
-                        <PaginationControls
-                            hasNextPage={pagination.page < pagination.totalPages}
-                            hasPrevPage={pagination.page > 1}
-                            totalPages={pagination.totalPages}
-                            currentPage={pagination.page}
-                        />
-                    )}
-                </CardContent>
-            </Card>
+            <SampleList samples={samples || []} />
         </div>
     );
 }
