@@ -2,13 +2,12 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateSampleStatus } from "@/app/actions/sample";
 import { UpdateSampleDialog } from "./update-sample-dialog";
 import { SampleImageDialog } from "./sample-image-dialog";
 import { format } from "date-fns";
-import { TestTube, CheckCircle, Truck, Package, FolderOpen, AlertCircle } from "lucide-react";
+import { TestTube, CheckCircle, Truck, Package, FolderOpen, AlertCircle, Clock, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -23,7 +22,8 @@ interface SampleListProps {
 
 // Status groupings
 const ACTION_REQUIRED_STATUSES = ['RECEIVED'];
-const IN_TRANSIT_STATUSES = ['REQUESTED', 'SENT'];
+const REQUESTED_STATUSES = ['REQUESTED'];
+const IN_TRANSIT_STATUSES = ['SENT'];
 const COMPLETED_STATUSES = [
     'Result_APPROVED_INTERNAL',
     'SENT_TO_CLIENT',
@@ -75,12 +75,19 @@ export function SampleList({ samples }: SampleListProps) {
         );
     }
 
-    const actionRequired = samples.filter(s => ACTION_REQUIRED_STATUSES.includes(s.status));
-    const inTransit = samples.filter(s => IN_TRANSIT_STATUSES.includes(s.status));
-    const completed = samples.filter(s => COMPLETED_STATUSES.includes(s.status));
+    const actionRequired = samples.filter(s => ACTION_REQUIRED_STATUSES.includes(s.status) && s.project?.status !== 'CANCELLED');
+    const requested = samples.filter(s => REQUESTED_STATUSES.includes(s.status) && s.project?.status !== 'CANCELLED');
+    const inTransit = samples.filter(s => IN_TRANSIT_STATUSES.includes(s.status) && s.project?.status !== 'CANCELLED');
+    const completed = samples.filter(s => COMPLETED_STATUSES.includes(s.status) && s.project?.status !== 'CANCELLED');
+    const cancelled = samples.filter(s => s.project?.status === 'CANCELLED');
+
+    const defaultTab = actionRequired.length > 0 ? "action"
+        : requested.length > 0 ? "requested"
+        : inTransit.length > 0 ? "transit"
+        : "completed";
 
     return (
-        <Tabs defaultValue={actionRequired.length > 0 ? "action" : inTransit.length > 0 ? "transit" : "completed"}>
+        <Tabs defaultValue={defaultTab}>
             <TabsList className="mb-6">
                 <TabsTrigger value="action" className="gap-2">
                     <AlertCircle className="h-4 w-4" />
@@ -88,6 +95,15 @@ export function SampleList({ samples }: SampleListProps) {
                     {actionRequired.length > 0 && (
                         <Badge className="ml-1 h-5 min-w-5 px-1.5 text-xs bg-amber-500 hover:bg-amber-500 text-white">
                             {actionRequired.length}
+                        </Badge>
+                    )}
+                </TabsTrigger>
+                <TabsTrigger value="requested" className="gap-2">
+                    <Clock className="h-4 w-4" />
+                    Requested
+                    {requested.length > 0 && (
+                        <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
+                            {requested.length}
                         </Badge>
                     )}
                 </TabsTrigger>
@@ -109,12 +125,30 @@ export function SampleList({ samples }: SampleListProps) {
                         </Badge>
                     )}
                 </TabsTrigger>
+                <TabsTrigger value="cancelled" className="gap-2 text-muted-foreground">
+                    <XCircle className="h-4 w-4" />
+                    Cancelled
+                    {cancelled.length > 0 && (
+                        <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
+                            {cancelled.length}
+                        </Badge>
+                    )}
+                </TabsTrigger>
             </TabsList>
 
             <TabsContent value="action">
                 <SampleTabContent
                     samples={actionRequired}
                     emptyMessage="No samples awaiting review."
+                    onStatusUpdate={handleStatusUpdate}
+                    loadingId={loadingId}
+                />
+            </TabsContent>
+
+            <TabsContent value="requested">
+                <SampleTabContent
+                    samples={requested}
+                    emptyMessage="No pending sample requests."
                     onStatusUpdate={handleStatusUpdate}
                     loadingId={loadingId}
                 />
@@ -133,6 +167,16 @@ export function SampleList({ samples }: SampleListProps) {
                 <SampleTabContent
                     samples={completed}
                     emptyMessage="No completed samples yet."
+                    onStatusUpdate={handleStatusUpdate}
+                    loadingId={loadingId}
+                    dimmed
+                />
+            </TabsContent>
+
+            <TabsContent value="cancelled">
+                <SampleTabContent
+                    samples={cancelled}
+                    emptyMessage="No cancelled samples."
                     onStatusUpdate={handleStatusUpdate}
                     loadingId={loadingId}
                     dimmed
