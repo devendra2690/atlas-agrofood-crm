@@ -177,8 +177,12 @@ export async function getAllSamples(filters?: {
             };
         }
 
+        // Always exclude samples belonging to cancelled projects
+        where.project = { status: { not: 'CANCELLED' } };
+
         if (filters?.commodityId && filters.commodityId !== 'all') {
             where.project = {
+                status: { not: 'CANCELLED' },
                 commodityId: filters.commodityId,
                 ...(filters.excludeCompleted ? { status: 'SOURCING' } : {})
             };
