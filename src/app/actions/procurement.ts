@@ -37,6 +37,9 @@ export async function getProcurementProjects(filters?: {
 
         if (filters?.status && filters.status !== 'all') {
             where.status = filters.status;
+        } else if (!filters?.status) {
+            // By default, hide CANCELLED projects
+            where.status = { not: 'CANCELLED' };
         }
 
         // NEW: Filter by Project Type

@@ -79,6 +79,7 @@ export function ProcurementFilters({ commodities }: ProcurementFiltersProps) {
                     <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="SOURCING">Sourcing</SelectItem>
                     <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
                 </SelectContent>
             </Select>
 

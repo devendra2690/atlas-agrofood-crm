@@ -895,6 +895,7 @@ model Shipment {
   carrier         String?
   trackingNumber  String?
   quantity        Decimal?
+  quantityUnit    String   @default("MT")
   eta             DateTime?
   status          String   @default("IN_TRANSIT")
   actualDeliveryDate DateTime?

@@ -99,6 +99,7 @@ export async function createShipment(data: ShipmentData) {
                     carrier: data.carrier,
                     trackingNumber: data.trackingNumber,
                     quantity: data.quantity,
+                    quantityUnit: data.quantityUnit || 'MT',
                     eta: data.eta,
                     notes: data.notes,
                     status: 'IN_TRANSIT'
@@ -442,7 +443,13 @@ export async function getShipments(filters?: {
         const limit = filters?.limit || 10;
         const skip = (page - 1) * limit;
 
-        const where: any = {};
+        const where: any = {
+            // Exclude shipments for cancelled projects (sample or PO)
+            NOT: [
+                { sampleRecord: { project: { status: 'CANCELLED' } } },
+                { purchaseOrder: { project: { status: 'CANCELLED' } } }
+            ]
+        };
         if (filters?.status && filters.status !== 'all') {
             where.status = filters.status;
         }
@@ -470,7 +477,7 @@ export async function getShipments(filters?: {
                         }
                     },
                     sampleRecord: {
-                        include: { vendor: true }
+                        include: { vendor: true, project: true }
                     }
                 }
             }),
