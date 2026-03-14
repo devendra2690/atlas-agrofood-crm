@@ -161,22 +161,20 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                         placeholder="e.g. 1500" 
                                         disabled={invoiceCount === 0} 
                                     />
-                                    {courierCharge && parseFloat(courierCharge) > 0 && (
-                                        <label className="flex items-start gap-2 cursor-pointer select-none">
-                                            <input
-                                                type="checkbox"
-                                                className="mt-0.5 h-4 w-4 rounded border-gray-300"
-                                                checked={courierChargeRecoverable}
-                                                onChange={e => setCourierChargeRecoverable(e.target.checked)}
-                                                disabled={invoiceCount === 0}
-                                            />
-                                            <span className="text-sm text-muted-foreground leading-tight">
-                                                <span className="font-medium text-foreground">Recoverable from client</span>
-                                                <br />
-                                                <span className="text-xs">Check if the client will reimburse this courier charge.</span>
-                                            </span>
-                                        </label>
-                                    )}
+                                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                                            checked={courierChargeRecoverable}
+                                            onChange={e => setCourierChargeRecoverable(e.target.checked)}
+                                            disabled={invoiceCount === 0}
+                                        />
+                                        <span className="text-sm text-muted-foreground leading-tight">
+                                            <span className="font-medium text-foreground">Recoverable from client</span>
+                                            <br />
+                                            <span className="text-xs">Check if the client will reimburse this courier charge.</span>
+                                        </span>
+                                    </label>
                                 </div>
                                 <div className="grid gap-2">
                                     <Label>Notes</Label>

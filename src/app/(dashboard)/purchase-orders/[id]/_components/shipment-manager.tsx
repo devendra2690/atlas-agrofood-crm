@@ -31,6 +31,8 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
     const [carrier, setCarrier] = useState("");
     const [trackingNumber, setTrackingNumber] = useState("");
     const [eta, setEta] = useState("");
+    const [courierCharge, setCourierCharge] = useState("");
+    const [wePayedForCourier, setWePayedForCourier] = useState(true);
 
     // GRN Form
     const [receivedQty, setReceivedQty] = useState("");
@@ -45,6 +47,8 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
             carrier,
             trackingNumber,
             eta: eta ? new Date(eta) : undefined,
+            courierCharge: courierCharge ? parseFloat(courierCharge) : undefined,
+            courierChargeRecoverable: wePayedForCourier,
         });
         if (result.success) {
             toast.success("Shipment created successfully");
@@ -52,6 +56,8 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
             setCarrier("");
             setTrackingNumber("");
             setEta("");
+            setCourierCharge("");
+            setWePayedForCourier(true);
         } else {
             toast.error("Failed to create shipment");
         }
@@ -226,8 +232,32 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                                         <Input value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)} />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label>Estimated Arrival (ETA)</Label>
+                                        <Label>ETA</Label>
                                         <Input type="date" value={eta} onChange={(e) => setEta(e.target.value)} />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Courier Charges (₹) <span className="text-muted-foreground font-normal text-xs">(Optional)</span></Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            placeholder="e.g. 500"
+                                            value={courierCharge}
+                                            onChange={(e) => setCourierCharge(e.target.value)}
+                                        />
+                                        <label className="flex items-start gap-2 cursor-pointer select-none">
+                                            <input
+                                                type="checkbox"
+                                                className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                                                checked={wePayedForCourier}
+                                                onChange={e => setWePayedForCourier(e.target.checked)}
+                                            />
+                                            <span className="text-sm text-muted-foreground leading-tight">
+                                                <span className="font-medium text-foreground">We paid for courier</span>
+                                                <br />
+                                                <span className="text-xs">Uncheck if the vendor paid the shipping cost.</span>
+                                            </span>
+                                        </label>
                                     </div>
                                 </div>
                                 <DialogFooter>

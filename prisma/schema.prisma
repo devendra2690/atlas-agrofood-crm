@@ -872,19 +872,28 @@ model Bill {
   @@index([createdAt])
 }
 
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
 model Transaction {
   id          String          @id @default(uuid())
   type        TransactionType
   amount      Decimal
   date        DateTime        @default(now())
-  description String?
   category    String?
-  receipts    String[]
+  description String?
+  receipts    String[] @default([])
   
+  status      TransactionStatus @default(COMPLETED)
+
   // Polymorphic-like relations (one should be set)
   invoiceId   String?
   billId      String?
   salesOrderId String? // Link expense directly to a deal
+  purchaseOrderId String?
   reimbursementId String?
 
   invoice Invoice? @relation(fields: [invoiceId], references: [id])

@@ -124,21 +124,19 @@ export function SampleShipmentDialog({ sampleId }: SampleShipmentDialogProps) {
                             value={courierCharge}
                             onChange={(e) => setCourierCharge(e.target.value)}
                         />
-                        {courierCharge && parseFloat(courierCharge) > 0 && (
-                            <label className="flex items-start gap-2 cursor-pointer select-none">
-                                <input
-                                    type="checkbox"
-                                    className="mt-0.5 h-4 w-4 rounded border-gray-300"
-                                    checked={wePayedForCourier}
-                                    onChange={e => setWePayedForCourier(e.target.checked)}
-                                />
-                                <span className="text-sm text-muted-foreground leading-tight">
-                                    <span className="font-medium text-foreground">We paid for this courier</span>
-                                    <br />
-                                    <span className="text-xs">Uncheck if the vendor / sender paid the shipping.</span>
-                                </span>
-                            </label>
-                        )}
+                        <label className="flex items-start gap-2 cursor-pointer select-none mt-1">
+                            <input
+                                type="checkbox"
+                                className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                                checked={wePayedForCourier}
+                                onChange={e => setWePayedForCourier(e.target.checked)}
+                            />
+                            <span className="text-sm text-muted-foreground leading-tight">
+                                <span className="font-medium text-foreground">We paid for this courier</span>
+                                <br />
+                                <span className="text-xs">Uncheck if the vendor / sender paid the shipping.</span>
+                            </span>
+                        </label>
                     </div>
                 </div>
                 <DialogFooter>
