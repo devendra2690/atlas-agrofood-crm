@@ -917,6 +917,8 @@ model Shipment {
   actualDeliveryDate DateTime?
   notes           String?
   documents       String[] @default([])
+  courierCharge          Decimal? // Amount paid out of pocket for courier
+  courierChargeRecoverable Boolean @default(false) // Whether client will reimburse (outbound) or not
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

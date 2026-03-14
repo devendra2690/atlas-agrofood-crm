@@ -30,6 +30,7 @@ export function SampleShipmentDialog({ sampleId }: SampleShipmentDialogProps) {
     const [eta, setEta] = useState("");
     const [notes, setNotes] = useState("");
     const [courierCharge, setCourierCharge] = useState("");
+    const [wePayedForCourier, setWePayedForCourier] = useState(true); // default: we paid
 
     async function handleCreate() {
 
@@ -41,7 +42,8 @@ export function SampleShipmentDialog({ sampleId }: SampleShipmentDialogProps) {
                 trackingNumber,
                 eta: eta ? new Date(eta) : undefined,
                 notes,
-                courierCharge: courierCharge ? parseFloat(courierCharge) : undefined
+                courierCharge: courierCharge ? parseFloat(courierCharge) : undefined,
+                courierChargeRecoverable: wePayedForCourier // true = we paid (out of pocket)
             });
 
             if (result.success) {
@@ -52,6 +54,7 @@ export function SampleShipmentDialog({ sampleId }: SampleShipmentDialogProps) {
                 setEta("");
                 setNotes("");
                 setCourierCharge("");
+                setWePayedForCourier(true);
             } else {
                 toast.error(result.error || "Failed to save courier details.");
             }
@@ -121,6 +124,21 @@ export function SampleShipmentDialog({ sampleId }: SampleShipmentDialogProps) {
                             value={courierCharge}
                             onChange={(e) => setCourierCharge(e.target.value)}
                         />
+                        {courierCharge && parseFloat(courierCharge) > 0 && (
+                            <label className="flex items-start gap-2 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                                    checked={wePayedForCourier}
+                                    onChange={e => setWePayedForCourier(e.target.checked)}
+                                />
+                                <span className="text-sm text-muted-foreground leading-tight">
+                                    <span className="font-medium text-foreground">We paid for this courier</span>
+                                    <br />
+                                    <span className="text-xs">Uncheck if the vendor / sender paid the shipping.</span>
+                                </span>
+                            </label>
+                        )}
                     </div>
                 </div>
                 <DialogFooter>

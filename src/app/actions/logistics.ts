@@ -17,6 +17,7 @@ export type ShipmentData = {
     notes?: string;
     sampleRecordId?: string;
     courierCharge?: number;
+    courierChargeRecoverable?: boolean; // Outbound: will client reimburse? Inbound: did we pay?
 };
 
 export type GRNData = {
@@ -102,12 +103,15 @@ export async function createShipment(data: ShipmentData) {
                     quantityUnit: data.quantityUnit || 'MT',
                     eta: data.eta,
                     notes: data.notes,
-                    status: 'IN_TRANSIT'
+                    status: 'IN_TRANSIT',
+                    courierCharge: data.courierCharge || null,
+                    courierChargeRecoverable: data.courierChargeRecoverable ?? false
                 }
             });
 
             // 2b. Optional Courier Charges (Out of pocket operations expense)
             if (data.courierCharge && data.courierCharge > 0) {
+                // Always log the expense (what we paid)
                 await prisma.transaction.create({
                     data: {
                         createdById: validUserId,
@@ -115,10 +119,24 @@ export async function createShipment(data: ShipmentData) {
                         type: 'DEBIT',
                         amount: data.courierCharge,
                         category: 'Logistics',
-                        description: `Courier charges for Outbound Shipment to ${salesOrder.client?.name || 'Unknown Client'} (SO #${data.salesOrderId.slice(0, 8).toUpperCase()})`,
+                        description: `Courier charges for Outbound Shipment to ${salesOrder.client?.name || 'Unknown Client'} (SO #${data.salesOrderId.slice(0, 8).toUpperCase()})${data.courierChargeRecoverable ? ' [Recoverable from client]' : ''}`,
                         salesOrderId: data.salesOrderId
                     }
                 });
+                // If recoverable, also log expected income
+                if (data.courierChargeRecoverable) {
+                    await prisma.transaction.create({
+                        data: {
+                            createdById: validUserId,
+                            updatedById: validUserId,
+                            type: 'CREDIT',
+                            amount: data.courierCharge,
+                            category: 'Logistics',
+                            description: `Expected courier charge recovery from ${salesOrder.client?.name || 'Client'} (SO #${data.salesOrderId.slice(0, 8).toUpperCase()})`,
+                            salesOrderId: data.salesOrderId
+                        }
+                    });
+                }
             }
 
             // 3. Auto-update SO status to SHIPPED (if not already further along)
