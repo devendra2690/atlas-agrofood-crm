@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Combobox } from "@/components/ui/combobox";
 import {
     Select,
@@ -23,10 +24,9 @@ import {
 } from "@/components/ui/select";
 import { createProcurementProject, updateProcurementProject } from "@/app/actions/procurement";
 import { getCommodityVarieties } from "@/app/actions/commodity";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { ProjectStatus } from "@prisma/client";
-import { useEffect } from "react";
 
 interface Commodity {
     id: string;
@@ -43,62 +43,62 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [selectedCommodityId, setSelectedCommodityId] = useState<string>("");
-    const [selectedVarietyId, setSelectedVarietyId] = useState<string>(""); // NEW
-    const [varieties, setVarieties] = useState<any[]>([]); // NEW
+    const [selectedVarietyId, setSelectedVarietyId] = useState<string>("");
+    const [varieties, setVarieties] = useState<any[]>([]);
     const [type, setType] = useState<string>("PROJECT");
     const [projectName, setProjectName] = useState("");
 
+    // Additional commodities (multi-select)
+    const [additionalCommodityIds, setAdditionalCommodityIds] = useState<string[]>([]);
+    const [addingCommodity, setAddingCommodity] = useState<string>("");
+
     useEffect(() => {
-        // Always sync state with project prop when available, or reset when opening "New Project"
         if (project) {
             setProjectName(project.name);
             setSelectedCommodityId(project.commodityId || "");
-            setSelectedVarietyId(project.varietyId || ""); // NEW
+            setSelectedVarietyId(project.varietyId || "");
             setType(project.type || "PROJECT");
+            // Pre-populate additional commodities from join table
+            const existing = (project.additionalCommodities || []).map((pc: any) => pc.commodityId);
+            setAdditionalCommodityIds(existing);
         } else if (open) {
             setProjectName("");
             setSelectedCommodityId("");
-            setSelectedVarietyId(""); // NEW
+            setSelectedVarietyId("");
             setType("PROJECT");
+            setAdditionalCommodityIds([]);
         }
     }, [project, open]);
 
-    // Fetch Varieties
+    // Fetch Varieties for primary commodity
     useEffect(() => {
         if (selectedCommodityId) {
             getCommodityVarieties(selectedCommodityId).then(res => {
-                if (res.success && res.data) {
-                    setVarieties(res.data);
-                } else {
-                    setVarieties([]);
-                }
+                setVarieties(res.success && res.data ? res.data : []);
             });
         } else {
             setVarieties([]);
         }
     }, [selectedCommodityId]);
 
-    // Auto-fill project name logic
     const updateProjectName = (currentType: string, commodityId: string) => {
-        // Only auto-fill if creating new project (preserves manual edits on existing)
         if (project) return;
-
         const comm = commodities.find(c => c.id === commodityId);
         if (!comm) return;
-
         if (currentType === "PROJECT") {
             const varietyName = varieties.find(v => v.id === selectedVarietyId)?.name;
             setProjectName(`Project (SOURCING) - ${comm.name}${varietyName ? ` (${varietyName})` : ''} Sourcing`);
         } else if (currentType === "SAMPLE") {
-            // Fallback or simple default for sample
             setProjectName(`${comm.name} Sample Request`);
         }
     };
 
     const handleCommodityChange = (val: string) => {
         setSelectedCommodityId(val);
-        setSelectedVarietyId(""); // Reset variety
+        setSelectedVarietyId("");
         updateProjectName(type, val);
+        // Remove from additionals if it was there
+        setAdditionalCommodityIds(prev => prev.filter(id => id !== val));
     };
 
     const handleTypeChange = (val: string) => {
@@ -106,47 +106,48 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
         updateProjectName(val, selectedCommodityId);
     };
 
+    // Additional commodity helpers
+    const addAdditionalCommodity = (commodityId: string) => {
+        if (!commodityId || commodityId === selectedCommodityId) return;
+        if (additionalCommodityIds.includes(commodityId)) return;
+        setAdditionalCommodityIds(prev => [...prev, commodityId]);
+        setAddingCommodity("");
+    };
+
+    const removeAdditionalCommodity = (commodityId: string) => {
+        setAdditionalCommodityIds(prev => prev.filter(id => id !== commodityId));
+    };
+
+    // Commodities available for additional selection (exclude primary + already selected)
+    const availableForAdditional = commodities.filter(
+        c => c.id !== selectedCommodityId && !additionalCommodityIds.includes(c.id)
+    );
+
     async function handleSubmit(formData: FormData) {
         setLoading(true);
         try {
             const name = formData.get("name") as string;
             const status = formData.get("status") as ProjectStatus;
-            const type = formData.get("type") as any; // Cast as needed or import Enum
+            const type = formData.get("type") as any;
             const id = formData.get("id") as string;
 
-            if (!name) {
-                toast.error("Project name is required");
-                setLoading(false);
-                return;
-            }
-
-            if (!selectedCommodityId) {
-                toast.error("Commodity is required");
-                setLoading(false);
-                return;
-            }
-
-            if (!status) {
-                toast.error("Status is required");
-                setLoading(false);
-                return;
-            }
+            if (!name) { toast.error("Project name is required"); setLoading(false); return; }
+            if (!selectedCommodityId) { toast.error("Primary commodity is required"); setLoading(false); return; }
+            if (!status) { toast.error("Status is required"); setLoading(false); return; }
 
             let result;
             if (id) {
                 result = await updateProcurementProject(id, {
-                    name,
-                    status,
-                    type,
+                    name, status, type,
                     commodityId: selectedCommodityId,
-                    varietyId: selectedVarietyId || undefined // NEW
+                    varietyId: selectedVarietyId || undefined,
+                    additionalCommodityIds
                 });
             } else {
                 result = await createProcurementProject({
-                    name,
-                    status: status,
-                    type: type,
-                    commodityId: selectedCommodityId
+                    name, status, type,
+                    commodityId: selectedCommodityId,
+                    additionalCommodityIds
                 });
             }
 
@@ -157,6 +158,7 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                     setProjectName("");
                     setSelectedCommodityId("");
                     setSelectedVarietyId("");
+                    setAdditionalCommodityIds([]);
                 }
             } else {
                 toast.error(result.error || "Failed to save project");
@@ -179,7 +181,7 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{project ? "Edit Sourcing Project" : "New Sourcing Project"}</DialogTitle>
                     <DialogDescription>
@@ -189,8 +191,10 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                 <form action={handleSubmit}>
                     <input type="hidden" name="id" value={project?.id || ""} />
                     <div className="grid gap-4 py-4">
+
+                        {/* Primary Commodity */}
                         <div className="grid gap-2">
-                            <Label htmlFor="commodity">Commodity <span className="text-red-500">*</span></Label>
+                            <Label htmlFor="commodity">Primary Commodity <span className="text-red-500">*</span></Label>
                             <Combobox
                                 options={commodities.map(c => ({ label: c.name, value: c.id }))}
                                 value={selectedCommodityId}
@@ -207,11 +211,7 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                                 <Combobox
                                     options={varieties.map(v => ({ label: v.name, value: v.id }))}
                                     value={selectedVarietyId}
-                                    onChange={(val) => {
-                                        setSelectedVarietyId(val);
-                                        // Optional: update name again if variety changes?
-                                        // updateProjectName(type, selectedCommodityId); // Need to pass variety logic to updateProjectName if we want it to react
-                                    }}
+                                    onChange={val => setSelectedVarietyId(val)}
                                     placeholder="Select variety..."
                                     searchPlaceholder="Search variety..."
                                     emptyMessage="No varieties found"
@@ -219,6 +219,48 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                             </div>
                         )}
 
+                        {/* Additional Commodities */}
+                        <div className="grid gap-2">
+                            <Label>Additional Commodities <span className="text-xs text-muted-foreground">(optional)</span></Label>
+
+                            {/* Selected additional commodities as chips */}
+                            {additionalCommodityIds.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mb-1">
+                                    {additionalCommodityIds.map(id => {
+                                        const comm = commodities.find(c => c.id === id);
+                                        return (
+                                            <Badge key={id} variant="secondary" className="gap-1 pr-1">
+                                                {comm?.name || id}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeAdditionalCommodity(id)}
+                                                    className="ml-0.5 rounded-full hover:bg-slate-200 p-0.5"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </Badge>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Add another commodity */}
+                            {availableForAdditional.length > 0 && (
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        <Combobox
+                                            options={availableForAdditional.map(c => ({ label: c.name, value: c.id }))}
+                                            value={addingCommodity}
+                                            onChange={val => { setAddingCommodity(val); addAdditionalCommodity(val); }}
+                                            placeholder="+ Add another commodity..."
+                                            searchPlaceholder="Search..."
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Project Name */}
                         <div className="grid gap-2">
                             <Label htmlFor="name">Project Name <span className="text-red-500">*</span></Label>
                             <Input
@@ -230,6 +272,8 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                                 required
                             />
                         </div>
+
+                        {/* Type */}
                         <div className="grid gap-2">
                             <Label htmlFor="type">Type <span className="text-red-500">*</span></Label>
                             <Select name="type" value={type} onValueChange={handleTypeChange} required>
@@ -242,6 +286,8 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        {/* Status */}
                         <div className="grid gap-2">
                             <Label htmlFor="status">Status <span className="text-red-500">*</span></Label>
                             <Select name="status" defaultValue={project?.status || "SOURCING"} required>
@@ -251,10 +297,11 @@ export function ProcurementDialog({ commodities = [], project, trigger }: Procur
                                 <SelectContent>
                                     <SelectItem value="SOURCING">Sourcing</SelectItem>
                                     <SelectItem value="COMPLETED">Completed</SelectItem>
+                                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
-                        {/* Warnings/Help based on type */}
+
                         <div className="text-[10px] text-muted-foreground bg-slate-50 p-2 rounded">
                             <p><strong>Project:</strong> Tracks sourcing for a Sales Opportunity (1 Opp).</p>
                             <p><strong>Sample Only:</strong> Internal sample testing without linked opportunity.</p>

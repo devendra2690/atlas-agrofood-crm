@@ -351,6 +351,7 @@ model Commodity {
    salesOpportunityItems SalesOpportunityItem[]
    purchaseOrderItems    PurchaseOrderItem[]
    procurementProjects ProcurementProject[]
+   projectCommodities  ProjectCommodity[]
    varieties         CommodityVariety[] // NEW
    forms             VarietyForm[]      // Direct forms for this commodity
    documentTemplate  Json?     // Stores { sections: [...] } for document generation
@@ -646,6 +647,8 @@ model ProcurementProject {
   updatedById String?
   createdBy   User?   @relation("CreatedBy", fields: [createdById], references: [id])
   updatedBy   User?   @relation("UpdatedBy", fields: [updatedById], references: [id])
+
+  additionalCommodities ProjectCommodity[]
 }
 
 model ProjectVendor {
@@ -659,6 +662,19 @@ model ProjectVendor {
   @@unique([projectId, vendorId])
   @@index([projectId])
   @@index([vendorId])
+}
+
+model ProjectCommodity {
+  id          String @id @default(uuid())
+  projectId   String
+  commodityId String
+
+  project   ProcurementProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  commodity Commodity          @relation(fields: [commodityId], references: [id])
+
+  @@unique([projectId, commodityId])
+  @@index([projectId])
+  @@index([commodityId])
 }
 
 model SampleRecord {

@@ -37,6 +37,29 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
     const isFulfillment = project.name.startsWith("Fulfillment");
     const isSampleProject = project.type === 'SAMPLE';
 
+    // Build full commodity list for this project (primary + additional)
+    const allCommodities: { id: string; name: string; isPrimary?: boolean }[] = [];
+    if ((project as any).commodity) {
+        allCommodities.push({ id: (project as any).commodity.id, name: (project as any).commodity.name, isPrimary: true });
+    } else if (project.commodityId) {
+        allCommodities.push({ id: project.commodityId, name: 'Primary Commodity', isPrimary: true });
+    }
+    for (const pc of (project as any).additionalCommodities || []) {
+        if (!allCommodities.find(c => c.id === pc.commodity.id)) {
+            allCommodities.push({ id: pc.commodity.id, name: pc.commodity.name });
+        }
+    }
+
+    // Compute how many added vendors supply each commodity
+    const commodityCoverage: Record<string, number> = {};
+    for (const c of allCommodities) commodityCoverage[c.id] = 0;
+    for (const pv of (project as any).projectVendors || []) {
+        const vendorCommodityIds: string[] = (pv.vendor?.commodities || []).map((c: any) => c.id);
+        for (const c of allCommodities) {
+            if (vendorCommodityIds.includes(c.id)) commodityCoverage[c.id] = (commodityCoverage[c.id] || 0) + 1;
+        }
+    }
+
     // Merge project samples with confirmed/approved samples from linked opportunities
     const opportunitySamples = project.salesOpportunities.flatMap((opp: any) =>
         (opp.sampleSubmissions || []).map((sub: any) => {
@@ -387,7 +410,9 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                 <CardHeader className="flex flex-row items-center justify-between">
                                     <div>
                                         <CardTitle>Shortlisted Suppliers</CardTitle>
-                                        <CardDescription>Suppliers for this project.</CardDescription>
+                                        <CardDescription>
+                                            Sourcing for: {allCommodities.map(c => c.name).join(', ') || 'All commodities'}
+                                        </CardDescription>
                                     </div>
                                     <AddVendorDialog projectId={project.id} />
                                 </CardHeader>
@@ -397,6 +422,8 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                         samples={uniqueSamples}
                                         isFulfillment={isFulfillment}
                                         project={JSON.parse(JSON.stringify(project))}
+                                        allCommodities={allCommodities}
+                                        commodityCoverage={commodityCoverage}
                                     />
                                 </CardContent>
                             </Card>

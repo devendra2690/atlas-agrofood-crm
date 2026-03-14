@@ -118,6 +118,12 @@ export function ProcurementList({ projects, commodities = [] }: ProcurementListP
                                                     ({project.variety.name})
                                                 </span>
                                             )}
+                                            {/* Additional commodities */}
+                                            {project.additionalCommodities?.map((pc: any) => (
+                                                <Badge key={pc.commodityId} variant="secondary" className="font-normal text-xs">
+                                                    {pc.commodity?.name}
+                                                </Badge>
+                                            ))}
                                         </div>
                                     ) : project.salesOpportunities?.[0]?.commodity ? (
                                         <Badge variant="outline" className="font-normal text-muted-foreground border-dashed">

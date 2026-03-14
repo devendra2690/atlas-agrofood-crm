@@ -11,7 +11,8 @@ export type ProcurementProjectFormData = {
     status?: ProjectStatus;
     type?: ProcurementType;
     commodityId?: string;
-    varietyId?: string; // NEW
+    varietyId?: string;
+    additionalCommodityIds?: string[]; // NEW: multi-commodity
 };
 
 export async function getProcurementProjects(filters?: {
@@ -91,6 +92,9 @@ export async function getProcurementProjects(filters?: {
                     },
                     commodity: true,
                     variety: true, // NEW
+                    additionalCommodities: {
+                        include: { commodity: true }
+                    },
                     projectVendors: {
                         include: {
                             vendor: true
@@ -228,11 +232,19 @@ export async function createProcurementProject(data: ProcurementProjectFormData)
                 status: data.status || "SOURCING",
                 type: data.type || "PROJECT",
                 commodityId: data.commodityId,
-                varietyId: data.varietyId // NEW
+                varietyId: data.varietyId
             }
         });
 
-
+        // Create additional commodity links
+        if (data.additionalCommodityIds && data.additionalCommodityIds.length > 0) {
+            await prisma.projectCommodity.createMany({
+                data: data.additionalCommodityIds
+                    .filter(id => id !== data.commodityId) // exclude primary
+                    .map(commodityId => ({ projectId: project.id, commodityId })),
+                skipDuplicates: true
+            });
+        }
 
         await logActivity({
             action: "CREATE",
@@ -263,6 +275,18 @@ export async function updateProcurementProject(id: string, data: ProcurementProj
                 varietyId: data.varietyId
             }
         });
+
+        // Sync additional commodities: delete removed, add new (skip primary)
+        if (data.additionalCommodityIds !== undefined) {
+            const toKeep = data.additionalCommodityIds.filter(cid => cid !== data.commodityId);
+            await prisma.projectCommodity.deleteMany({ where: { projectId: id } });
+            if (toKeep.length > 0) {
+                await prisma.projectCommodity.createMany({
+                    data: toKeep.map(commodityId => ({ projectId: id, commodityId })),
+                    skipDuplicates: true
+                });
+            }
+        }
 
         await logActivity({
             action: "UPDATE",
@@ -385,7 +409,10 @@ export async function getProcurementProject(id: string) {
                         vendor: {
                             include: {
                                 city: true,
-                                country: true
+                                country: true,
+                                commodities: {
+                                    select: { id: true, name: true }
+                                }
                             }
                         }
                     }
@@ -448,8 +475,8 @@ export async function getProcurementProject(id: string) {
                     orderBy: {
                         id: 'desc'
                     }
-                },
-                purchaseOrders: {
+                 },
+                 purchaseOrders: {
                     include: {
                         items: {
                             include: {
@@ -472,6 +499,10 @@ export async function getProcurementProject(id: string) {
                     orderBy: {
                         createdAt: 'desc'
                     }
+                },
+                commodity: true,
+                additionalCommodities: {
+                    include: { commodity: true }
                 }
             }
         });
@@ -618,12 +649,16 @@ export async function linkOpportunityToProject(projectId: string, opportunityId:
 
 export async function getAvailableVendors(projectId: string) {
     try {
-        // First get the project to check its commodity AND rejected vendors from linked opportunities
+        // Get project with primary commodity AND all additional commodities
         const project = await prisma.procurementProject.findUnique({
             where: { id: projectId },
             select: {
                 name: true,
                 commodityId: true,
+                commodity: { select: { id: true, name: true } },
+                additionalCommodities: {
+                    include: { commodity: { select: { id: true, name: true } } }
+                },
                 salesOpportunities: {
                     select: {
                         sampleSubmissions: {
@@ -643,15 +678,25 @@ export async function getAvailableVendors(projectId: string) {
                 .map(sub => sub.sample.vendorId) || [])
             : [];
 
-        // Get vendors NOT already linked to this project
-        // AND match the commodity if project has one
+        // Build the full list of commodity IDs for this project (primary + additional)
+        const allCommodityIds: string[] = [];
+        if (project?.commodityId) allCommodityIds.push(project.commodityId);
+        for (const pc of project?.additionalCommodities || []) {
+            if (!allCommodityIds.includes(pc.commodityId)) {
+                allCommodityIds.push(pc.commodityId);
+            }
+        }
+
+        // Build commodity map: id → name
+        const commodityMap: Record<string, string> = {};
+        if (project?.commodity) commodityMap[project.commodity.id] = project.commodity.name;
+        for (const pc of project?.additionalCommodities || []) {
+            commodityMap[pc.commodity.id] = pc.commodity.name;
+        }
+
         const where: any = {
             type: { in: ["VENDOR", "PARTNER"] },
-            projectVendors: {
-                none: {
-                    projectId: projectId
-                }
-            },
+            projectVendors: { none: { projectId } },
             status: "ACTIVE"
         };
 
@@ -659,11 +704,10 @@ export async function getAvailableVendors(projectId: string) {
             where.id = { notIn: rejectedVendorIds };
         }
 
-        if (project?.commodityId) {
+        // Filter vendors who supply ANY of the project's commodities
+        if (allCommodityIds.length > 0) {
             where.commodities = {
-                some: {
-                    id: project.commodityId
-                }
+                some: { id: { in: allCommodityIds } }
             };
         }
 
@@ -673,10 +717,21 @@ export async function getAvailableVendors(projectId: string) {
             include: {
                 city: true,
                 state: true,
-                country: true
+                country: true,
+                commodities: {
+                    where: { id: { in: allCommodityIds } },
+                    select: { id: true, name: true }
+                }
             }
         });
-        return { success: true, data: vendors };
+
+        // Annotate each vendor with which project commodities they supply
+        const annotated = vendors.map(v => ({
+            ...v,
+            projectCommodities: v.commodities // commodities this vendor supplies that match the project
+        }));
+
+        return { success: true, data: annotated, commodityMap };
     } catch (error) {
         console.error("Failed to fetch available vendors:", error);
         return { success: false, error: "Failed to fetch vendors" };
@@ -697,6 +752,19 @@ export async function addVendorToProject(projectId: string, vendorId: string) {
     } catch (error) {
         console.error("Failed to add vendor:", error);
         return { success: false, error: "Failed to add vendor to project" };
+    }
+}
+
+export async function removeVendorFromProject(projectVendorId: string, projectId: string) {
+    try {
+        await prisma.projectVendor.delete({
+            where: { id: projectVendorId }
+        });
+        revalidatePath(`/procurement/${projectId}`);
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to remove vendor:", error);
+        return { success: false, error: "Failed to remove vendor from project" };
     }
 }
 
