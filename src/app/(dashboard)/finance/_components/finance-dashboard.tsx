@@ -2,21 +2,31 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, TrendingUp, IndianRupee, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, TrendingUp, IndianRupee, Wallet, Clock } from "lucide-react";
 import { TransactionDetailsDialog } from "./transaction-details-dialog";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { Separator } from "@/components/ui/separator";
+import { CourierReceivablesList } from "./courier-receivables-list";
 
 interface FinanceDashboardProps {
     stats: {
         revenue: number;
         expenses: number;
         profit: number;
+        receivables: number;
     };
     transactions: any[];
+    courierReceivables: {
+        id: string;
+        amount: number;
+        date: Date;
+        description: string;
+        salesOrderId: string | null;
+        clientName: string | null;
+    }[];
 }
 
-export function FinanceDashboard({ stats, transactions }: FinanceDashboardProps) {
+export function FinanceDashboard({ stats, transactions, courierReceivables }: FinanceDashboardProps) {
     const chartData = [
         {
             name: "Financial Overview",
@@ -28,7 +38,7 @@ export function FinanceDashboard({ stats, transactions }: FinanceDashboardProps)
 
     return (
         <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -64,6 +74,18 @@ export function FinanceDashboard({ stats, transactions }: FinanceDashboardProps)
                         </div>
                         <p className="text-xs text-muted-foreground">
                             Revenue - Expenses
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card className="border-amber-200 bg-amber-50/50">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-amber-800">Courier Receivables</CardTitle>
+                        <Clock className="h-4 w-4 text-amber-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-amber-700">₹{stats.receivables.toLocaleString()}</div>
+                        <p className="text-xs text-amber-600">
+                            Pending collection from clients
                         </p>
                     </CardContent>
                 </Card>
@@ -104,10 +126,15 @@ export function FinanceDashboard({ stats, transactions }: FinanceDashboardProps)
                             ) : (
                                 transactions.map((tx) => (
                                     <div key={tx.id} className="flex items-center">
-                                        <div className={`flex h-9 w-9 items-center justify-center rounded-full border ${tx.type === 'CREDIT' ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'
-                                            }`}>
+                                        <div className={`flex h-9 w-9 items-center justify-center rounded-full border ${
+                                            tx.type === 'CREDIT' ? 'border-emerald-200 bg-emerald-50' :
+                                            tx.type === 'RECEIVABLE' ? 'border-amber-200 bg-amber-50' :
+                                            'border-rose-200 bg-rose-50'
+                                        }`}>
                                             {tx.type === 'CREDIT' ? (
                                                 <ArrowDownLeft className="h-5 w-5 text-emerald-600" />
+                                            ) : tx.type === 'RECEIVABLE' ? (
+                                                <Clock className="h-5 w-5 text-amber-600" />
                                             ) : (
                                                 <ArrowUpRight className="h-5 w-5 text-rose-600" />
                                             )}
@@ -119,9 +146,12 @@ export function FinanceDashboard({ stats, transactions }: FinanceDashboardProps)
                                             </div>
                                             <p className="text-xs text-muted-foreground">{tx.reference} • {format(new Date(tx.date), "MMM d")}</p>
                                         </div>
-                                        <div className={`ml-auto font-medium ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-rose-600'
-                                            }`}>
-                                            {tx.type === 'CREDIT' ? '+' : '-'}₹{tx.amount.toLocaleString()}
+                                        <div className={`ml-auto font-medium ${
+                                            tx.type === 'CREDIT' ? 'text-emerald-600' :
+                                            tx.type === 'RECEIVABLE' ? 'text-amber-600' :
+                                            'text-rose-600'
+                                        }`}>
+                                            {tx.type === 'CREDIT' ? '+' : tx.type === 'RECEIVABLE' ? '~' : '-'}₹{tx.amount.toLocaleString()}
                                         </div>
                                     </div>
                                 ))
@@ -130,6 +160,13 @@ export function FinanceDashboard({ stats, transactions }: FinanceDashboardProps)
                     </CardContent>
                 </Card>
             </div>
+
+            {courierReceivables.length > 0 && (
+                <>
+                    <Separator />
+                    <CourierReceivablesList receivables={courierReceivables} />
+                </>
+            )}
         </div>
     );
 }

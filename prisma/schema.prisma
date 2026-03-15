@@ -105,6 +105,7 @@ enum TransactionType {
   CREDIT
   DEBIT
   LIABILITY
+  RECEIVABLE
 }
 
 // Models

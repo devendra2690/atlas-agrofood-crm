@@ -123,16 +123,16 @@ export async function createShipment(data: ShipmentData) {
                         salesOrderId: data.salesOrderId
                     }
                 });
-                // If recoverable, also log expected income
+                // If recoverable, log as RECEIVABLE (pending collection from client)
                 if (data.courierChargeRecoverable) {
                     await prisma.transaction.create({
                         data: {
                             createdById: validUserId,
                             updatedById: validUserId,
-                            type: 'CREDIT',
+                            type: 'RECEIVABLE',
                             amount: data.courierCharge,
                             category: 'Logistics',
-                            description: `Expected courier charge recovery from ${salesOrder.client?.name || 'Client'} (SO #${data.salesOrderId.slice(0, 8).toUpperCase()})`,
+                            description: `Courier charge receivable from ${salesOrder.client?.name || 'Client'} (SO #${data.salesOrderId.slice(0, 8).toUpperCase()})`,
                             salesOrderId: data.salesOrderId
                         }
                     });
@@ -160,7 +160,8 @@ export async function createShipment(data: ShipmentData) {
                 success: true,
                 data: {
                     ...shipment,
-                    quantity: shipment.quantity ? shipment.quantity.toNumber() : null
+                    quantity: shipment.quantity ? shipment.quantity.toNumber() : null,
+                    courierCharge: shipment.courierCharge ? shipment.courierCharge.toNumber() : null
                 }
             };
 
@@ -506,6 +507,7 @@ export async function getShipments(filters?: {
         const safeShipments = shipments.map(s => ({
             ...s,
             quantity: s.quantity?.toNumber(),
+            courierCharge: s.courierCharge ? s.courierCharge.toNumber() : null,
             purchaseOrder: s.purchaseOrder ? {
                 ...s.purchaseOrder,
                 items: s.purchaseOrder.items?.map((it: any) => ({

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getFinancialStats, getRecentTransactions, getSalesOrdersForSelection, getProfitabilityAnalytics } from "@/app/actions/finance";
+import { getFinancialStats, getRecentTransactions, getSalesOrdersForSelection, getProfitabilityAnalytics, getCourierReceivables } from "@/app/actions/finance";
 import { FinanceDashboard } from "./_components/finance-dashboard";
 import { Separator } from "@/components/ui/separator";
 import { SalesProfitabilityViewer } from "./_components/sales-profitability-viewer";
@@ -19,6 +19,7 @@ export default async function FinancePage() {
     const stats = await getFinancialStats();
     const transactions = await getRecentTransactions();
     const salesOrders = await getSalesOrdersForSelection();
+    const courierReceivables = await getCourierReceivables();
 
     // Fetch detailed analytics
     const analytics = await getProfitabilityAnalytics();
@@ -44,7 +45,7 @@ export default async function FinancePage() {
             <Separator />
             <Suspense fallback={<div>Loading financial data...</div>}>
                 <div className="space-y-8">
-                    <FinanceDashboard stats={stats} transactions={transactions} />
+                    <FinanceDashboard stats={stats} transactions={transactions} courierReceivables={courierReceivables} />
 
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                         <ProfitabilityWaterfall data={analytics.waterfall} />

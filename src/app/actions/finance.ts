@@ -657,11 +657,12 @@ export async function getSalesOrderFinancials(salesOrderId: string) {
         });
         const otherExpenses = expenses.reduce((sum, tx) => sum.plus(tx.amount), new Decimal(0));
 
-        // 3.1 Other Income: Manual CREDIT transactions linked to SO
+        // 3.1 Other Income: Manual CREDIT transactions linked to SO (exclude RECEIVABLE - not received yet)
         const income = await prisma.transaction.findMany({
             where: {
                 salesOrderId,
-                type: 'CREDIT'
+                type: 'CREDIT',
+                invoiceId: null
             },
             select: { amount: true }
         });
@@ -698,12 +699,15 @@ export async function getFinancialStats() {
 
         let totalRevenue = new Decimal(0);
         let totalExpenses = new Decimal(0);
+        let totalReceivables = new Decimal(0);
 
         stats.forEach(stat => {
             if (stat.type === 'CREDIT' && stat._sum.amount) {
                 totalRevenue = stat._sum.amount;
             } else if (stat.type === 'DEBIT' && stat._sum.amount) {
                 totalExpenses = stat._sum.amount;
+            } else if (stat.type === 'RECEIVABLE' && stat._sum.amount) {
+                totalReceivables = stat._sum.amount;
             }
         });
 
@@ -712,11 +716,12 @@ export async function getFinancialStats() {
         return {
             revenue: totalRevenue.toNumber(),
             expenses: totalExpenses.toNumber(),
-            profit: netProfit.toNumber()
+            profit: netProfit.toNumber(),
+            receivables: totalReceivables.toNumber()
         };
     } catch (error) {
         console.error("Failed to fetch financial stats:", error);
-        return { revenue: 0, expenses: 0, profit: 0 };
+        return { revenue: 0, expenses: 0, profit: 0, receivables: 0 };
     }
 }
 
@@ -1021,6 +1026,78 @@ export async function deleteBill(id: string) {
     } catch (error) {
         console.error("Failed to delete bill:", error);
         return { success: false, error: "Failed to delete bill" };
+    }
+}
+
+export async function getCourierReceivables() {
+    try {
+        const transactions = await prisma.transaction.findMany({
+            where: { type: 'RECEIVABLE' },
+            orderBy: { date: 'desc' },
+            include: {
+                salesOrder: { select: { id: true, client: { select: { name: true } } } }
+            }
+        });
+
+        return transactions.map(tx => ({
+            id: tx.id,
+            amount: tx.amount.toNumber(),
+            date: tx.date,
+            description: tx.description || 'Courier charge receivable',
+            salesOrderId: tx.salesOrderId,
+            clientName: tx.salesOrder?.client?.name || null
+        }));
+    } catch (error) {
+        console.error("Failed to fetch courier receivables:", error);
+        return [];
+    }
+}
+
+export async function markCourierChargeReceived(transactionId: string, receivedDate?: Date) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+        const receivable = await prisma.transaction.findUnique({
+            where: { id: transactionId },
+            include: { salesOrder: { select: { client: { select: { name: true } } } } }
+        });
+
+        if (!receivable) return { success: false, error: "Receivable not found" };
+        if (receivable.type !== 'RECEIVABLE') return { success: false, error: "Transaction is not a receivable" };
+
+        // Create a CREDIT transaction for the received money, delete the RECEIVABLE
+        await prisma.$transaction([
+            prisma.transaction.create({
+                data: {
+                    createdById: session.user.id,
+                    updatedById: session.user.id,
+                    type: 'CREDIT',
+                    amount: receivable.amount,
+                    date: receivedDate || new Date(),
+                    category: 'Logistics',
+                    description: `Courier charge received from ${receivable.salesOrder?.client?.name || 'Client'} (recovered)`,
+                    salesOrderId: receivable.salesOrderId
+                }
+            }),
+            prisma.transaction.delete({ where: { id: transactionId } })
+        ]);
+
+        await logActivity({
+            action: "UPDATE",
+            entityType: "Transaction",
+            entityId: transactionId,
+            details: `Courier charge of ₹${receivable.amount.toNumber().toLocaleString()} marked as received`
+        });
+
+        revalidatePath('/finance');
+        if (receivable.salesOrderId) {
+            revalidatePath(`/sales-orders/${receivable.salesOrderId}`);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to mark courier charge as received:", error);
+        return { success: false, error: "Failed to update receivable" };
     }
 }
 
