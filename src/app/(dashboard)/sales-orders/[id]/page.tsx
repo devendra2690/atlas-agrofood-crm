@@ -58,7 +58,8 @@ export default async function SalesOrderDetailsPage({ params }: PageProps) {
                     orderStatus={order.status}
                     shipments={(order.shipments || []).map(s => ({
                         ...s,
-                        quantity: s.quantity ? Number(s.quantity) : null
+                        quantity: s.quantity ? Number(s.quantity) : null,
+                        courierCharge: s.courierCharge ? Number(s.courierCharge) : null
                     }))}
                     invoiceCount={order.invoices.length}
                 />

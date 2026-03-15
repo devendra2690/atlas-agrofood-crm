@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Truck, Plus } from "lucide-react";
+import { Truck, Plus, IndianRupee, Clock } from "lucide-react";
 import { createShipment } from "@/app/actions/logistics";
 import { toast } from "sonner";
 import { SalesOrder } from "@prisma/client";
@@ -204,6 +204,7 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                 <TableHead>Tracking #</TableHead>
                                 <TableHead>Qty</TableHead>
                                 <TableHead>ETA</TableHead>
+                                <TableHead>Courier Charge</TableHead>
                                 <TableHead>Notes</TableHead>
                                 <TableHead>Documents</TableHead>
                                 <TableHead>Status</TableHead>
@@ -217,6 +218,19 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                     <TableCell>{shipment.trackingNumber || "-"}</TableCell>
                                     <TableCell>{shipment.quantity ? `${shipment.quantity} ${shipment.quantityUnit || 'MT'}` : "-"}</TableCell>
                                     <TableCell>{shipment.eta ? format(new Date(shipment.eta), "MMM d") : "-"}</TableCell>
+                                    <TableCell>
+                                        {shipment.courierCharge ? (
+                                            <div className="flex items-center gap-1">
+                                                <IndianRupee className="h-3 w-3 text-muted-foreground" />
+                                                <span className="font-medium">{Number(shipment.courierCharge).toLocaleString()}</span>
+                                                {shipment.courierChargeRecoverable && (
+                                                    <span title="Recoverable from client">
+                                                        <Clock className="h-3.5 w-3.5 text-amber-500" />
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : "-"}
+                                    </TableCell>
                                     <TableCell className="max-w-[150px] truncate" title={shipment.notes}>{shipment.notes || "-"}</TableCell>
                                     <TableCell>
                                         <ShipmentDocumentAttachment shipmentId={shipment.id} documents={shipment.documents || []} />

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Truck, PackageCheck, Plus } from "lucide-react";
+import { Truck, PackageCheck, Plus, IndianRupee, CheckCircle2 } from "lucide-react";
 import { createShipment, createGRN } from "@/app/actions/logistics";
 import { toast } from "sonner";
 import { ShipmentDocumentAttachment } from "@/app/(dashboard)/logistics/_components/shipment-document-attachment";
@@ -282,6 +282,7 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                                     <TableHead>Carrier</TableHead>
                                     <TableHead>Tracking #</TableHead>
                                     <TableHead>ETA</TableHead>
+                                    <TableHead>Courier Charge</TableHead>
                                     <TableHead>Documents</TableHead>
                                     <TableHead>Status</TableHead>
                                 </TableRow>
@@ -293,6 +294,23 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                                         <TableCell className="font-medium">{shipment.carrier}</TableCell>
                                         <TableCell>{shipment.trackingNumber || "-"}</TableCell>
                                         <TableCell>{shipment.eta ? format(new Date(shipment.eta), "MMM d") : "-"}</TableCell>
+                                        <TableCell>
+                                            {shipment.courierCharge ? (
+                                                <div className="flex items-center gap-1">
+                                                    <IndianRupee className="h-3 w-3 text-muted-foreground" />
+                                                    <span className="font-medium">{Number(shipment.courierCharge).toLocaleString()}</span>
+                                                    {shipment.courierChargeRecoverable ? (
+                                                        <span title="We paid for courier">
+                                                            <CheckCircle2 className="h-3.5 w-3.5 text-rose-500" />
+                                                        </span>
+                                                    ) : (
+                                                        <span title="Vendor paid courier">
+                                                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ) : "-"}
+                                        </TableCell>
                                         <TableCell>
                                             <ShipmentDocumentAttachment shipmentId={shipment.id} documents={shipment.documents || []} />
                                         </TableCell>

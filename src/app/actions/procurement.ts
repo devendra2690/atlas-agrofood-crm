@@ -963,7 +963,11 @@ export async function getPurchaseOrder(id: string) {
                 totalAmount: bill.totalAmount?.toNumber(),
                 pendingAmount: bill.pendingAmount?.toNumber()
             })),
-            shipments: o.shipments,
+            shipments: (o.shipments || []).map((s: any) => ({
+                ...s,
+                quantity: s.quantity?.toNumber() ?? null,
+                courierCharge: s.courierCharge?.toNumber() ?? null
+            })),
             grn: o.grn ? {
                 ...o.grn,
                 totalReceivedQuantity: o.grn.totalReceivedQuantity?.toNumber(),

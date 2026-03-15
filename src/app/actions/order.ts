@@ -370,7 +370,8 @@ export async function getSalesOrder(id: string) {
             })),
             shipments: order.shipments.map(s => ({
                 ...s,
-                quantity: s.quantity ? s.quantity.toNumber() : null
+                quantity: s.quantity ? s.quantity.toNumber() : null,
+                courierCharge: s.courierCharge ? s.courierCharge.toNumber() : null
             }))
         };
 
