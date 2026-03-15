@@ -132,7 +132,16 @@ async function getFinanceStats() {
         where: { status: { not: 'PAID' } },
         _sum: { pendingAmount: true }
     });
-    const totalReceivables = Number(receivablesAgg._sum.pendingAmount || 0);
+    const invoiceReceivables = Number(receivablesAgg._sum.pendingAmount || 0);
+
+    // 1b. Courier charge receivables (pending collection from clients)
+    const courierReceivablesAgg = await prisma.transaction.aggregate({
+        where: { type: 'RECEIVABLE' },
+        _sum: { amount: true }
+    });
+    const courierReceivables = Number(courierReceivablesAgg._sum.amount || 0);
+
+    const totalReceivables = invoiceReceivables + courierReceivables;
 
     // 2. Pending Bills (Payables)
     const payablesAgg = await prisma.bill.aggregate({
