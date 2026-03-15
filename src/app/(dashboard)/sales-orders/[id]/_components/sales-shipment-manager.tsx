@@ -10,10 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Truck, Plus, IndianRupee, Clock } from "lucide-react";
-import { createShipment } from "@/app/actions/logistics";
+import { Truck, Plus, IndianRupee, Clock, Pencil, Trash2 } from "lucide-react";
+import { createShipment, updateShipment, deleteShipment } from "@/app/actions/logistics";
 import { toast } from "sonner";
-import { SalesOrder } from "@prisma/client";
 import { ShipmentDocumentAttachment } from "@/app/(dashboard)/logistics/_components/shipment-document-attachment";
 
 interface SalesShipmentManagerProps {
@@ -28,6 +27,18 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
     const [isShipmentOpen, setIsShipmentOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
+
+    // Edit state
+    const [editingShipment, setEditingShipment] = useState<any | null>(null);
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [editCarrier, setEditCarrier] = useState("");
+    const [editTrackingNumber, setEditTrackingNumber] = useState("");
+    const [editEta, setEditEta] = useState("");
+    const [editQuantity, setEditQuantity] = useState("");
+    const [editQuantityUnit, setEditQuantityUnit] = useState("MT");
+    const [editCourierCharge, setEditCourierCharge] = useState("");
+    const [editCourierChargeRecoverable, setEditCourierChargeRecoverable] = useState(false);
+    const [editNotes, setEditNotes] = useState("");
 
     useEffect(() => {
         setMounted(true);
@@ -44,6 +55,51 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
     const [notes, setNotes] = useState("");
 
     if (!mounted) return null;
+
+    const openEdit = (shipment: any) => {
+        setEditingShipment(shipment);
+        setEditCarrier(shipment.carrier || "");
+        setEditTrackingNumber(shipment.trackingNumber || "");
+        setEditEta(shipment.eta ? format(new Date(shipment.eta), "yyyy-MM-dd") : "");
+        setEditQuantity(shipment.quantity?.toString() || "");
+        setEditQuantityUnit(shipment.quantityUnit || "MT");
+        setEditCourierCharge(shipment.courierCharge?.toString() || "");
+        setEditCourierChargeRecoverable(shipment.courierChargeRecoverable || false);
+        setEditNotes(shipment.notes || "");
+        setIsEditOpen(true);
+    };
+
+    const handleEdit = async () => {
+        if (!editingShipment) return;
+        setLoading(true);
+        const result = await updateShipment(editingShipment.id, {
+            carrier: editCarrier,
+            trackingNumber: editTrackingNumber,
+            quantity: editQuantity ? parseFloat(editQuantity) : undefined,
+            quantityUnit: editQuantityUnit,
+            eta: editEta ? new Date(editEta) : null,
+            notes: editNotes,
+            courierCharge: editCourierCharge ? parseFloat(editCourierCharge) : null,
+            courierChargeRecoverable: editCourierChargeRecoverable
+        });
+        setLoading(false);
+        if (result.success) {
+            toast.success("Shipment updated");
+            setIsEditOpen(false);
+        } else {
+            toast.error(result.error || "Failed to update shipment");
+        }
+    };
+
+    const handleDelete = async (shipmentId: string) => {
+        if (!confirm("Delete this shipment? This will also remove its courier charge transactions.")) return;
+        const result = await deleteShipment(shipmentId);
+        if (result.success) {
+            toast.success("Shipment deleted");
+        } else {
+            toast.error(result.error || "Failed to delete shipment");
+        }
+    };
 
     const handleCreateShipment = async () => {
         if (invoiceCount === 0) {
@@ -208,6 +264,7 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                 <TableHead>Notes</TableHead>
                                 <TableHead>Documents</TableHead>
                                 <TableHead>Status</TableHead>
+                                <TableHead></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -241,12 +298,81 @@ export function SalesShipmentManager({ orderId, orderStatus, shipments, invoiceC
                                             {shipment.status}
                                         </Badge>
                                     </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-1">
+                                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(shipment)}>
+                                                <Pencil className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-rose-500 hover:text-rose-700 hover:bg-rose-50" onClick={() => handleDelete(shipment.id)}>
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
                 )}
             </CardContent>
+
+            {/* Edit Dialog */}
+            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Shipment</DialogTitle>
+                        <DialogDescription>Update shipment details. Courier charge changes will sync finance transactions.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label>Carrier <span className="text-red-500">*</span></Label>
+                            <Input value={editCarrier} onChange={e => setEditCarrier(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Tracking / Container No.</Label>
+                            <Input value={editTrackingNumber} onChange={e => setEditTrackingNumber(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>ETA</Label>
+                            <Input type="date" value={editEta} onChange={e => setEditEta(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Quantity</Label>
+                            <div className="flex gap-2">
+                                <Input type="number" step="0.001" value={editQuantity} onChange={e => setEditQuantity(e.target.value)} className="flex-1" />
+                                <div className="w-24">
+                                    <Select value={editQuantityUnit} onValueChange={setEditQuantityUnit}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="MT">MT</SelectItem>
+                                            <SelectItem value="KG">KG</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Courier Charges (₹)</Label>
+                            <Input type="number" value={editCourierCharge} onChange={e => setEditCourierCharge(e.target.value)} placeholder="e.g. 1500" />
+                            <label className="flex items-start gap-2 cursor-pointer select-none">
+                                <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-gray-300" checked={editCourierChargeRecoverable} onChange={e => setEditCourierChargeRecoverable(e.target.checked)} />
+                                <span className="text-sm text-muted-foreground leading-tight">
+                                    <span className="font-medium text-foreground">Recoverable from client</span>
+                                </span>
+                            </label>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Notes</Label>
+                            <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+                        <Button onClick={handleEdit} disabled={loading || !editCarrier}>
+                            {loading ? "Saving..." : "Save Changes"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 }

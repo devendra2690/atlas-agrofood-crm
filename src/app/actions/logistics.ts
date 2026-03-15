@@ -120,7 +120,8 @@ export async function createShipment(data: ShipmentData) {
                         amount: data.courierCharge,
                         category: 'Logistics',
                         description: `Courier charges for Outbound Shipment to ${salesOrder.client?.name || 'Unknown Client'} (SO #${data.salesOrderId.slice(0, 8).toUpperCase()})${data.courierChargeRecoverable ? ' [Recoverable from client]' : ''}`,
-                        salesOrderId: data.salesOrderId
+                        salesOrderId: data.salesOrderId,
+                        shipmentId: shipment.id
                     }
                 });
                 // If recoverable, log as RECEIVABLE (pending collection from client)
@@ -133,7 +134,8 @@ export async function createShipment(data: ShipmentData) {
                             amount: data.courierCharge,
                             category: 'Logistics',
                             description: `Courier charge receivable from ${salesOrder.client?.name || 'Client'} (SO #${data.salesOrderId.slice(0, 8).toUpperCase()})`,
-                            salesOrderId: data.salesOrderId
+                            salesOrderId: data.salesOrderId,
+                            shipmentId: shipment.id
                         }
                     });
                 }
@@ -336,6 +338,133 @@ export async function updateShipmentDocument(shipmentId: string, url: string, ac
     } catch (error: any) {
         console.error("Failed to update shipment documents:", error);
         return { success: false, error: "Failed to update documents" };
+    }
+}
+
+export async function updateShipment(id: string, data: {
+    carrier?: string;
+    trackingNumber?: string;
+    quantity?: number;
+    quantityUnit?: string;
+    eta?: Date | null;
+    notes?: string;
+    courierCharge?: number | null;
+    courierChargeRecoverable?: boolean;
+}) {
+    try {
+        const session = await auth();
+        const validUserId = session?.user?.id;
+
+        const existing = await prisma.shipment.findUnique({
+            where: { id },
+            include: {
+                transactions: { where: { shipmentId: id } },
+                salesOrder: { select: { client: { select: { name: true } }, id: true } }
+            }
+        });
+
+        if (!existing) return { success: false, error: "Shipment not found" };
+
+        await prisma.shipment.update({
+            where: { id },
+            data: {
+                carrier: data.carrier,
+                trackingNumber: data.trackingNumber,
+                quantity: data.quantity,
+                quantityUnit: data.quantityUnit,
+                eta: data.eta,
+                notes: data.notes,
+                courierCharge: data.courierCharge ?? null,
+                courierChargeRecoverable: data.courierChargeRecoverable ?? false,
+                updatedById: validUserId
+            }
+        });
+
+        // Sync courier charge transactions
+        const newCharge = data.courierCharge ?? 0;
+        const oldCharge = existing.courierCharge?.toNumber() ?? 0;
+        const chargeChanged = newCharge !== oldCharge || data.courierChargeRecoverable !== existing.courierChargeRecoverable;
+
+        if (chargeChanged) {
+            // Delete existing courier transactions for this shipment
+            await prisma.transaction.deleteMany({ where: { shipmentId: id } });
+
+            // Re-create if there's a new charge
+            if (newCharge > 0) {
+                const clientName = existing.salesOrder?.client?.name || 'Unknown Client';
+                const soRef = existing.salesOrderId ? `SO #${existing.salesOrderId.slice(0, 8).toUpperCase()}` : '';
+                await prisma.transaction.create({
+                    data: {
+                        createdById: validUserId,
+                        updatedById: validUserId,
+                        type: 'DEBIT',
+                        amount: newCharge,
+                        category: 'Logistics',
+                        description: `Courier charges for Outbound Shipment to ${clientName} (${soRef})${data.courierChargeRecoverable ? ' [Recoverable from client]' : ''}`,
+                        salesOrderId: existing.salesOrderId,
+                        shipmentId: id
+                    }
+                });
+                if (data.courierChargeRecoverable) {
+                    await prisma.transaction.create({
+                        data: {
+                            createdById: validUserId,
+                            updatedById: validUserId,
+                            type: 'RECEIVABLE',
+                            amount: newCharge,
+                            category: 'Logistics',
+                            description: `Courier charge receivable from ${clientName} (${soRef})`,
+                            salesOrderId: existing.salesOrderId,
+                            shipmentId: id
+                        }
+                    });
+                }
+            }
+        }
+
+        await logActivity({
+            action: "UPDATE",
+            entityType: "Shipment",
+            entityId: id,
+            details: `Updated shipment details`
+        });
+
+        revalidatePath('/logistics');
+        if (existing.salesOrderId) revalidatePath(`/sales-orders/${existing.salesOrderId}`);
+        if (existing.purchaseOrderId) revalidatePath(`/purchase-orders/${existing.purchaseOrderId}`);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Failed to update shipment:", error);
+        return { success: false, error: error.message || "Failed to update shipment" };
+    }
+}
+
+export async function deleteShipment(id: string) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+        const shipment = await prisma.shipment.findUnique({ where: { id } });
+        if (!shipment) return { success: false, error: "Shipment not found" };
+
+        // Delete linked courier transactions first
+        await prisma.transaction.deleteMany({ where: { shipmentId: id } });
+        await prisma.shipment.delete({ where: { id } });
+
+        await logActivity({
+            action: "DELETE",
+            entityType: "Shipment",
+            entityId: id,
+            details: `Deleted shipment`
+        });
+
+        revalidatePath('/logistics');
+        if (shipment.salesOrderId) revalidatePath(`/sales-orders/${shipment.salesOrderId}`);
+        if (shipment.purchaseOrderId) revalidatePath(`/purchase-orders/${shipment.purchaseOrderId}`);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Failed to delete shipment:", error);
+        return { success: false, error: error.message || "Failed to delete shipment" };
     }
 }
 

@@ -896,11 +896,13 @@ model Transaction {
   salesOrderId String? // Link expense directly to a deal
   purchaseOrderId String?
   reimbursementId String?
+  shipmentId  String?
 
   invoice Invoice? @relation(fields: [invoiceId], references: [id])
   bill    Bill?    @relation(fields: [billId], references: [id])
   salesOrder SalesOrder? @relation(fields: [salesOrderId], references: [id])
   reimbursement Reimbursement? @relation(fields: [reimbursementId], references: [id])
+  shipment Shipment? @relation(fields: [shipmentId], references: [id])
 
   createdById String?
   updatedById String?
@@ -931,6 +933,8 @@ model Shipment {
   courierChargeRecoverable Boolean @default(false) // Whether client will reimburse (outbound) or not
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  transactions Transaction[]
 
   createdById String?
   updatedById String?
