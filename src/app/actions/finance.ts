@@ -670,13 +670,12 @@ export async function getSalesOrderFinancials(salesOrderId: string) {
 
         // 4. Net Profit
         const totalRevenue = revenue.plus(otherIncome);
-        const actualCogs = cogs.mul(1.05); // Include 5% GST on Purchase Orders
-        const totalCost = actualCogs.plus(otherExpenses);
+        const totalCost = cogs.plus(otherExpenses);
         const netProfit = totalRevenue.minus(totalCost);
 
         return {
             revenue: revenue.toNumber(),
-            cogs: actualCogs.toNumber(),
+            cogs: cogs.toNumber(),
             otherExpenses: otherExpenses.toNumber(),
             netProfit: netProfit.toNumber()
         };
@@ -907,26 +906,34 @@ export async function getProfitabilityAnalytics() {
         let totalCOGS = 0;
         let totalExpenses = 0;
 
-        // Iterate over realized revenue (Invoices)
+        // Group invoices by salesOrderId to avoid fetching COGS multiple times per SO
+        const invoicesBySO = new Map<string, { revenue: number; inv: typeof invoices[0] }>();
         for (const inv of invoices) {
-            const amount = inv.totalAmount.toNumber();
-            totalRevenue += amount;
+            const soId = inv.salesOrderId;
+            const existing = invoicesBySO.get(soId);
+            if (existing) {
+                existing.revenue += inv.totalAmount.toNumber();
+            } else {
+                invoicesBySO.set(soId, { revenue: inv.totalAmount.toNumber(), inv });
+            }
+        }
 
-            // Estimate cost for this specific order (Pro-rated?)
-            // We call the existing helper:
-            const financials = await getSalesOrderFinancials(inv.salesOrderId);
+        for (const [salesOrderId, { revenue: soRevenue, inv }] of invoicesBySO) {
+            totalRevenue += soRevenue;
+
+            const financials = await getSalesOrderFinancials(salesOrderId);
             const cost = financials.cogs + financials.otherExpenses;
             totalCOGS += financials.cogs;
             totalExpenses += financials.otherExpenses;
 
-            const margin = amount - cost;
+            const margin = soRevenue - cost;
 
             // Group by Customer
             const clientName = inv.salesOrder.client.name;
             if (!customerStats[clientName]) {
                 customerStats[clientName] = { name: clientName, revenue: 0, costs: 0, margin: 0 };
             }
-            customerStats[clientName].revenue += amount;
+            customerStats[clientName].revenue += soRevenue;
             customerStats[clientName].costs += cost;
             customerStats[clientName].margin += margin;
 
@@ -935,7 +942,7 @@ export async function getProfitabilityAnalytics() {
             if (!productStats[productName]) {
                 productStats[productName] = { name: productName, revenue: 0, costs: 0, margin: 0 };
             }
-            productStats[productName].revenue += amount;
+            productStats[productName].revenue += soRevenue;
             productStats[productName].costs += cost;
             productStats[productName].margin += margin;
         }
