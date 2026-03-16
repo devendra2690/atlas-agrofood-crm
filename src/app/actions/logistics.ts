@@ -75,7 +75,10 @@ export async function createShipment(data: ShipmentData) {
                     return sum + (it.quantityUnit === 'KG' ? (parsedQty / 1000) : parsedQty);
                 }, 0) || 0;
 
-                const currentShipped = salesOrder.shipments.reduce((sum: any, s: any) => sum + (s.quantity?.toNumber() || 0), 0);
+                const currentShipped = salesOrder.shipments.reduce((sum: number, s: any) => {
+                    const qty = s.quantity?.toNumber() || 0;
+                    return sum + (s.quantityUnit === 'KG' ? qty / 1000 : qty);
+                }, 0);
                 // Normalize the proposed New Shipment into MT for mathematical comparison
                 const shipmentQuantityInMT = data.quantityUnit === 'KG' ? (data.quantity / 1000) : data.quantity;
                 const newTotal = currentShipped + shipmentQuantityInMT;
