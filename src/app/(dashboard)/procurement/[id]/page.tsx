@@ -17,6 +17,20 @@ import { ProjectPOList } from "./_components/project-po-list";
 import { SampleBoard } from "./_components/sample-board";
 import { ProjectStatusSelector } from "./_components/project-status-selector";
 
+function toMT(qty: number, unit?: string | null): number {
+    return (unit === 'KG') ? qty / 1000 : qty;
+}
+
+function itemProcurementDemandMT(item: any, isVendorSupply: boolean): number {
+    const qty = Number(item.quantity) || 0;
+    const procQty = Number(item.procurementQuantity) || 0;
+    const unit = item.quantityUnit || 'MT';
+    if (isVendorSupply) {
+        return toMT(procQty || qty, unit);
+    }
+    return toMT(qty, unit);
+}
+
 export default async function ProcurementProjectPage({ params }: { params: { id: string } }) {
     const { id } = await params;
     // We need to ensure we fetch samples too, if not fetched already. 
@@ -140,10 +154,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                 );
                                                 if (approvedSub) {
                                                     const isVendorSupply = ['VENDOR', 'PARTNER'].includes(approvedSub.sample?.vendor?.type as string);
-                                                    const demandValue = isVendorSupply
-                                                        ? (Number(item.procurementQuantity) || Number(item.quantity) || 0)
-                                                        : (Number(item.quantity) || 0);
-                                                    return itemSum + demandValue;
+                                                    return itemSum + itemProcurementDemandMT(item, isVendorSupply);
                                                 }
                                                 return itemSum;
                                             }, 0);
@@ -194,7 +205,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                             {(project.purchaseOrders || [])
                                                 .filter((po: any) => po.status !== 'CANCELLED')
                                                 .reduce((sum: number, po: any) => sum + (Number(po.quantity) || 0), 0)
-                                                .toFixed(2)} MT
+                                                .toFixed(3)} MT
                                         </div>
                                         <p className="text-xs text-muted-foreground">Procured (Ordered)</p>
                                     </div>
@@ -211,15 +222,12 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                         );
                                                         if (approvedSub) {
                                                             const isVendorSupply = ['VENDOR', 'PARTNER'].includes(approvedSub.sample?.vendor?.type as string);
-                                                            const demandValue = isVendorSupply
-                                                                ? (Number(item.procurementQuantity) || Number(item.quantity) || 0)
-                                                                : (Number(item.quantity) || 0);
-                                                            return itemSum + demandValue;
+                                                            return itemSum + itemProcurementDemandMT(item, isVendorSupply);
                                                         }
                                                         return itemSum;
                                                     }, 0);
                                                     return sum + itemsTotal;
-                                                }, 0).toFixed(2)} MT
+                                                }, 0).toFixed(3)} MT
                                         </div>
                                         <p className="text-xs text-muted-foreground">Total Demand</p>
                                     </div>
@@ -252,9 +260,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                                     (!sub.opportunityItemId && !item.commodityId)
                                                                 );
                                                                 const isVendorSupply = ['VENDOR', 'PARTNER'].includes(approvedSub?.sample?.vendor?.type as string);
-                                                                const itemDemand = isVendorSupply
-                                                                    ? (Number(item.procurementQuantity) || Number(item.quantity) || 0)
-                                                                    : (Number(item.quantity) || 0);
+                                                                const itemDemand = itemProcurementDemandMT(item, isVendorSupply);
                                                                 const itemProcured = (project.purchaseOrders || [])
                                                                     .filter((po: any) => po.status !== 'CANCELLED')
                                                                     .reduce((sum: number, po: any) => {
@@ -264,7 +270,11 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                                                 return it.commodityId === item.commodityId;
                                                                             });
                                                                             if (matchedItems.length > 0) {
-                                                                                return sum + matchedItems.reduce((matchSum: number, it: any) => matchSum + (Number(it.quantity) || 0), 0);
+                                                                                return sum + matchedItems.reduce((matchSum: number, it: any) => {
+                                                                                    const qty = Number(it.quantity) || 0;
+                                                                                    const unit = it.quantityUnit || 'MT';
+                                                                                    return matchSum + toMT(qty, unit);
+                                                                                }, 0);
                                                                             }
                                                                             return sum;
                                                                         }
@@ -284,7 +294,7 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                                                 </span>
                                                                             )}
                                                                         </div>
-                                                                        <span className="font-medium text-slate-700">{itemDemand} MT</span>
+                                                                        <span className="font-medium text-slate-700">{itemDemand.toFixed(3)} MT</span>
                                                                     </div>
                                                                 );
                                                             })}
@@ -372,10 +382,10 @@ export default async function ProcurementProjectPage({ params }: { params: { id:
                                                                     <div key={item.id || idx} className="flex justify-between items-center text-sm">
                                                                         <span className="font-medium text-slate-700">{item.productName || "Product"}</span>
                                                                         <div className="font-bold flex items-center gap-2">
-                                                                            {item.quantity ? `${item.quantity} MT` : '-'}
+                                                                            {item.quantity ? `${toMT(Number(item.quantity), item.quantityUnit).toFixed(3)} MT` : '-'}
                                                                             {item.procurementQuantity && (
                                                                                 <Badge variant="secondary" className="text-amber-700 bg-amber-50 border-amber-200 ml-2">
-                                                                                    Raw: {item.procurementQuantity} MT
+                                                                                    Raw: {toMT(Number(item.procurementQuantity), item.quantityUnit).toFixed(3)} MT
                                                                                 </Badge>
                                                                             )}
                                                                         </div>

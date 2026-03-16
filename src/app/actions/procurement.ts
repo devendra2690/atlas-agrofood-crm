@@ -568,7 +568,11 @@ export async function getProcurementProject(id: string) {
                     rate: it.rate?.toNumber(),
                     amount: it.amount?.toNumber()
                 })) || [],
-                quantity: po.items?.reduce((sum: number, it: any) => sum + (it.quantity?.toNumber() || 0), 0) || 0,
+                quantity: po.items?.reduce((sum: number, it: any) => {
+                    const qty = it.quantity?.toNumber() || 0;
+                    const unit = it.quantityUnit || 'MT';
+                    return sum + (unit === 'KG' ? qty / 1000 : qty);
+                }, 0) || 0,
                 sample: po.sample ? {
                     ...po.sample,
                     priceQuoted: po.sample.priceQuoted?.toNumber()

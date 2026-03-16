@@ -175,6 +175,7 @@ export default async function PurchaseOrderDetailsPage({ params }: PageProps) {
                     shipments={(order as any).shipments || []}
                     grn={(order as any).grn}
                     orderedQuantity={(order as any).items?.reduce((s: number, it: any) => s + Number(it.quantity), 0) || 0}
+                    orderedUnit={(order as any).items?.[0]?.quantityUnit || 'MT'}
                 />
             </div>
         </div>

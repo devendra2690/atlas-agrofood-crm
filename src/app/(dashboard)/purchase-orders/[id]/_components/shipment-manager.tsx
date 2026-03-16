@@ -20,9 +20,10 @@ interface ShipmentManagerProps {
     shipments: any[];
     grn?: any;
     orderedQuantity: number;
+    orderedUnit?: string;
 }
 
-export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantity }: ShipmentManagerProps) {
+export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantity, orderedUnit = 'MT' }: ShipmentManagerProps) {
     const [isShipmentOpen, setIsShipmentOpen] = useState(false);
     const [isGRNOpen, setIsGRNOpen] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -172,16 +173,16 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                         </div>
                         <div>
                             <p className="text-xs uppercase tracking-wide text-green-700">Qty Received</p>
-                            <p className="font-medium">{grn.totalReceivedQuantity} MT</p>
+                            <p className="font-medium">{grn.totalReceivedQuantity} {orderedUnit}</p>
                         </div>
                         <div>
                             <p className="text-xs uppercase tracking-wide text-green-700">Qty Accepted</p>
-                            <p className="font-bold text-lg">{grn.acceptedQuantity} MT</p>
+                            <p className="font-bold text-lg">{grn.acceptedQuantity} {orderedUnit}</p>
                         </div>
                     </div>
                     {grn.rejectedQuantity > 0 && (
                         <div className="mt-2 text-red-600 text-sm">
-                            ⚠️ {grn.rejectedQuantity} MT Rejected
+                            ⚠️ {grn.rejectedQuantity} {orderedUnit} Rejected
                         </div>
                     )}
                 </div>
@@ -205,10 +206,10 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">
-                                        <Label>Total Quantity Received <span className="text-red-500">*</span></Label>
+                                        <Label>Total Quantity Received ({orderedUnit}) <span className="text-red-500">*</span></Label>
                                         <Input
                                             type="number"
-                                            placeholder={`Expected: ${Number(orderedQuantity.toFixed(3))}`}
+                                            placeholder={`Expected: ${Number(orderedQuantity.toFixed(3))} ${orderedUnit}`}
                                             value={receivedQty}
                                             onChange={(e) => setReceivedQty(e.target.value)}
                                         />
