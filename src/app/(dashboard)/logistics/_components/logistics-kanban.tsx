@@ -282,6 +282,12 @@ function ShipmentCard({ shipment, isOverlay }: { shipment: ShipmentWithRelations
                         <span>Carrier:</span>
                         <span className="font-medium text-slate-700">{shipment.carrier || "N/A"}</span>
                     </div>
+                    {shipment.trackingNumber && (
+                        <div className="flex justify-between">
+                            <span>Tracking #:</span>
+                            <span className="font-medium text-slate-700 truncate max-w-[150px]">{shipment.trackingNumber}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between">
                         <span>ETA:</span>
                         <span>{shipment.eta ? format(new Date(shipment.eta), "PP") : "N/A"}</span>
