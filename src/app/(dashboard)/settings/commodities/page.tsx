@@ -5,7 +5,7 @@ import { getCommodities, createCommodity, deleteCommodity, getDefaultWastage } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Trash2, Plus, Loader2, Printer } from 'lucide-react';
+import { Trash2, Plus, Loader2, Printer, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,6 +15,7 @@ import { EditCommodityDialog } from './_components/edit-commodity-dialog';
 import { TemplateEditorDialog } from './_components/template-editor-dialog';
 import { CommodityConfigDialog } from './_components/commodity-config-dialog';
 import { DataManagement } from './_components/data-management';
+import { DehydrationGuidesDialog } from './_components/dehydration-guides-dialog';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -46,6 +47,9 @@ export default function CommoditiesPage() {
 
     const [configOpen, setConfigOpen] = useState(false);
     const [selectedCommodity, setSelectedCommodity] = useState<Commodity | null>(null);
+
+    const [guidesOpen, setGuidesOpen] = useState(false);
+    const [guidescommodity, setGuidesCommodity] = useState<any | null>(null);
 
     async function loadCommodities() {
         setFetching(true);
@@ -222,6 +226,16 @@ export default function CommoditiesPage() {
                                             >
                                                 Base Forms
                                             </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setGuidesCommodity(commodity);
+                                                    setGuidesOpen(true);
+                                                }}
+                                            >
+                                                <BookOpen className="h-4 w-4 mr-1" /> Guides
+                                            </Button>
                                             <Link href={`/documents/commodity/${commodity.id}`}>
                                                 <Button variant="ghost" size="sm">
                                                     <Printer className="h-4 w-4" />
@@ -287,6 +301,14 @@ export default function CommoditiesPage() {
                     onSuccess={() => {
                         loadCommodities();
                     }}
+                />
+            )}
+
+            {guidescommodity && (
+                <DehydrationGuidesDialog
+                    open={guidesOpen}
+                    onOpenChange={setGuidesOpen}
+                    commodity={guidescommodity}
                 />
             )}
         </div>

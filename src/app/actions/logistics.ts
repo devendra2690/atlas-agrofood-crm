@@ -26,6 +26,7 @@ export type GRNData = {
     totalReceivedQuantity: number;
     rejectedQuantity: number;
     acceptedQuantity: number;
+    quantityUnit?: string;
     notes?: string;
     images?: string[];
     qualityCheckStatus: 'PASSED' | 'FAILED' | 'PENDING';
@@ -509,6 +510,7 @@ export async function createGRN(data: GRNData) {
                 totalReceivedQuantity: data.totalReceivedQuantity,
                 rejectedQuantity: data.rejectedQuantity,
                 acceptedQuantity: data.acceptedQuantity,
+                quantityUnit: data.quantityUnit || 'MT',
                 qualityCheckStatus: data.qualityCheckStatus,
                 notes: data.notes,
                 images: data.images || []

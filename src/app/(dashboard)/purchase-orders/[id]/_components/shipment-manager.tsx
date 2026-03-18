@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -88,6 +89,7 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
     const [rejectedQty, setRejectedQty] = useState("0");
     const [receivedBy, setReceivedBy] = useState("");
     const [grnNotes, setGrnNotes] = useState("");
+    const [grnUnit, setGrnUnit] = useState(orderedUnit);
 
     const handleCreateShipment = async () => {
         setLoading(true);
@@ -140,7 +142,8 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
             totalReceivedQuantity: received,
             rejectedQuantity: rejected,
             acceptedQuantity: accepted,
-            qualityCheckStatus: 'PASSED', // Default for now, ideally strictly checked
+            quantityUnit: grnUnit,
+            qualityCheckStatus: 'PASSED',
             notes: grnNotes
         });
 
@@ -173,16 +176,16 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                         </div>
                         <div>
                             <p className="text-xs uppercase tracking-wide text-green-700">Qty Received</p>
-                            <p className="font-medium">{grn.totalReceivedQuantity} {orderedUnit}</p>
+                            <p className="font-medium">{grn.totalReceivedQuantity} {grn.quantityUnit || orderedUnit}</p>
                         </div>
                         <div>
                             <p className="text-xs uppercase tracking-wide text-green-700">Qty Accepted</p>
-                            <p className="font-bold text-lg">{grn.acceptedQuantity} {orderedUnit}</p>
+                            <p className="font-bold text-lg">{grn.acceptedQuantity} {grn.quantityUnit || orderedUnit}</p>
                         </div>
                     </div>
                     {grn.rejectedQuantity > 0 && (
                         <div className="mt-2 text-red-600 text-sm">
-                            ⚠️ {grn.rejectedQuantity} {orderedUnit} Rejected
+                            ⚠️ {grn.rejectedQuantity} {grn.quantityUnit || orderedUnit} Rejected
                         </div>
                     )}
                 </div>
@@ -206,13 +209,25 @@ export function ShipmentManager({ poId, poStatus, shipments, grn, orderedQuantit
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">
-                                        <Label>Total Quantity Received ({orderedUnit}) <span className="text-red-500">*</span></Label>
-                                        <Input
-                                            type="number"
-                                            placeholder={`Expected: ${Number(orderedQuantity.toFixed(3))} ${orderedUnit}`}
-                                            value={receivedQty}
-                                            onChange={(e) => setReceivedQty(e.target.value)}
-                                        />
+                                        <Label>Total Quantity Received <span className="text-red-500">*</span></Label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                type="number"
+                                                placeholder={`Expected: ${Number(orderedQuantity.toFixed(3))}`}
+                                                value={receivedQty}
+                                                onChange={(e) => setReceivedQty(e.target.value)}
+                                                className="flex-1"
+                                            />
+                                            <Select value={grnUnit} onValueChange={setGrnUnit}>
+                                                <SelectTrigger className="w-[80px]">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="MT">MT</SelectItem>
+                                                    <SelectItem value="KG">KG</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>Rejected Quantity (Damaged/Poor Quality)</Label>

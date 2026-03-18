@@ -356,6 +356,7 @@ model Commodity {
    varieties         CommodityVariety[] // NEW
    forms             VarietyForm[]      // Direct forms for this commodity
    documentTemplate  Json?     // Stores { sections: [...] } for document generation
+   processDocuments  ProcessDocument[]
  }
  
  model DefaultWastageReference {
@@ -386,11 +387,11 @@ model Commodity {
 
  model VarietyForm {
    id                String           @id @default(uuid())
-   
+
    // A form can belong to a specific variety OR directly to the base commodity
    varietyId         String?
    variety           CommodityVariety? @relation(fields: [varietyId], references: [id], onDelete: Cascade)
-   
+
    commodityId       String?
    commodity         Commodity?        @relation(fields: [commodityId], references: [id], onDelete: Cascade)
 
@@ -398,8 +399,9 @@ model Commodity {
    yieldPercentage   Float            @default(100.0)
    wastagePercentage Float            @default(0.0)
    formElectricityMultiplier Float    @default(0.0)
-   
+
    salesOpportunityItems SalesOpportunityItem[]
+   processDocuments      ProcessDocument[]
 
    @@unique([varietyId, formName])
    @@unique([commodityId, formName])
@@ -952,6 +954,7 @@ model GRN {
   totalReceivedQuantity Decimal
   rejectedQuantity      Decimal @default(0)
   acceptedQuantity      Decimal // Calculated
+  quantityUnit          String  @default("MT")
 
   // Quality
   qualityCheckStatus String // PENDING, PASSED, FAILED
@@ -1092,4 +1095,24 @@ model ExpenseSettlement {
   @@index([payerId])
   @@index([payeeId])
   @@index([date])
+}
+
+model ProcessDocument {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  fileUrl     String
+  fileType    String   // "pdf" or "docx"
+
+  commodityId String?
+  commodity   Commodity?   @relation(fields: [commodityId], references: [id], onDelete: Cascade)
+
+  formId      String?
+  form        VarietyForm? @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([commodityId])
+  @@index([formId])
 }

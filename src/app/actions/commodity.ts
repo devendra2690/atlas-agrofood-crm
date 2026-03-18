@@ -311,3 +311,46 @@ export async function getAllDefaultWastages() {
         return { success: false, error: "Failed to fetch all default wastages" };
     }
 }
+
+// ─── Process Documents (Dehydration Guides) ───────────────────────────────────
+
+export async function getProcessDocuments(commodityId: string) {
+    try {
+        const data = await prisma.processDocument.findMany({
+            where: { commodityId },
+            include: { form: { select: { id: true, formName: true } } },
+            orderBy: { createdAt: 'desc' },
+        });
+        return { success: true, data };
+    } catch (error) {
+        console.error("Failed to fetch process documents:", error);
+        return { success: false, error: "Failed to fetch process documents" };
+    }
+}
+
+export async function createProcessDocument(data: {
+    title: string;
+    description?: string;
+    fileUrl: string;
+    fileType: string;
+    commodityId: string;
+    formId?: string;
+}) {
+    try {
+        const doc = await prisma.processDocument.create({ data });
+        return { success: true, data: doc };
+    } catch (error) {
+        console.error("Failed to create process document:", error);
+        return { success: false, error: "Failed to create process document" };
+    }
+}
+
+export async function deleteProcessDocument(id: string) {
+    try {
+        await prisma.processDocument.delete({ where: { id } });
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to delete process document:", error);
+        return { success: false, error: "Failed to delete process document" };
+    }
+}
