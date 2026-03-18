@@ -26,7 +26,8 @@ import {
     Megaphone,
     LineChart,
     Calculator,
-    Receipt
+    Receipt,
+    Library
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -80,6 +81,7 @@ const sidebarItems = [
             { name: "Tasks", href: "/tasks", icon: ClipboardList },
             { name: "Discussions", href: "/notes", icon: MessageSquare },
             { name: "Documents", href: "/documents", icon: FileText },
+            { name: "Library", href: "/library", icon: Library },
             { name: "Marketing", href: "/marketing", icon: Megaphone },
         ]
     },

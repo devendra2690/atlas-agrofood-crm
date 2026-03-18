@@ -152,6 +152,7 @@ model User {
   createdInteractions InteractionLog[] @relation("CreatedInteraction")
   updatedInteractions InteractionLog[] @relation("UpdatedInteraction")
   createdDocuments Document[] @relation("CreatedDocuments")
+  libraryDocs      LibraryDoc[] @relation("LibraryDocs")
 
   // Splitwise Relations
   expensesPaid Expense[] @relation("ExpensesPaid")
@@ -1115,4 +1116,22 @@ model ProcessDocument {
 
   @@index([commodityId])
   @@index([formId])
+}
+
+model LibraryDoc {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  fileUrl     String
+  fileType    String   // "pdf" | "docx" | "doc"
+  category    String?
+
+  createdById String
+  createdBy   User     @relation("LibraryDocs", fields: [createdById], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdById])
+  @@index([category])
 }
